@@ -56,24 +56,24 @@ if [[ $build == *"SUCCESS"* ]]; then
 	# Functions Total: ~ 1hour 10min
 	
 	# ~ 13 min
-	mvn surefire:test -Dtest=org.apache.sysds.test.functions.a*.**,org.apache.sysds.test.functions.b*.**, 2>&1 | grep $grep_args | tee -a $resfile
+#	mvn surefire:test -Dtest=org.apache.sysds.test.functions.a*.**,org.apache.sysds.test.functions.b*.**, 2>&1 | grep $grep_args | tee -a $resfile
 	
 	# ~ 9 min
-	mvn surefire:test -Dtest=org.apache.sysds.test.functions.c*.** 2>&1 | grep $grep_args | tee -a $resfile
+#	mvn surefire:test -Dtest=org.apache.sysds.test.functions.c*.** 2>&1 | grep $grep_args | tee -a $resfile
 	
 	# ~ ?? Does not end
 	# TODO: Look into Data tests.
 	# mvn surefire:test -Dtest=org.apache.sysds.test.functions.d*.** 2>&1 | grep $grep_args | tee -a $resfile
 	
 	# ~ 10 min
-	mvn surefire:test -Dtest=org.apache.sysds.test.functions.f*.**,org.apache.sysds.test.functions.i*.**,org.apache.sysds.test.functions.j*.**,org.apache.sysds.test.functions.l*.**,org.apache.sysds.test.functions.m*.** 2>&1 | grep $grep_args | tee -a $resfile
+#	mvn surefire:test -Dtest=org.apache.sysds.test.functions.f*.**,org.apache.sysds.test.functions.i*.**,org.apache.sysds.test.functions.j*.**,org.apache.sysds.test.functions.l*.**,org.apache.sysds.test.functions.m*.** 2>&1 | grep $grep_args | tee -a $resfile
 	
 	# ~ 19 min
-	mvn surefire:test -Dtest=org.apache.sysds.test.functions.n*.**,org.apache.sysds.test.functions.par*.**,org.apache.sysds.test.functions.q*.**,org.apache.sysds.test.functions.r*.**,org.apache.sysds.test.functions.t*.**,org.apache.sysds.test.functions.u*.**,org.apache.sysds.test.functions.v*.** 2>&1 | grep $grep_args | tee -a $resfile
+#	mvn surefire:test -Dtest=org.apache.sysds.test.functions.n*.**,org.apache.sysds.test.functions.par*.**,org.apache.sysds.test.functions.q*.**,org.apache.sysds.test.functions.r*.**,org.apache.sysds.test.functions.t*.**,org.apache.sysds.test.functions.u*.**,org.apache.sysds.test.functions.v*.** 2>&1 | grep $grep_args | tee -a $resfile
 
 	# ~ 4 min
 	# Large resoruce requirements:
-	mvn surefire:test -Dtest=org.apache.sysds.test.functions.parameterserv* | grep $grep_args | tee -a $resfile
+#	mvn surefire:test -Dtest=org.apache.sysds.test.functions.parameterserv* | grep $grep_args | tee -a $resfile
 
 
 else

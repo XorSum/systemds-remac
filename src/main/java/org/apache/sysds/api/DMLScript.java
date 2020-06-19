@@ -102,7 +102,8 @@ public class DMLScript
 
 
 	public static boolean _suppressPrint2Stdout = false;  // flag that indicates whether or not to suppress any prints to stdout
-	public static boolean USE_LOCAL_SPARK_CONFIG = false; //set default local spark configuration - used for local testing
+//	public static boolean USE_LOCAL_SPARK_CONFIG = false; //set default local spark configuration - used for local testing
+	public static boolean USE_LOCAL_SPARK_CONFIG = true; //set default local spark configuration - used for local testing
 	public static boolean _activeAM = false;
 	/**
 	 * If true, allow DMLProgram to be generated while not halting due to validation errors/warnings
@@ -366,13 +367,14 @@ public class DMLScript
 		dmlt.liveVariableAnalysis(prog);
 		dmlt.validateParseTree(prog);
 		dmlt.constructHops(prog);
-		
+
 		//init working directories (before usage by following compilation steps)
 		initHadoopExecution( dmlconf );
-	
+		System.out.println(Explain.explain(prog));
+
 		//Step 5: rewrite HOP DAGs (incl IPA and memory estimates)
 		dmlt.rewriteHopsDAG(prog);
-		
+		System.out.println(Explain.explain(prog));
 		//Step 6: construct lops (incl exec type and op selection)
 		dmlt.constructLops(prog);
 		
@@ -385,8 +387,8 @@ public class DMLScript
 		Statistics.resetNoOfCompiledJobs( counts.numJobs );
 		
 		//explain plan of program (hops or runtime)
-		if( EXPLAIN != ExplainType.NONE )
-			System.out.println(Explain.display(prog, rtprog, EXPLAIN, counts));
+		//if( EXPLAIN != ExplainType.NONE )
+	//	System.out.println(Explain.display(prog, rtprog, EXPLAIN, counts));
 		
 		Statistics.stopCompileTimer();
 		

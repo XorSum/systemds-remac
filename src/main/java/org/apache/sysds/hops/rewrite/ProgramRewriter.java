@@ -218,7 +218,7 @@ public class ProgramRewriter
 		if( !_sbRuleSet.isEmpty() )
 			dmlp.setStatementBlocks(rRewriteStatementBlocks(
 				dmlp.getStatementBlocks(), state, splitDags));
-		
+
 		return state;
 	}
 	

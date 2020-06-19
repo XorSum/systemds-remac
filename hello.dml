@@ -1,0 +1,8 @@
+
+X = matrix(0,rows=10, cols=10)
+#Y = diag(matrix(1.0, rows=10, cols=1))
+Y = read("./Y.bin",format="binary")
+print(toString(X))
+print(toString(Y))
+
+#write(Y,"./Y.bin",format="binary")
