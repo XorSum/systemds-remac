@@ -1,8 +1,14 @@
+h = diag(matrix(1.0, rows=10, cols=1))
+y = rand(rows=10, cols=1, min=0, max=10, sparsity=1)
+s = rand(rows=10, cols=1, min=0, max=10, sparsity=1)
+h = h - (h %*% y %*% t(y) %*% t(h)) / ( t(y) %*% t(h) %*% y) + (s%*%t(s))/(t(s)%*%y)
+print(toString(h))
 
-X = matrix(0,rows=10, cols=10)
+
+#X = matrix(0,rows=10, cols=10)
 #Y = diag(matrix(1.0, rows=10, cols=1))
-Y = read("./Y.bin",format="binary")
-print(toString(X))
-print(toString(Y))
+#Y = read("./Y.bin",format="binary")
+#print(toString(X))
+#print(toString(Y))
 
 #write(Y,"./Y.bin",format="binary")

@@ -1966,11 +1966,13 @@ public class RewriteAlgebraicSimplificationStatic extends HopRewriteRule {
     }
 
 
-        private static Hop mySimplifyRule3(Hop parent, Hop hi, int pos) {
+    private static Hop mySimplifyRule3(Hop parent, Hop hi, int pos) {
         // (x*y*t(y)*t(x))/(t(y)*t(x)*y) -> (x*y*t(x*y))/(t(x*y)*y)
         if (HopRewriteUtils.isBinary(hi, OpOp2.DIV)) {
+            System.out.println("div");
             Hop abcd = hi.getInput().get(0); // x*y*t(y)*t(x)
             Hop efg = hi.getInput().get(1); //t(y)*t(x)*y
+
             if (HopRewriteUtils.isMatrixMultiply(abcd)) {
                 Hop abc = abcd.getInput().get(0);
                 Hop d = abcd.getInput().get(1);
