@@ -75,7 +75,8 @@ public class ProgramRewriter
 	{
 		//initialize HOP DAG rewrite ruleSet (with fixed rewrite order)
 		_dagRuleSet = new ArrayList<>();
-		
+		_dagRuleSet.add(new RewriteDFP());
+
 		//initialize StatementBlock rewrite ruleSet (with fixed rewrite order)
 		_sbRuleSet = new ArrayList<>();
 		
