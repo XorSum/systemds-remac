@@ -23,24 +23,23 @@ public class RewriteDFP extends HopRewriteRule {
     public Hop rewriteHopDAG(Hop root, ProgramRewriteStatus state) {
         System.out.println("aaa");
         reorder(root);
-        rule_rewritedfp(root, false);
-        root.resetVisitStatus();
-        rule_rewritedfp(root, true);
+        System.out.println(Explain.explain(root));
+        balance(root);
+        System.out.println(Explain.explain(root));
+
+//        rule_rewritedfp(root, false);
+//        root.resetVisitStatus();
+//        rule_rewritedfp(root, true);
         return root;
     }
 
     private void rule_rewritedfp(Hop hop, boolean descendFirst) {
         if (hop.isVisited())
             return;
-        // Hop bb = deepCopyHopsDag(hop);
-
         for (int i = 0; i < hop.getInput().size(); i++) {
             Hop hi = hop.getInput().get(i);
             if (descendFirst)
                 rule_rewritedfp(hi, descendFirst);
-//            Hop bb = deepCopyHopsDag(hi);
-//            reorder(bb);
-//            isSame(hi, bb);
             findAllSubExpression(hi);
             if (!descendFirst)
                 rule_rewritedfp(hi, descendFirst);
@@ -59,9 +58,6 @@ public class RewriteDFP extends HopRewriteRule {
     private static void reorder_iter(Hop hop, boolean descendFirst) {
         if (hop.isVisited())
             return;
-//        hop = splitTranspose(null, hop, 0);
-//        hop = removeUnnecessaryTranspose(null, hop, 0);
-//        hop = reorderMultiply(null, hop, 0);
         for (int i = 0; i < hop.getInput().size(); i++) {
             Hop hi = hop.getInput().get(i);
             if (descendFirst)
@@ -76,16 +72,31 @@ public class RewriteDFP extends HopRewriteRule {
     }
 
 
+    private static void balance(Hop hop) {
+//        hop.resetVisitStatus();
+//        balance_iter(hop, false);
+        hop.resetVisitStatus();
+        balance_iter(hop, true);
+    }
+
+    private static void balance_iter(Hop hop, boolean descendFirst) {
+        if (hop.isVisited())
+            return;
+        for (int i = 0; i < hop.getInput().size(); i++) {
+            Hop hi = hop.getInput().get(i);
+            if (descendFirst)
+            hi = balanceMultiply4(hop, hi, i);
+            if (!descendFirst)
+                balance_iter(hi, descendFirst);
+        }
+        hop.setVisited();
+    }
+
     private static Hop splitTranspose(Hop parent, Hop hi, int pos) {
         // t(x*y)->t(y)*t(x)
         if (HopRewriteUtils.isTransposeOperation(hi)) {
             Hop xy = hi.getInput().get(0);
-            System.out.println("is transpose");
-            System.out.println("<<<");
-            System.out.println(Explain.explain(hi));
-            System.out.println(">>>");
             if (HopRewriteUtils.isMatrixMultiply(xy)) {
-                System.out.println("is multiply");
                 Hop x = xy.getInput().get(0);
                 Hop y = xy.getInput().get(1);
                 Hop tx = HopRewriteUtils.createTranspose(x);
@@ -93,8 +104,8 @@ public class RewriteDFP extends HopRewriteRule {
                 Hop result = HopRewriteUtils.createMatrixMultiply(ty, tx);
                 HopRewriteUtils.replaceChildReference(parent, hi, result);
                 hi = result;
-                System.out.println("New Hop:");
-                System.out.println(Explain.explain(hi));
+//                System.out.println("New Hop:");
+//                System.out.println(Explain.explain(hi));
             }
         }
         return hi;
@@ -123,7 +134,7 @@ public class RewriteDFP extends HopRewriteRule {
         if (HopRewriteUtils.isTransposeOperation(ttx)) {
             Hop tx = ttx.getInput().get(0);
             if (HopRewriteUtils.isTransposeOperation(tx)) {
-                System.out.println("found t(t(x))");
+//                System.out.println("found t(t(x))");
 //                System.out.println("Old Hop:");
 //                System.out.println(Explain.explain(parent));
                 Hop x = tx.getInput().get(0);
@@ -155,6 +166,28 @@ public class RewriteDFP extends HopRewriteRule {
         }
         return hi;
     }
+
+    private static Hop balanceMultiply4(Hop parent, Hop hi, int pos) {
+        // ((a*b)*c)*d -> (a*b)*c
+        if (HopRewriteUtils.isMatrixMultiply(hi)) {
+            Hop abc = hi.getInput().get(0);
+            Hop d = hi.getInput().get(1);
+            if (HopRewriteUtils.isMatrixMultiply(abc)) {
+                Hop ab = abc.getInput().get(0);
+                Hop c = abc.getInput().get(1);
+                // create
+                Hop cd = HopRewriteUtils.createMatrixMultiply(c, d);
+                Hop abcd = HopRewriteUtils.createMatrixMultiply(ab, cd);
+                // replace
+                HopRewriteUtils.replaceChildReference(parent, hi, abcd);
+                HopRewriteUtils.cleanupUnreferenced(hi);
+                hi = abcd;
+            }
+        }
+        return hi;
+    }
+
+
 
     private static void findAllSubExpression(Hop hop) {
         // input a multiply chain.
