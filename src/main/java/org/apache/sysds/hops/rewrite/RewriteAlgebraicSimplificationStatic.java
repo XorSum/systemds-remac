@@ -165,7 +165,7 @@ public class RewriteAlgebraicSimplificationStatic extends HopRewriteRule {
             hi = simplifyConstantSort(hop, hi, i);               //e.g., order(matrix())->matrix/seq;
             hi = simplifyOrderedSort(hop, hi, i);                //e.g., order(matrix())->seq;
             hi = fuseOrderOperationChain(hi);                    //e.g., order(order(X,2),1) -> order(X,(12))
-            //	hi = removeUnnecessaryReorgOperation(hop, hi, i);    //e.g., t(t(X))->X; rev(rev(X))->X potentially introduced by other rewrites
+            	hi = removeUnnecessaryReorgOperation(hop, hi, i);    //e.g., t(t(X))->X; rev(rev(X))->X potentially introduced by other rewrites
             hi = removeUnnecessaryRemoveEmpty(hop, hi, i);       //e.g., nrow(removeEmpty(A)) -> nnz(A) iff col vector
             //	hi = simplifyTransposeAggBinBinaryChains(hop, hi, i);//e.g., t(t(A)%*%t(B)+C) -> B%*%A+t(C)
             hi = simplifyReplaceZeroOperation(hop, hi, i);       //e.g., X + (X==0) * s -> replace(X, 0, s)

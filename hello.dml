@@ -1,7 +1,11 @@
 h = diag(matrix(1.0, rows=10, cols=1))
 y = rand(rows=10, cols=1, min=0, max=10, sparsity=1)
-s = rand(rows=10, cols=1, min=0, max=10, sparsity=1)
-h = h - (h %*% y %*% t(y) %*% t(h)) / ( t(y) %*% t(h) %*% y) + (s%*%t(s))/(t(s)%*%y)
+h = h %*% y %*% t(y) %*% t(h)
+#s = rand(rows=10, cols=1, min=0, max=10, sparsity=1)
+#h = h - ((h %*% y) %*% t(h %*% y )) / ( t(h %*% y) %*% y) + (s%*%t(s))/(t(s)%*%y)
+
+#h = diag(matrix(1.0,rows=10,cols=1))
+#h = t(h %*% t(h))
 print(toString(h))
 
 

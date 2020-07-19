@@ -1,10 +1,13 @@
 package org.apache.sysds.hops.rewrite;
 
-import org.apache.sysds.common.Types;
+import org.apache.hadoop.yarn.webapp.hamlet.Hamlet;
 import org.apache.sysds.hops.Hop;
+import org.apache.sysds.hops.HopsException;
 import org.apache.sysds.utils.Explain;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 
 public class RewriteDFP extends HopRewriteRule {
     @Override
@@ -19,6 +22,7 @@ public class RewriteDFP extends HopRewriteRule {
     @Override
     public Hop rewriteHopDAG(Hop root, ProgramRewriteStatus state) {
         System.out.println("aaa");
+        reorder(root);
         rule_rewritedfp(root, false);
         root.resetVisitStatus();
         rule_rewritedfp(root, true);
@@ -28,33 +32,65 @@ public class RewriteDFP extends HopRewriteRule {
     private void rule_rewritedfp(Hop hop, boolean descendFirst) {
         if (hop.isVisited())
             return;
+        // Hop bb = deepCopyHopsDag(hop);
+
         for (int i = 0; i < hop.getInput().size(); i++) {
             Hop hi = hop.getInput().get(i);
             if (descendFirst)
                 rule_rewritedfp(hi, descendFirst);
-            hi = mySimplifyRule3(hop, hi, i);
-            hi = mySimplifyRule4(hop, hi, i);
+//            Hop bb = deepCopyHopsDag(hi);
+//            reorder(bb);
+//            isSame(hi, bb);
+            findAllSubExpression(hi);
             if (!descendFirst)
                 rule_rewritedfp(hi, descendFirst);
         }
         hop.setVisited();
     }
 
-    private static Hop mySimplifyRule(Hop parent, Hop hi, int pos) {
-        // t(y)*t(x) -> t(x*y)
-        if (HopRewriteUtils.isMatrixMultiply(hi)) {
-            Hop left = hi.getInput().get(0);
-            Hop right = hi.getInput().get(1);
-            if (HopRewriteUtils.isTransposeOperation(left) &&
-                    HopRewriteUtils.isTransposeOperation(right)) {
-                System.out.println("found pattern");
-                System.out.println("Old Hop:");
-                System.out.println(Explain.explain(parent));
 
-                Hop y = left.getInput().get(0);
-                Hop x = right.getInput().get(0);
-                Hop tmp = HopRewriteUtils.createMatrixMultiply(x, y);
-                Hop result = HopRewriteUtils.createTranspose(tmp);
+    private static void reorder(Hop hop) {
+//        hop.resetVisitStatus();
+//        reorder_iter(hop, false);
+        hop.resetVisitStatus();
+        reorder_iter(hop, true);
+    }
+
+    private static void reorder_iter(Hop hop, boolean descendFirst) {
+        if (hop.isVisited())
+            return;
+//        hop = splitTranspose(null, hop, 0);
+//        hop = removeUnnecessaryTranspose(null, hop, 0);
+//        hop = reorderMultiply(null, hop, 0);
+        for (int i = 0; i < hop.getInput().size(); i++) {
+            Hop hi = hop.getInput().get(i);
+            if (descendFirst)
+                reorder_iter(hi, descendFirst);
+            hi = splitTranspose(hop, hi, i);
+            hi = removeUnnecessaryTranspose(hop, hi, i);
+            hi = reorderMultiply(hop, hi, i);
+            if (!descendFirst)
+                reorder_iter(hi, descendFirst);
+        }
+        hop.setVisited();
+    }
+
+
+    private static Hop splitTranspose(Hop parent, Hop hi, int pos) {
+        // t(x*y)->t(y)*t(x)
+        if (HopRewriteUtils.isTransposeOperation(hi)) {
+            Hop xy = hi.getInput().get(0);
+            System.out.println("is transpose");
+            System.out.println("<<<");
+            System.out.println(Explain.explain(hi));
+            System.out.println(">>>");
+            if (HopRewriteUtils.isMatrixMultiply(xy)) {
+                System.out.println("is multiply");
+                Hop x = xy.getInput().get(0);
+                Hop y = xy.getInput().get(1);
+                Hop tx = HopRewriteUtils.createTranspose(x);
+                Hop ty = HopRewriteUtils.createTranspose(y);
+                Hop result = HopRewriteUtils.createMatrixMultiply(ty, tx);
                 HopRewriteUtils.replaceChildReference(parent, hi, result);
                 hi = result;
                 System.out.println("New Hop:");
@@ -64,49 +100,45 @@ public class RewriteDFP extends HopRewriteRule {
         return hi;
     }
 
-    private static Hop mySimplifyRule2(Hop parent, Hop hi, int pos) {
-        // (x*y)*(t(y)*t(x)) -> (x*y)*t(x*y)
+    private static Hop mergeTranspose(Hop parent, Hop hi, int pos) {
+        // t(y)*t(x) -> t(x*y)
         if (HopRewriteUtils.isMatrixMultiply(hi)) {
             Hop left = hi.getInput().get(0);
             Hop right = hi.getInput().get(1);
-            if (HopRewriteUtils.isMatrixMultiply(left) &&
-                    HopRewriteUtils.isMatrixMultiply(right) &&
-                    HopRewriteUtils.isTransposeOperation(right.getInput().get(0)) &&
-                    HopRewriteUtils.isTransposeOperation(right.getInput().get(1))
-            ) {
-                Hop a = left.getInput().get(0);
-                Hop b = left.getInput().get(1);
-                Hop c = right.getInput().get(0).getInput().get(0);
-                Hop d = right.getInput().get(1).getInput().get(0);
-//                System.out.println("Found Pattern 2");
-//                System.out.println(Explain.explain(hi));
-//                System.out.println("a:");
-//                System.out.println(Explain.explain(a));
-//                System.out.println("b:");
-//                System.out.println(Explain.explain(b));
-//                System.out.println("c:");
-//                System.out.println(Explain.explain(c));
-//                System.out.println("d:");
-//                System.out.println(Explain.explain(d));
-                if (a == d && b == c) {
-                    //   System.out.println("Equal");
-                    Hop xy = HopRewriteUtils.createMatrixMultiply(a, b);
-                    Hop txy = HopRewriteUtils.createTranspose(xy);
-                    Hop result = HopRewriteUtils.createMatrixMultiply(xy, txy);
-                    HopRewriteUtils.replaceChildReference(parent, hi, result);
-                    HopRewriteUtils.cleanupUnreferenced(hi);
-                    System.out.println(Explain.explain(result));
-                    hi = result;
-                }
+            if (HopRewriteUtils.isTransposeOperation(left) &&
+                    HopRewriteUtils.isTransposeOperation(right)) {
+                Hop y = left.getInput().get(0);
+                Hop x = right.getInput().get(0);
+                Hop tmp = HopRewriteUtils.createMatrixMultiply(x, y);
+                Hop result = HopRewriteUtils.createTranspose(tmp);
+                HopRewriteUtils.replaceChildReference(parent, hi, result);
+                hi = result;
             }
         }
         return hi;
     }
 
-    private static Hop mySimplifyRule4(Hop parent, Hop hi, int pos) {
+    private static Hop removeUnnecessaryTranspose(Hop parent, Hop ttx, int pos) {
+        // t(t(x)) -> x
+        if (HopRewriteUtils.isTransposeOperation(ttx)) {
+            Hop tx = ttx.getInput().get(0);
+            if (HopRewriteUtils.isTransposeOperation(tx)) {
+                System.out.println("found t(t(x))");
+//                System.out.println("Old Hop:");
+//                System.out.println(Explain.explain(parent));
+                Hop x = tx.getInput().get(0);
+                HopRewriteUtils.replaceChildReference(parent, ttx, tx);
+                ttx = x;
+//                System.out.println("New Hop:");
+//                System.out.println(Explain.explain(hi));
+            }
+        }
+        return ttx;
+    }
+
+    private static Hop reorderMultiply(Hop parent, Hop hi, int pos) {
         // a*(b*c) -> (a*b)*c
         if (HopRewriteUtils.isMatrixMultiply(hi)) {
-
             Hop a = hi.getInput().get(0);
             Hop bc = hi.getInput().get(1);
             if (HopRewriteUtils.isMatrixMultiply(bc)) {
@@ -124,62 +156,150 @@ public class RewriteDFP extends HopRewriteRule {
         return hi;
     }
 
+    private static void findAllSubExpression(Hop hop) {
+        // input a multiply chain.
 
-    private static Hop mySimplifyRule3(Hop parent, Hop hi, int pos) {
-        // (x*y*t(y)*t(x))/(t(y)*t(x)*y) -> (x*y*t(x*y))/(t(x*y)*y)
-        if (HopRewriteUtils.isBinary(hi, Types.OpOp2.DIV)) {
-            System.out.println("div");
-            Hop abcd = hi.getInput().get(0); // x*y*t(y)*t(x)
-            Hop efg = hi.getInput().get(1); //t(y)*t(x)*y
-
-            if (HopRewriteUtils.isMatrixMultiply(abcd)) {
-                Hop abc = abcd.getInput().get(0);
-                Hop d = abcd.getInput().get(1);
-                if (HopRewriteUtils.isMatrixMultiply(abc)) {
-                    Hop ab = abc.getInput().get(0);
-                    Hop c = abc.getInput().get(1);
-                    if (HopRewriteUtils.isMatrixMultiply(ab)) {
-                        Hop a = ab.getInput().get(0);
-                        Hop b = ab.getInput().get(1);
-                        if (HopRewriteUtils.isMatrixMultiply(efg)) {
-                            Hop ef = efg.getInput().get(0);
-                            Hop g = efg.getInput().get(1);
-                            if (HopRewriteUtils.isMatrixMultiply(ef)) {
-                                Hop e = ef.getInput().get(0);
-                                Hop f = ef.getInput().get(1);
-                                if (HopRewriteUtils.isTransposeOperation(c) &&
-                                        HopRewriteUtils.isTransposeOperation(d) &&
-                                        HopRewriteUtils.isTransposeOperation(e) &&
-                                        HopRewriteUtils.isTransposeOperation(f)
-                                ) {
-                                    Hop tc = c.getInput().get(0);
-                                    Hop td = d.getInput().get(0);
-                                    Hop te = e.getInput().get(0);
-                                    Hop tf = f.getInput().get(0);
-                                    if (a == td && a == tf && b == tc && b == te) {
-                                        System.out.println("DFP expression found");
-
-                                        Hop tab = HopRewriteUtils.createTranspose(ab);
-                                        Hop ab_tab = HopRewriteUtils.createMatrixMultiply(ab, tab);
-                                        Hop tab_b = HopRewriteUtils.createMatrixMultiply(tab, b);
-                                        Hop result = HopRewriteUtils.createBinary(ab_tab, tab_b, Types.OpOp2.DIV);
-
-                                        HopRewriteUtils.replaceChildReference(parent, hi, result);
-                                        HopRewriteUtils.cleanupUnreferenced(hi);
-                                        System.out.println(Explain.explain(result));
-                                        hi = result;
-
-                                    }
-                                }
-
-                            }
-                        }
-                    }
+        // step 1. find all factors
+        ArrayList<Hop> allFactors = new ArrayList<>();
+        boolean expand = true;
+        Hop hi = hop;
+        while (expand) {
+            expand = false;
+            if (HopRewriteUtils.isMatrixMultiply(hi)) {
+                Hop left = hi.getInput().get(0);
+                Hop right = hi.getInput().get(1);
+                allFactors.add(right);
+                if (HopRewriteUtils.isMatrixMultiply(left)) {
+                    expand = true;
+                    hi = left;
+                } else {
+                    allFactors.add(left);
                 }
             }
         }
-        return hi;
+        Collections.reverse(allFactors);
+//        System.out.println("all factors:");
+//        for (Hop h : allFactors) {
+//            System.out.println(Explain.explain(h));
+//            System.out.println("-----");
+//        }
+        // step 2. create all sub expressions
+        ArrayList<Hop> allSubExpression = new ArrayList<>();
+        for (int i = 0; i < allFactors.size(); i++) {
+            for (int j = i; j < allFactors.size(); j++) {
+                allSubExpression.add(deepCopyHopsDag(createMC(allFactors, i, j)));
+            }
+        }
+//        System.out.println("all sub expressions:");
+//        for (Hop h : allSubExpression) {
+//            System.out.println(Explain.explain(h));
+//            System.out.println("-----");
+//        }
+        // step 3. check weather sub expression are equal
+        for (int i = 0; i < allSubExpression.size(); i++) {
+            for (int j = i + 1; j < allSubExpression.size(); j++) {
+                // boolean eq = isSame(allSubExpression.get(i), allSubExpression.get(j));
+                //  System.out.println(i + (eq ? "==" : "!=") + j);
+
+                if (i == 1 && j == 8) {
+                    Hop a = allSubExpression.get(i);
+                    Hop b = allSubExpression.get(j);
+                    reorder(a);
+                    System.out.println(Explain.explain(a));
+                    System.out.println("---");
+                    reorder(b);
+                    System.out.println(Explain.explain(b));
+                    System.out.println("---");
+                    Hop tmp = HopRewriteUtils.createTranspose(b);
+                    System.out.println(Explain.explain(tmp));
+                    System.out.println("---");
+                    reorder(tmp);
+                    System.out.println(Explain.explain(tmp));
+
+                    System.out.println("---");
+
+                    boolean eq = isSame(allSubExpression.get(i), tmp);
+                    System.out.println(i + (eq ? "==" : "!=") + "t(" + j + ")");
+                }
+            }
+        }
     }
 
+    private static Hop createMC(ArrayList<Hop> hops, int i, int j) {
+        Hop ret = hops.get(i);
+        for (int k = i + 1; k <= j; k++) {
+            ret = HopRewriteUtils.createMatrixMultiply(ret, hops.get(k));
+        }
+        return ret;
+    }
+
+
+    private static boolean isSame(Hop a, Hop b) {
+//        System.out.println("same<");
+        Hop aa = deepCopyHopsDag(a);
+        reorder(aa);
+        //System.out.println(Explain.explain(aa));
+        Hop bb = deepCopyHopsDag(b);
+        reorder(bb);
+        //System.out.println(Explain.explain(bb));
+        boolean ret = isSame_iter(aa, bb);
+//        System.out.println("Ret=" + ret);
+//        System.out.println(">same");
+        return ret;
+    }
+
+    private static boolean isSame_iter(Hop a, Hop b) {
+        if (a.getInput().size() != b.getInput().size()) return false;
+        if (!a.getInput().isEmpty()) {
+            for (int i = 0; i < a.getInput().size(); i++) {
+                if (isSame_iter(a.getInput().get(i), b.getInput().get(i)) == false) {
+                    return false;
+                }
+            }
+        }
+//        System.out.println(a.getOpString());
+//        System.out.println(b.getOpString());
+        return a.getOpString().equals(b.getOpString());
+    }
+
+
+    /**
+     * Deep copy of hops dags for parallel recompilation.
+     *
+     * @param hops high-level operator
+     * @return high-level operator
+     */
+    public static Hop deepCopyHopsDag(Hop hops) {
+        Hop ret = null;
+
+        try {
+            HashMap<Long, Hop> memo = new HashMap<>(); //orig ID, new clone
+            ret = rDeepCopyHopsDag(hops, memo);
+        } catch (Exception ex) {
+            throw new HopsException(ex);
+        }
+
+        return ret;
+    }
+
+    private static Hop rDeepCopyHopsDag(Hop hop, HashMap<Long, Hop> memo)
+            throws CloneNotSupportedException {
+        Hop ret = memo.get(hop.getHopID());
+
+        //create clone if required
+        if (ret == null) {
+            ret = (Hop) hop.clone();
+
+            //create new childs and modify references
+            for (Hop in : hop.getInput()) {
+                Hop tmp = rDeepCopyHopsDag(in, memo);
+                ret.getInput().add(tmp);
+                tmp.getParent().add(ret);
+            }
+            memo.put(hop.getHopID(), ret);
+        }
+
+        return ret;
+    }
 
 }
