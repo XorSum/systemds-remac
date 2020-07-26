@@ -1,16 +1,15 @@
 package org.apache.sysds.hops.rewrite.dfp;
 
-import org.apache.sysds.common.Types;
 import org.apache.sysds.hops.Hop;
-import org.apache.sysds.hops.HopsException;
 import org.apache.sysds.hops.rewrite.HopRewriteRule;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
 import org.apache.sysds.hops.rewrite.dfp.rule.*;
+import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule;
+import org.apache.sysds.hops.rewrite.dfp.rule.transpose.TransposeMultSplitRule;
 import org.apache.sysds.utils.Explain;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 
 import static org.apache.sysds.hops.rewrite.dfp.MyUtils.deepCopyHopsDag;
 
@@ -29,36 +28,24 @@ public class RewriteDFP extends HopRewriteRule {
         //  System.out.println("aaa");
         root = reorder(root);
         System.out.println("after reorder");
+        root.resetVisitStatus();
         System.out.println(Explain.explain(root));
         root = balance(root);
         System.out.println("after balance");
+        root.resetVisitStatus();
         System.out.println(Explain.explain(root));
         findAllSubExpression(root);
         return root;
     }
 
-//    private void rule_rewritedfp(Hop hop, boolean descendFirst) {
-//        if (hop.isVisited())
-//            return;
-//        for (int i = 0; i < hop.getInput().size(); i++) {
-//            Hop hi = hop.getInput().get(i);
-//            if (descendFirst)
-//                rule_rewritedfp(hi, descendFirst);
-//            findAllSubExpression(hi);
-//            if (!descendFirst)
-//                rule_rewritedfp(hi, descendFirst);
-//        }
-//        hop.setVisited();
-//    }
 
 
     private static Hop reorder(Hop hop) {
         ArrayList<MyRule> rules = new ArrayList<>();
-        rules.add(new TransposeSplitRule());
-        HopRewriteUtils.isMatrixMultiply(hop);
-
+        rules.add(new TransposeMultSplitRule());
         rules.add(new RemoveUnnecessaryTransposeRule());
-        rules.add(new JieheRule(Types.OpOp2.MULT));
+        rules.add(new MatrixMultJieheRule());
+
         hop = MyUtils.applyRule(hop, rules, 100);
         return hop;
     }

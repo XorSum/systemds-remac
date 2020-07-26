@@ -1,22 +1,23 @@
-package org.apache.sysds.hops.rewrite.dfp.rule;
+package org.apache.sysds.hops.rewrite.dfp.rule.transpose;
 
+import org.apache.sysds.common.Types;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.rule.MyRule;
 
-public class TransposeMergeRule extends MyRule {
+public class TransposeMinusMergeRule extends MyRule {
 
     @Override
     public Hop apply(Hop parent, Hop hi, int pos) {
-        // t(y)*t(x) -> t(x*y)
-        if (HopRewriteUtils.isMatrixMultiply(hi)) {
+        // t(x)-t(y) -> t(x-y)
+        if (HopRewriteUtils.isBinary(hi, Types.OpOp2.MINUS)) {
             Hop left = hi.getInput().get(0);
             Hop right = hi.getInput().get(1);
             if (HopRewriteUtils.isTransposeOperation(left) &&
                     HopRewriteUtils.isTransposeOperation(right)) {
-                Hop y = left.getInput().get(0);
-                Hop x = right.getInput().get(0);
-                Hop tmp = HopRewriteUtils.createMatrixMultiply(x, y);
+                Hop x = left.getInput().get(0);
+                Hop y = right.getInput().get(0);
+                Hop tmp = HopRewriteUtils.createBinary(x, y, Types.OpOp2.MINUS);
                 Hop result = HopRewriteUtils.createTranspose(tmp);
                 if (parent != null)
                     HopRewriteUtils.replaceChildReference(parent, hi, result);

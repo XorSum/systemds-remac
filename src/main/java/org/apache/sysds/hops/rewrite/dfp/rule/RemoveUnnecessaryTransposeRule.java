@@ -15,9 +15,11 @@ public class RemoveUnnecessaryTransposeRule extends MyRule {
 //                System.out.println("Old Hop:");
 //                System.out.println(Explain.explain(parent));
                 Hop x = tx.getInput().get(0);
-                if (parent != null)
+                if (parent != null) {
                     HopRewriteUtils.replaceChildReference(parent, ttx, x);
-                ttx = x;
+                    HopRewriteUtils.cleanupUnreferenced(ttx);
+                }
+                    ttx = x;
 //                System.out.println("New Hop:");
 //                System.out.println(Explain.explain(hi));
             }

@@ -1,8 +1,9 @@
-package org.apache.sysds.hops.rewrite.dfp.rule;
+package org.apache.sysds.hops.rewrite.dfp.rule.jiehe;
 
 import org.apache.sysds.common.Types.OpOp2;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
+import org.apache.sysds.hops.rewrite.dfp.rule.MyRule;
 
 
 // (a*b)*c -> a*(b*c)
