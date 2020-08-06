@@ -28,7 +28,7 @@ public class MatrixMultJieheRule extends MyRule {
                 // create
                 Hop ab = HopRewriteUtils.createMatrixMultiply(a, b);
                 Hop result = HopRewriteUtils.createMatrixMultiply(ab, c);
-                System.out.println(Explain.explain(result));
+//                System.out.println(Explain.explain(result));
                 // replace
                 if (parent != null) {
                     HopRewriteUtils.replaceChildReference(parent, hi, result);

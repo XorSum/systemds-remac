@@ -1,3 +1,13 @@
+#q = matrix(1.0, rows=10, cols=10)
+#w = matrix(2.0, rows=10, cols=10)
+#e = matrix(3.0, rows=10, cols=10)
+#r = matrix(3.0, rows=10, cols=10)
+#t = matrix(3.0, rows=10, cols=10)
+#y = matrix(3.0, rows=10, cols=10)
+#u = matrix(3.0, rows=10, cols=10)
+#i = matrix(3.0, rows=10, cols=10)
+
+#h = q%*%w%*%e%*%r%*%t%*%u%*%i
 h = matrix(1.0, rows=10, cols=10)
 y = rand(rows=10, cols=1, min=0, max=10, sparsity=1)
 h = h %*% (y %*% (t(y) %*% t(h)))
