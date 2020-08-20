@@ -3,6 +3,7 @@ package org.apache.sysds.hops.rewrite.dfp;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.HopsException;
 import org.apache.sysds.hops.rewrite.dfp.rule.MyRule;
+import org.apache.sysds.parser.StatementBlock;
 
 import java.util.HashMap;
 import java.util.List;
@@ -12,23 +13,23 @@ public class MyUtils {
 
     private static int count;
 
-    public static Hop applyRule(Hop hop, List<MyRule> rules, int max_count, boolean isrand) {
+    public static Hop applyDAGRule(Hop hop, List<MyRule> rules, int max_count, boolean isrand) {
         count = max_count;
         hop.resetVisitStatus();
-        hop = apply_rule_iter(null, hop, 0, rules, false, isrand);
+        hop = apply_dag_rule_iter(null, hop, 0, rules, false, isrand);
         hop.resetVisitStatus();
-        hop = apply_rule_iter(null, hop, 0, rules, true, isrand);
+        hop = apply_dag_rule_iter(null, hop, 0, rules, true, isrand);
         return hop;
     }
 
-    private static Hop apply_rule_iter(Hop parent, Hop hop, int pos, List<MyRule> rules, boolean descendFirst, boolean isrand) {
+    private static Hop apply_dag_rule_iter(Hop parent, Hop hop, int pos, List<MyRule> rules, boolean descendFirst, boolean isrand) {
         if (count <= 0) return hop;
         if (hop.isVisited())
             return hop;
         if (descendFirst) {
             for (int i = 0; i < hop.getInput().size(); i++) {
                 Hop hi = hop.getInput().get(i);
-                hi = apply_rule_iter(hop, hi, i, rules, descendFirst, isrand);
+                hi = apply_dag_rule_iter(hop, hi, i, rules, descendFirst, isrand);
             }
         }
         for (MyRule rule : rules) {
@@ -45,7 +46,7 @@ public class MyUtils {
         if (!descendFirst) {
             for (int i = 0; i < hop.getInput().size(); i++) {
                 Hop hi = hop.getInput().get(i);
-                hi = apply_rule_iter(hop, hi, i, rules, descendFirst, isrand);
+                hi = apply_dag_rule_iter(hop, hi, i, rules, descendFirst, isrand);
             }
         }
         hop.setVisited();

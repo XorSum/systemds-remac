@@ -1,3 +1,15 @@
+a = rand(rows = 100,cols = 10)
+b = rand(rows = 100, cols = 1)
+x = matrix(0,rows=10,cols = 1)
+i = 1
+alpha = 0.1
+while(i<10) {
+    d = t(a)%*%(a%*%x - b)
+    x = x - alpha * d
+    i = i + 1
+}
+print(toString(x))
+
 #q = matrix(1.0, rows=10, cols=10)
 #w = matrix(2.0, rows=10, cols=10)
 #e = matrix(3.0, rows=10, cols=10)
@@ -8,15 +20,15 @@
 #i = matrix(3.0, rows=10, cols=10)
 
 #h = q%*%w%*%e%*%r%*%t%*%u%*%i
-h = matrix(1.0, rows=10, cols=10)
-y = rand(rows=10, cols=1, min=0, max=10, sparsity=1)
-h = h %*% (y %*% (t(y) %*% t(h)))
+#h = matrix(1.0, rows=10, cols=10)
+#y = rand(rows=10, cols=1, min=0, max=10, sparsity=1)
+#h = h %*% (y %*% (t(y) %*% t(h)))
 #s = rand(rows=10, cols=1, min=0, max=10, sparsity=1)
 #h = h - ((h %*% y) %*% t(h %*% y )) / ( t(h %*% y) %*% y) + (s%*%t(s))/(t(s)%*%y)
 
 #h = diag(matrix(1.0,rows=10,cols=1))
 #h = t(h %*% t(h))
-print(toString(h))
+#print(toString(h))
 
 
 #X = matrix(0,rows=10, cols=10)
@@ -26,3 +38,19 @@ print(toString(h))
 #print(toString(Y))
 
 #write(Y,"./Y.bin",format="binary")
+
+
+a = matrix("0 1 1 2 2 3 3 4",rows=4,cols=2)
+b = matrix("1 3 5 7", rows = 4, cols = 1)
+x = matrix(0,rows=2,cols = 1)
+i = 1
+alpha = 0.001
+while(i<1000) {
+    d = t(a)%*%(a%*%x - b)
+    x = x - alpha * d
+    i = i + 1
+}
+
+print(toString(a))
+print(toString(b))
+print(toString(x))

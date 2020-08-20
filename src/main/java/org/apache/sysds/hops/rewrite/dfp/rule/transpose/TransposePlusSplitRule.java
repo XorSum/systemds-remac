@@ -23,8 +23,6 @@ public class TransposePlusSplitRule extends MyRule {
                     HopRewriteUtils.cleanupUnreferenced(hi);
                 }
                 hi = result;
-//                System.out.println("New Hop:");
-//                System.out.println(Explain.explain(hi));
             }
         }
         return hi;

@@ -1,0 +1,93 @@
+# input: a,b
+# output: x
+
+#aa = read("hdfs://10.11.1.209:9000/data/avazu/app-tr-a.bin",format="binary")
+#a = aa[1:1000000,1:300000]
+
+#bb = read("hdfs://10.11.1.209:9000/data/avazu/app-tr-b.bin",format="binary")
+#b = bb[1:1000000,]
+
+e = 1000  # 误差
+#rho = 0.02
+#sigma = 0.00001
+rho = 0.8
+sigma = 0.1
+
+#m = ncol(a)
+#n = nrow(a)
+
+m = 100
+n = 10
+a = rand(rows=n,cols=m)
+b = rand(rows=n,cols=1)
+
+
+f  = function(matrix[double] a,matrix[double] b,matrix[double] x) return (double ret) {
+    tmp = a%*%x-b
+    ret = sum( t(tmp)%*%tmp)
+}
+
+pow = function(double x,double y) return (double z) {
+   z = 1.0
+   i = 1
+   while(i<=y) {
+      z = z * x
+      i = i + 1
+   }
+}
+
+x = matrix(0,rows=m, cols=1)
+h = diag(matrix(1, rows=m, cols=1))
+i = 1
+end = FALSE
+while((i<2)&(!end)) {
+    g = 2 * t(a) %*% (a %*% x - b)
+    loss = sum(t(g)%*%g)
+    print("i="+toString(i)+"  loss="+toString(loss))
+    if (loss < e) {
+	end = TRUE
+    }
+  #  print("g=")
+  #   print(toString(g))
+  #  print("x=")
+  #  print(toString(x))
+
+    # 探测步长
+    d = - h %*% g
+    mk = 0
+    m = 0
+    found = FALSE
+    oldf = f(a,b,x)
+    xishu = sigma * sum(t(g)%*%d)
+    while((m<0)&(!found)) {
+         print("m="+toString(m))
+         newf = f(a,b,pow(rho,m)*d + x)
+         tmpf = oldf + xishu * pow(rho,m)
+        if ( newf < oldf ) {
+            mk = m
+            found = TRUE
+        }
+        m = m + 1
+    }
+    s = pow(rho,mk)*d
+    # s = d
+    x = x + s
+    # y = 2 * t(a) %*% a %*% s
+    tmp = a %*% s
+    y = 2 * t(a) %*% tmp
+    #print("y=")
+    #print(toString(sum(y)))
+    h = h - (h %*% y %*% t(y) %*% t(h)) / ( t(y) %*% t(h) %*% y)  + (s%*%t(s))/(t(s)%*%y)
+    #print(toString(h))
+    i = i + 1
+}
+
+print("i=")
+print(toString(i))
+#print("x=")
+#print(toString(sum(x)))
+#print("h=")
+#print(toString(sum(h)))
+
+#write(x,"hdfs://10.11.1.209:9000/data/avazu/app-tr-x1.bin",format="binary")
+#write(h,"hdfs://10.11.1.209:9000/data/avazu/app-tr-h.bin",format="binary")
