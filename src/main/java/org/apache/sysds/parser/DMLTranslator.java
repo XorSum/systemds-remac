@@ -257,6 +257,24 @@ public class DMLTranslator
 
 	public void rewriteHopsDAG(DMLProgram dmlp) 
 	{
+
+		long startTime = System.currentTimeMillis();
+
+		// apply common sub expression rewrites
+		ProgramRewriter rewriter3 = new ProgramRewriter(new RewriteDFP());
+		rewriter3.rewriteProgramHopDAGs(dmlp);
+		resetHopsDAGVisitStatus(dmlp);
+
+		// apply common loop constant rewrites
+//		ProgramRewriter rewriter4 = new ProgramRewriter(new RewriteLoopConstrant());
+//		rewriter4.rewriteProgramHopDAGs(dmlp);
+//		resetHopsDAGVisitStatus(dmlp);
+
+		long endTime = System.currentTimeMillis();
+		long totalTime = endTime -startTime;
+		System.out.println("该段代码执行耗时：" + totalTime + " ms");
+
+
 		//apply hop rewrites (static rewrites)
 		ProgramRewriter rewriter = new ProgramRewriter(true, false);
 		rewriter.rewriteProgramHopDAGs(dmlp, false); //rewrite and merge
@@ -275,22 +293,6 @@ public class DMLTranslator
 		ProgramRewriter rewriter2 = new ProgramRewriter(false, true);
 		rewriter2.rewriteProgramHopDAGs(dmlp);
 		resetHopsDAGVisitStatus(dmlp);
-
-		long startTime = System.currentTimeMillis();
-
-		// apply common sub expression rewrites
-		ProgramRewriter rewriter3 = new ProgramRewriter(new RewriteDFP());
-		rewriter3.rewriteProgramHopDAGs(dmlp);
-		resetHopsDAGVisitStatus(dmlp);
-
-		// apply common loop constant rewrites
-//		ProgramRewriter rewriter4 = new ProgramRewriter(new RewriteLoopConstrant());
-//		rewriter4.rewriteProgramHopDAGs(dmlp);
-//		resetHopsDAGVisitStatus(dmlp);
-
-		long endTime = System.currentTimeMillis();
-		long totalTime = endTime -startTime;
-		System.out.println("该段代码执行耗时：" + totalTime + " ms");
 
 
 		//compute memory estimates for all the hops. These estimates are used

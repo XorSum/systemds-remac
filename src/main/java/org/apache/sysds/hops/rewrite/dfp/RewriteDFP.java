@@ -38,6 +38,7 @@ public class RewriteDFP extends HopRewriteRule {
         if (trueroot == null) return trueroot;
         //  System.out.println("aaa");
         Hop root = deepCopyHopsDag(trueroot);
+
         root = reorder(root);
 //        System.out.println("after reorder");
 //        root.resetVisitStatus();
@@ -57,10 +58,10 @@ public class RewriteDFP extends HopRewriteRule {
 
 
         for (int i = 0; i < 30; i++) {
-            System.out.println("Round "+i);
+        //    System.out.println("Round " + i);
             Hop tmp2 = deepCopyHopsDag(root);
             tmp2 = random_change(tmp2);
-           // tmp2.resetVisitStatus();
+            // tmp2.resetVisitStatus();
 //            System.out.println("TMP2<<<");
 //            System.out.println(Explain.explain(tmp2));
 //            System.out.println(">>>");
@@ -77,11 +78,16 @@ public class RewriteDFP extends HopRewriteRule {
 //        System.out.println("ROOT:");
 //        root.resetVisitStatus();
 //        System.out.println(Explain.explain(root));
-        return trueroot;
+        return root;
+
+
     }
 
 
     private static Hop findCommonSubExp(Hop hop) {
+//        hop.resetVisitStatus();
+//        System.out.println(Explain.explain(hop));
+
         ArrayList<Hop> allSubExpression = new ArrayList<>();
         Hop target = null;
         hop.resetVisitStatus();
@@ -102,23 +108,27 @@ public class RewriteDFP extends HopRewriteRule {
                         && h2.getInput().size() > 0
                         && !"dg(rand)".equals(h1.getOpString())
                         && !"dg(rand)".equals(h2.getOpString())
-                    ) {
-                    if (isSame(h1,h2)||isSame(h1,th2)) {
+                ) {
+//                if (isSampleHop(h1)&&isSampleHop(h2)){
+                    if (isSame(h1, h2) || isSame(h1, th2)) {
                         djs.merge(i, j);
                     }
                 }
             }
         }
         for (int i = 0; i < allSubExpression.size(); i++) {
-            if (djs.find(i) == i && djs.count(i)>1 ) {
-                System.out.println("exp " + i+"  "+djs.count(i));
+            if (djs.find(i) == i && djs.count(i) > 1) {
                 Hop h1 = allSubExpression.get(i);
-                h1.resetVisitStatus();
-                System.out.println(Explain.explain(h1));
+                if (!isSampleHop(h1)) {
+                    System.out.println("exp " + i + "  " + djs.count(i) + " " + isSampleHop(h1));
+                    h1.resetVisitStatus();
+                    System.out.println(Explain.explain(h1));
+                }
             }
         }
         return null;
     }
+
 
     private static Hop replaceCommonSubExp(Hop hop, Hop subexp) {
         hop.resetVisitStatus();
@@ -230,6 +240,18 @@ public class RewriteDFP extends HopRewriteRule {
 //        System.out.println(a.getOpString());
 //        System.out.println(b.getOpString());
         return a.getOpString().equals(b.getOpString());
+    }
+
+    private static boolean isSampleHop(Hop a) {
+        if ("dg(rand)".equals(a.getOpString())) {
+            return true;
+        } else if (a.getInput().size() == 0) {
+            return true;
+        } else if (a.getInput().size() == 1) {
+            return isSampleHop(a.getInput().get(0));
+        } else {
+            return false;
+        }
     }
 
 

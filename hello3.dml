@@ -1,0 +1,12 @@
+f = function(double x,double y) return (double z) {
+   z = x * y
+}
+
+a = 10
+b = 11
+c = 12
+d = f(a,b) + f(a,c)
+
+print(toString(d))
+
+

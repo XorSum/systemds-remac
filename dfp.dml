@@ -40,13 +40,13 @@ x = matrix(0,rows=m, cols=1)
 h = diag(matrix(1, rows=m, cols=1))
 i = 1
 end = FALSE
-while((i<2)&(!end)) {
+while((i<10)&(!end)) {
     g = 2 * t(a) %*% (a %*% x - b)
     loss = sum(t(g)%*%g)
     print("i="+toString(i)+"  loss="+toString(loss))
-    if (loss < e) {
-	end = TRUE
-    }
+  #  if (loss < e) {
+  #  	end = TRUE
+  #   }
   #  print("g=")
   #   print(toString(g))
   #  print("x=")
@@ -58,6 +58,7 @@ while((i<2)&(!end)) {
     m = 0
     found = FALSE
     oldf = f(a,b,x)
+    print(toString(oldf))
     xishu = sigma * sum(t(g)%*%d)
     while((m<0)&(!found)) {
          print("m="+toString(m))
@@ -70,15 +71,9 @@ while((i<2)&(!end)) {
         m = m + 1
     }
     s = pow(rho,mk)*d
-    # s = d
     x = x + s
-    # y = 2 * t(a) %*% a %*% s
-    tmp = a %*% s
-    y = 2 * t(a) %*% tmp
-    #print("y=")
-    #print(toString(sum(y)))
+    y = 2 * t(a) %*% a %*% s
     h = h - (h %*% y %*% t(y) %*% t(h)) / ( t(y) %*% t(h) %*% y)  + (s%*%t(s))/(t(s)%*%y)
-    #print(toString(h))
     i = i + 1
 }
 
