@@ -9,6 +9,8 @@ import org.apache.sysds.hops.rewrite.dfp.rule.*;
 import org.apache.sysds.hops.rewrite.dfp.rule.fenpei.FenpeiRuleLeft;
 import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule;
 import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule2;
+import org.apache.sysds.hops.rewrite.dfp.rule.scalar.ScalarLeftMoveRule;
+import org.apache.sysds.hops.rewrite.dfp.rule.scalar.ScalarRightMoveRule;
 import org.apache.sysds.hops.rewrite.dfp.rule.transpose.TransposeMultSplitRule;
 import org.apache.sysds.utils.Explain;
 
@@ -38,8 +40,10 @@ public class RewriteDFP extends HopRewriteRule {
         if (trueroot == null) return trueroot;
         //  System.out.println("aaa");
         Hop root = deepCopyHopsDag(trueroot);
+        root = reorder(root);
+
         BaoLi.generateAllTrees(root);
-      //  root = reorder(root);
+      //
 
 
         for (int i = 0; i < 0; i++) {
@@ -179,7 +183,11 @@ public class RewriteDFP extends HopRewriteRule {
         rules.add(new MatrixMultJieheRule());
         rules.add(new FenpeiRuleLeft(Types.OpOp2.MINUS));
         rules.add(new FenpeiRuleLeft(Types.OpOp2.PLUS));
-        hop = MyUtils.applyDAGRule(hop, rules, 100, false);
+        rules.add(new ScalarLeftMoveRule());
+        rules.add(new ScalarRightMoveRule());
+        for (int i=0;i<10;i++) {
+            hop = MyUtils.applyDAGRule(hop, rules, 10000, false);
+        }
         return hop;
     }
 

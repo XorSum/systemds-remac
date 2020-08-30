@@ -6,6 +6,10 @@ import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.rule.MyRule;
 import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule;
 import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule2;
+import org.apache.sysds.hops.rewrite.dfp.rule.scalar.ScalarLeftMoveRule;
+import org.apache.sysds.hops.rewrite.dfp.rule.scalar.ScalarRightMoveRule;
+import org.apache.sysds.hops.rewrite.dfp.rule.transpose.TransposeMinusSplitRule;
+import org.apache.sysds.hops.rewrite.dfp.rule.transpose.TransposeMultMergeRule;
 import org.apache.sysds.utils.Explain;
 import org.spark_project.jetty.util.ArrayQueue;
 
@@ -26,6 +30,9 @@ public class BaoLi {
         dags.add(root); // push
         set.add(hashHopDag(root));
         path = new ArrayList<>();
+//        System.out.println("Root=");
+//        root.resetVisitStatus();
+//        System.out.println(Explain.explain(root));
         for (int i = 0; i < dags.size(); i++) {
             firstDag = dags.get(i);
             firstDag.resetVisitStatus();
@@ -59,6 +66,8 @@ public class BaoLi {
         ArrayList<MyRule> rules = new ArrayList<>();
         rules.add(new MatrixMultJieheRule());
         rules.add(new MatrixMultJieheRule2());
+        rules.add(new TransposeMinusSplitRule());
+        rules.add(new TransposeMultMergeRule());
         for (MyRule rule : rules) {
             Hop shadow = deepCopyHopsDag(firstDag);
             Hop parent = null;
@@ -76,16 +85,17 @@ public class BaoLi {
 //            System.out.println("the new tree is:");
 //            System.out.println(Explain.explain(shadow));
             Pair<Long,Long> hash = hashHopDag(shadow);
-            System.out.println("new tree: hash=" + hash);
-            shadow.resetVisitStatus();
-            System.out.println(Explain.explain(shadow));
+//            System.out.println("new tree: hash=" + hash);
+//            shadow.resetVisitStatus();
+//            System.out.println(Explain.explain(shadow));
             if (!set.contains(hash)) {
-                System.out.println("push");
+//                System.out.println("push");
                 set.add(hash);
                 dags.add(shadow);
-            } else {
-                System.out.println("don't push");
             }
+//            else {
+//                System.out.println("don't push");
+//            }
         }
     }
 
