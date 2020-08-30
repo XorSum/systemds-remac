@@ -23,6 +23,7 @@ public class MatrixMultJieheRule2 extends MyRule {
             if (HopRewriteUtils.isMatrixMultiply(ab)) {
                 Hop a = ab.getInput().get(0);
                 Hop b = ab.getInput().get(1);
+                System.out.println("apply (a*b)*c -> a*(b*c) "+hi.getHopID());
               //  System.out.println("jiehelv");
                 // create
                 Hop bc = HopRewriteUtils.createMatrixMultiply(b,c);

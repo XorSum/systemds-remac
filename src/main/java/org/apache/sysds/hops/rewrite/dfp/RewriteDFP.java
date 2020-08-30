@@ -38,26 +38,11 @@ public class RewriteDFP extends HopRewriteRule {
         if (trueroot == null) return trueroot;
         //  System.out.println("aaa");
         Hop root = deepCopyHopsDag(trueroot);
-
-        root = reorder(root);
-//        System.out.println("after reorder");
-//        root.resetVisitStatus();
-//        System.out.println(Explain.explain(root));
-
-//        Hop tmp = deepCopyHopsDag(root);
-//        tmp = double_jiehe(tmp);
-//        tmp.resetVisitStatus();
-//        System.out.println("TMP<<<");
-//        System.out.println(Explain.explain(tmp));
-//        System.out.println(">>>");
-//        Hop subExp = checkCommonSubExp(tmp);
-//        if (subExp != null) {
-//            replaceCommonSubExp(tmp, subExp);
-//        }
-//        root = tmp;
+        BaoLi.generateAllTrees(root);
+      //  root = reorder(root);
 
 
-        for (int i = 0; i < 30; i++) {
+        for (int i = 0; i < 0; i++) {
         //    System.out.println("Round " + i);
             Hop tmp2 = deepCopyHopsDag(root);
             tmp2 = random_change(tmp2);
