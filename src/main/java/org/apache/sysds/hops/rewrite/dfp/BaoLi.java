@@ -1,5 +1,6 @@
 package org.apache.sysds.hops.rewrite.dfp;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.rule.MyRule;
@@ -17,7 +18,7 @@ public class BaoLi {
     private static ArrayList<Hop> dags;
     private static ArrayList<Integer> path;
     private static Hop firstDag;
-    private static Set<Long> set;
+    private static Set<Pair<Long,Long>> set;
 
     public static void generateAllTrees(Hop root) {
         dags = new ArrayList<>();
@@ -74,7 +75,7 @@ public class BaoLi {
             shadow.resetVisitStatus();
 //            System.out.println("the new tree is:");
 //            System.out.println(Explain.explain(shadow));
-            Long hash = hashHopDag(shadow);
+            Pair<Long,Long> hash = hashHopDag(shadow);
             System.out.println("new tree: hash=" + hash);
             shadow.resetVisitStatus();
             System.out.println(Explain.explain(shadow));
@@ -105,16 +106,18 @@ public class BaoLi {
         return x;
     }
 
-    public static long hashHopDag(Hop root) {
-        long ans = root.getOpString().hashCode();
-      //  System.out.println("opString=" + root.getOpString() + ", hash=" + ans);
+    public static Pair<Long,Long> hashHopDag(Hop root) {
+        long l = root.getOpString().hashCode();
+        long r = root.getOpString().hashCode();
+        //  System.out.println("opString=" + root.getOpString() + ", hash=" + ans);
         for (int i = 0; i < root.getInput().size(); i++) {
-            long tmp = hashHopDag(root.getInput().get(i));
+            Pair<Long,Long> tmp = hashHopDag(root.getInput().get(i));
          //   System.out.println("ans+="+tmp +"*"+ getPrime(i));
            // ans = ans + hashHopDag(root.getInput().get(i)) * getPrime(i);
-            ans = ans + tmp*getPrime(i);
+            l = l + tmp.getLeft()*getPrime(i);
+            r = r + tmp.getRight()*getPrime(i+1);
         }
-        return ans;
+        return Pair.of(l,r);
     }
 
     public static void main(String[] args) {
