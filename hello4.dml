@@ -1,0 +1,17 @@
+m0 = matrix(1.0, rows=10, cols=10)
+m1 = matrix(2.0, rows=10, cols=10)
+m2 = matrix(3.0, rows=10, cols=10)
+m3 = matrix(4.0, rows=10, cols=10)
+m4 = matrix(5.0, rows=10, cols=10)
+m5 = matrix(6.0, rows=10, cols=10)
+m6 = matrix(4.0, rows=10, cols=10)
+m7 = matrix(4.0, rows=10, cols=10)
+m8 = matrix(4.0, rows=10, cols=10)
+
+ans = m0 + m1%*%t(m2) + m1%*%t(m2)%*%m3 + m1%*%t(m2)%*%m2%*%t(m1)
+
+#ans = m1%*%t(m2) + m1%*%t(m2)%*%m2%*%t(m1)
+
+print(toString(ans))
+
+

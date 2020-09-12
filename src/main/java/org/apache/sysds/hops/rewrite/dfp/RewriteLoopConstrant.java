@@ -10,10 +10,10 @@ import org.apache.sysds.hops.rewrite.dfp.rule.RemoveUnnecessaryTransposeRule;
 import org.apache.sysds.hops.rewrite.dfp.rule.fenpei.FenpeiRuleLeft;
 import org.apache.sysds.hops.rewrite.dfp.rule.fenpei.FenpeiRuleRight;
 import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule;
-import org.apache.sysds.hops.rewrite.dfp.rule.transpose.TransposeMultSplitRule;
+import org.apache.sysds.hops.rewrite.dfp.rule.transpose.TransposeMatrixMatrixMultSplitRule;
+import org.apache.sysds.hops.rewrite.dfp.utils.MyUtils;
 import org.apache.sysds.parser.*;
 import org.apache.sysds.utils.Explain;
-import org.scalactic.Bool;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -131,7 +131,7 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
 
     private static Hop splitExp(Hop hop) {
         ArrayList<MyRule> rules = new ArrayList<>();
-        rules.add(new TransposeMultSplitRule());
+        rules.add(new TransposeMatrixMatrixMultSplitRule());
         rules.add(new RemoveUnnecessaryTransposeRule());
         rules.add(new MatrixMultJieheRule());
         rules.add(new FenpeiRuleLeft(Types.OpOp2.MINUS));

@@ -5,6 +5,8 @@ import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.rule.MyRule;
 
+import static org.apache.sysds.hops.rewrite.dfp.utils.MyUtils.hashHopDag;
+
 // b*a+c*a -> (b+c)*a
 public class FenpeiRuleRight2 extends MyRule {
 
@@ -26,7 +28,7 @@ public class FenpeiRuleRight2 extends MyRule {
                 if (HopRewriteUtils.isMatrixMultiply(ca)) {
                     Hop c = ca.getInput().get(0);
                     Hop a2 = ca.getInput().get(1);
-                    if (a.equals(a2)) {
+                    if (hashHopDag(a)==hashHopDag(a2)) {
 
                         Hop bc = HopRewriteUtils.createBinary(b, c, operator);
                         Hop result = HopRewriteUtils.createMatrixMultiply(bc,a);

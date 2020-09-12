@@ -1,22 +1,21 @@
 package org.apache.sysds.hops.rewrite.dfp;
 
-import org.apache.sysds.common.Types;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteRule;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
 import org.apache.sysds.hops.rewrite.dfp.rule.*;
-import org.apache.sysds.hops.rewrite.dfp.rule.fenpei.FenpeiRuleLeft;
 import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule;
 import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule2;
-import org.apache.sysds.hops.rewrite.dfp.rule.scalar.ScalarLeftMoveRule;
-import org.apache.sysds.hops.rewrite.dfp.rule.scalar.ScalarRightMoveRule;
-import org.apache.sysds.hops.rewrite.dfp.rule.transpose.TransposeMultSplitRule;
+
+import org.apache.sysds.hops.rewrite.dfp.utils.MyUtils;
 import org.apache.sysds.utils.Explain;
 
-import java.util.ArrayList;
+import java.util.*;
 
-import static org.apache.sysds.hops.rewrite.dfp.MyUtils.deepCopyHopsDag;
+import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.*;
+import static org.apache.sysds.hops.rewrite.dfp.utils.MyUtils.deepCopyHopsDag;
 
 public class RewriteDFP extends HopRewriteRule {
     @Override
@@ -35,48 +34,113 @@ public class RewriteDFP extends HopRewriteRule {
         return rewriteDFP(root, state);
     }
 
+    private static ArrayList<MatrixMultChain> chains;
 
-    public Hop rewriteDFP(Hop trueroot, ProgramRewriteStatus state) {
-        if (trueroot == null) return trueroot;
-        //  System.out.println("aaa");
-        Hop root = deepCopyHopsDag(trueroot);
+    public static Hop rewriteDFP(Hop root, ProgramRewriteStatus state) {
+        if (root == null) return root;
+      //  Gongyinshi.generateGongyinshiTrees(root);
+
         root = reorder(root);
+        System.out.println("Root: ");
+        System.out.println(Explain.explain(root));
 
-        BaoLi.generateAllTrees(root);
-      //
+        ArrayList<Hop> blocks = findMultChains(root);
+        System.out.println("Chain size: "+blocks.size());
 
-
-        for (int i = 0; i < 0; i++) {
-        //    System.out.println("Round " + i);
-            Hop tmp2 = deepCopyHopsDag(root);
-            tmp2 = random_change(tmp2);
-            // tmp2.resetVisitStatus();
-//            System.out.println("TMP2<<<");
-//            System.out.println(Explain.explain(tmp2));
-//            System.out.println(">>>");
-            findCommonSubExp(tmp2);
-//            if (subexp != null) {
-//                // root = replaceCommonSubExp(tmp2, subexp);
-//                System.out.println("found");
-//                subexp.resetVisitStatus();
-//                System.out.println(Explain.explain(subexp));
-//                System.out.println("i=" + i);
-//                break;
-//            }
+        ArrayList<Hop> solutions = new ArrayList<>();
+        chains = new ArrayList<>();
+        for (Hop chain : blocks) {
+            MatrixMultChain chain1 = new MatrixMultChain();
+            chain1.gao(chain);
+            chains.add(chain1);
         }
-//        System.out.println("ROOT:");
-//        root.resetVisitStatus();
-//        System.out.println(Explain.explain(root));
+        Set<Pair<Long, Long>> allSubExps = new HashSet<>();
+        for (MatrixMultChain chain : chains) {
+            allSubExps.addAll(chain.allTreeesHashMap.keySet());
+        }
+        for (Pair<Long, Long> targetHash : allSubExps) {
+//            System.out.println("Key:  " + targetHash);
+            Long allCount = 0l;
+            Hop targetDag = null;
+            for (MatrixMultChain chain : chains) {
+                Long count = 0l;
+                if (chain.allTreeesHashMap.containsKey(targetHash)) {
+                    count = chain.allTreeesHashMap.get(targetHash).getRight();
+                    if (targetDag==null)
+                        targetDag = chain.allTreeesHashMap.get(targetHash).getMiddle();
+                }
+//                System.out.print(count + ", ");
+                allCount = allCount + count;
+            }
+//            System.out.println("");
+            if (targetDag!=null && allCount > 2) {
+                System.out.println("Target:  count="+allCount);
+//                System.out.println(Explain.explain(targetDag));
+                System.out.println(MyUtils.explain(targetDag));
+//                System.out.println("Solution: ");
+                Hop sol = genSolution(root, targetHash,targetDag);
+//                System.out.println(Explain.explain(sol));
+                solutions.add(sol);
+            }
+        }
+        System.out.println("Solution size: "+solutions.size());
+        System.out.println("\n\n==========================\n\n");
+
         return root;
+    }
 
 
+    private static ArrayList<Hop> findMultChains(Hop root) {
+        ArrayList<Hop> result = new ArrayList<Hop>();
+       // root.resetVisitStatus();
+        findMultChains_iter(null, root, result);
+        return result;
+    }
+
+    private static void findMultChains_iter(Hop parent, Hop hop, ArrayList<Hop> result) {
+     //   if (hop.isVisited()) return;
+        if ((parent == null || !HopRewriteUtils.isMatrixMultiply(parent))
+                && allOfMult(hop)) {
+            result.add(hop);
+        } else {
+            for (int i = 0; i < hop.getInput().size(); i++) {
+                findMultChains_iter(hop, hop.getInput().get(i), result);
+            }
+        }
+      //  hop.setVisited();
+    }
+
+
+    static int chain_index;
+
+    private static Hop genSolution(Hop root, Pair<Long, Long> targetHash,Hop targetDag) {
+        Hop copy = deepCopyHopsDag(root);
+        chain_index = 0;
+        copy = genSolution_iter(null, copy, targetHash,targetDag);
+        return copy;
+    }
+
+    private static Hop genSolution_iter(Hop parent, Hop hop, Pair<Long, Long> targetHash,Hop targetDag) {
+        if ((parent == null || !HopRewriteUtils.isMatrixMultiply(parent))
+                && allOfMult(hop)) {
+            Hop subTree = chains.get(chain_index).getTree(targetHash, targetDag);
+            chain_index = chain_index + 1;
+            if (parent != null) {
+                HopRewriteUtils.replaceChildReference(parent, hop, subTree);
+            //    HopRewriteUtils.cleanupUnreferenced(hop);
+            }
+            hop = subTree;
+        } else {
+            for (int i = 0; i < hop.getInput().size(); i++) {
+                Hop tmp = genSolution_iter(hop, hop.getInput().get(i), targetHash,targetDag);
+                hop.getInput().set(i, tmp);
+            }
+        }
+        return hop;
     }
 
 
     private static Hop findCommonSubExp(Hop hop) {
-//        hop.resetVisitStatus();
-//        System.out.println(Explain.explain(hop));
-
         ArrayList<Hop> allSubExpression = new ArrayList<>();
         Hop target = null;
         hop.resetVisitStatus();
@@ -176,21 +240,6 @@ public class RewriteDFP extends HopRewriteRule {
         return hop;
     }
 
-    private static Hop reorder(Hop hop) {
-        ArrayList<MyRule> rules = new ArrayList<>();
-        rules.add(new TransposeMultSplitRule());
-        rules.add(new RemoveUnnecessaryTransposeRule());
-        rules.add(new MatrixMultJieheRule());
-        rules.add(new FenpeiRuleLeft(Types.OpOp2.MINUS));
-        rules.add(new FenpeiRuleLeft(Types.OpOp2.PLUS));
-        rules.add(new ScalarLeftMoveRule());
-        rules.add(new ScalarRightMoveRule());
-        for (int i=0;i<10;i++) {
-            hop = MyUtils.applyDAGRule(hop, rules, 10000, false);
-        }
-        return hop;
-    }
-
 
     private static void getAllSubExpression(Hop hop, ArrayList<Hop> result) {
         if (hop.isVisited())
@@ -200,50 +249,6 @@ public class RewriteDFP extends HopRewriteRule {
         for (int i = 0; i < hop.getInput().size(); i++) {
             Hop hi = hop.getInput().get(i);
             getAllSubExpression(hi, result);
-        }
-    }
-
-
-    private static boolean isSame(Hop a, Hop b) {
-        if (a == null || b == null) return false;
-//        System.out.println("same<");
-        Hop aa = deepCopyHopsDag(a);
-        aa = reorder(aa);
-//        System.out.println(Explain.explain(aa));
-//        System.out.println(Explain.explain(b));
-        Hop bb = deepCopyHopsDag(b);
-        bb = reorder(bb);
-//        System.out.println(Explain.explain(bb));
-        boolean ret = isSame_iter(aa, bb);
-//        System.out.println("Ret=" + ret);
-//        System.out.println(">same");
-        return ret;
-    }
-
-    private static boolean isSame_iter(Hop a, Hop b) {
-        if (a.equals(b)) return true;
-        if (a.getInput().size() != b.getInput().size()) return false;
-        if (!a.getInput().isEmpty()) {
-            for (int i = 0; i < a.getInput().size(); i++) {
-                if (isSame_iter(a.getInput().get(i), b.getInput().get(i)) == false) {
-                    return false;
-                }
-            }
-        }
-//        System.out.println(a.getOpString());
-//        System.out.println(b.getOpString());
-        return a.getOpString().equals(b.getOpString());
-    }
-
-    private static boolean isSampleHop(Hop a) {
-        if ("dg(rand)".equals(a.getOpString())) {
-            return true;
-        } else if (a.getInput().size() == 0) {
-            return true;
-        } else if (a.getInput().size() == 1) {
-            return isSampleHop(a.getInput().get(0));
-        } else {
-            return false;
         }
     }
 

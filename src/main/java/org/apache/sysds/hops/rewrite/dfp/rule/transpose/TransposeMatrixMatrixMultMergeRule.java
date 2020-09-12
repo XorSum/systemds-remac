@@ -4,7 +4,7 @@ import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.rule.MyRule;
 
-public class TransposeMultMergeRule extends MyRule {
+public class TransposeMatrixMatrixMultMergeRule extends MyRule {
 
     @Override
     public Hop apply(Hop parent, Hop hi, int pos) {
