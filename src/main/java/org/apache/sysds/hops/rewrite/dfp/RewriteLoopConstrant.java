@@ -20,6 +20,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.sysds.hops.rewrite.dfp.utils.ApplyRulesOnDag.applyDAGRule;
+
 public class RewriteLoopConstrant extends StatementBlockRewriteRule {
     @Override
     public boolean createsSplitDag() {
@@ -138,7 +140,7 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
         rules.add(new FenpeiRuleLeft(Types.OpOp2.PLUS));
         rules.add(new FenpeiRuleRight(Types.OpOp2.MINUS));
         rules.add(new FenpeiRuleRight(Types.OpOp2.PLUS));
-        hop = MyUtils.applyDAGRule(hop, rules, 100, false);
+        hop = applyDAGRule(hop, rules, 100, false);
         return hop;
     }
 

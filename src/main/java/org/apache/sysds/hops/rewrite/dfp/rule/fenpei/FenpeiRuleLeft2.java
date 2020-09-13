@@ -5,7 +5,8 @@ import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.rule.MyRule;
 
-import static org.apache.sysds.hops.rewrite.dfp.utils.MyUtils.hashHopDag;
+import static org.apache.sysds.hops.rewrite.dfp.utils.Hash.hashHopDag;
+
 
 // a*b+a*c -> a*(b+c)
 public class FenpeiRuleLeft2 extends MyRule {

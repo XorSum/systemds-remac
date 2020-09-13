@@ -1,0 +1,897 @@
+>reorder执行耗时：5 ms
+Chain size: 4
+>寻找矩阵连乘块执行耗时：1 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：2 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 2
+>初始化哈希表执行耗时：3 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：9 ms
+bbbb
+>reorder执行耗时：0 ms
+Chain size: 1
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：0 ms
+>reorder执行耗时：0 ms
+Chain size: 1
+>寻找矩阵连乘块执行耗时：1 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：1 ms
+>reorder执行耗时：0 ms
+Chain size: 2
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+bbbb
+>reorder执行耗时：0 ms
+Chain size: 2
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：0 ms
+>reorder执行耗时：0 ms
+Chain size: 2
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：1 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：1 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：1 ms
+bbbb
+>reorder执行耗时：0 ms
+Chain size: 1
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：0 ms
+>reorder执行耗时：0 ms
+Chain size: 1
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：0 ms
+>reorder执行耗时：0 ms
+Chain size: 1
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：0 ms
+>reorder执行耗时：0 ms
+Chain size: 1
+>寻找矩阵连乘块执行耗时：1 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：1 ms
+>reorder执行耗时：0 ms
+Chain size: 1
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：0 ms
+>reorder执行耗时：0 ms
+Chain size: 1
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：0 ms
+>reorder执行耗时：0 ms
+Chain size: 1
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：0 ms
+>reorder执行耗时：0 ms
+Chain size: 1
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：1 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：1 ms
+>reorder执行耗时：0 ms
+Chain size: 3
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+bbbb
+>reorder执行耗时：0 ms
+Chain size: 3
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 2
+>>构造所有的等价二叉树执行耗时：1 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 8
+>初始化哈希表执行耗时：2 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：2 ms
+>reorder执行耗时：0 ms
+Chain size: 14
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 2
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：1 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 2
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：1 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 8
+>初始化哈希表执行耗时：3 ms
+Target: 0, count=4
+t(a)%*%a
+>构造所有计划执行耗时：1 ms
+Solution size: 1
+
+
+==========================
+
+
+rewriteDAG执行耗时：5 ms
+>reorder执行耗时：0 ms
+Chain size: 5
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 5
+>>构造所有的等价二叉树执行耗时：1 ms
+>>所有子式插入哈希表执行耗时：2 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 2
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：1 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 22
+>初始化哈希表执行耗时：4 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：4 ms
+>reorder执行耗时：0 ms
+Chain size: 1
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：0 ms
+>reorder执行耗时：0 ms
+Chain size: 1
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：0 ms
+>reorder执行耗时：0 ms
+Chain size: 1
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：0 ms
+bbbb
+>reorder执行耗时：1 ms
+Chain size: 4
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 2
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：1 ms
+bbbb
+>reorder执行耗时：0 ms
+Chain size: 2
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：0 ms
+>reorder执行耗时：0 ms
+Chain size: 2
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：1 ms
+Sub Exp size: 2
+>初始化哈希表执行耗时：1 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：1 ms
+>reorder执行耗时：0 ms
+Chain size: 3
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+bbbb
+>reorder执行耗时：0 ms
+Chain size: 3
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：0 ms
+bbbb
+>reorder执行耗时：0 ms
+Chain size: 2
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：0 ms
+bbbb
+>reorder执行耗时：0 ms
+Chain size: 13
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：1 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 4
+>初始化哈希表执行耗时：1 ms
+Target: 0, count=3
+a%*%x
+Target: 1, count=3
+t(x)%*%t(a)
+Target: 2, count=3
+a%*%d
+Target: 3, count=3
+t(d)%*%t(a)
+>构造所有计划执行耗时：2 ms
+Solution size: 4
+
+
+==========================
+
+
+rewriteDAG执行耗时：4 ms
+bbbb
+>reorder执行耗时：0 ms
+Chain size: 2
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：1 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：1 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：1 ms
+bbbb
+>reorder执行耗时：0 ms
+Chain size: 2
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+bbbb
+>reorder执行耗时：0 ms
+Chain size: 1
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：0 ms
+>reorder执行耗时：0 ms
+Chain size: 1
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：0 ms
+bbbb
+>reorder执行耗时：0 ms
+Chain size: 2
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：0 ms
+bbbb
+>reorder执行耗时：0 ms
+Chain size: 2
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：0 ms
+bbbb
+>reorder执行耗时：1 ms
+Chain size: 3
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：1 ms
+>reorder执行耗时：1 ms
+Chain size: 18
+>寻找矩阵连乘块执行耗时：1 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 429
+>>构造所有的等价二叉树执行耗时：104 ms
+>>所有子式插入哈希表执行耗时：135 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 132
+>>构造所有的等价二叉树执行耗时：13 ms
+>>所有子式插入哈希表执行耗时：22 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 5
+>>构造所有的等价二叉树执行耗时：1 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 1213
+>初始化哈希表执行耗时：276 ms
+Target: 0, count=3
+t(a)%*%a%*%t(h)
+Target: 1, count=5
+t(a)%*%a%*%d
+Target: 2, count=10
+t(a)%*%a
+Target: 3, count=3
+h%*%t(a)
+Target: 4, count=3
+h%*%t(a)%*%a
+Target: 5, count=3
+h%*%t(a)%*%a%*%d
+Target: 6, count=3
+t(d)%*%t(a)%*%a
+Target: 7, count=3
+a%*%t(h)
+Target: 8, count=4
+d%*%t(d)
+Target: 9, count=6
+t(d)%*%t(a)
+Target: 10, count=3
+t(d)%*%t(a)%*%a%*%t(h)
+Target: 11, count=5
+t(d)%*%t(a)%*%a
+Target: 12, count=6
+a%*%d
+Target: 13, count=3
+t(a)%*%a%*%d
+>构造所有计划执行耗时：20 ms
+Solution size: 14
+
+
+==========================
+
+
+rewriteDAG执行耗时：298 ms
+>reorder执行耗时：0 ms
+Chain size: 2
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：0 ms
+bbbb
+>reorder执行耗时：0 ms
+Chain size: 1
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：0 ms
+>reorder执行耗时：0 ms
+Chain size: 2
+>寻找矩阵连乘块执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+All trees: 1
+>>构造所有的等价二叉树执行耗时：0 ms
+>>所有子式插入哈希表执行耗时：0 ms
+Sub Exp size: 0
+>初始化哈希表执行耗时：0 ms
+>构造所有计划执行耗时：0 ms
+Solution size: 0
+
+
+==========================
+
+
+rewriteDAG执行耗时：0 ms
+该段代码执行耗时：331 ms

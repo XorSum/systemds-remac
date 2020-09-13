@@ -7,18 +7,15 @@ import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.rule.MyRule;
 import org.apache.sysds.hops.rewrite.dfp.rule.fenpei.FenpeiRuleLeft2;
 import org.apache.sysds.hops.rewrite.dfp.rule.fenpei.FenpeiRuleRight2;
-import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule;
-import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule2;
-import org.apache.sysds.hops.rewrite.dfp.rule.transpose.TransposeMatrixMatrixMultMergeRule;
-import org.apache.sysds.hops.rewrite.dfp.rule.transpose.TransposeMinusSplitRule;
 import org.apache.sysds.utils.Explain;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 
-import static org.apache.sysds.hops.rewrite.dfp.utils.MyUtils.deepCopyHopsDag;
-import static org.apache.sysds.hops.rewrite.dfp.utils.MyUtils.hashHopDag;
+import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
+import static org.apache.sysds.hops.rewrite.dfp.utils.Hash.hashHopDag;
+
 
 public class Gongyinshi {
 

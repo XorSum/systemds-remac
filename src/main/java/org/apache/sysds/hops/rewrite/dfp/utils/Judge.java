@@ -1,6 +1,8 @@
 package org.apache.sysds.hops.rewrite.dfp.utils;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.sysds.common.Types;
+import org.apache.sysds.hops.DataOp;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.rule.MyRule;
@@ -14,7 +16,9 @@ import org.apache.sysds.hops.rewrite.dfp.rule.transpose.TransposeScalarMatrixMul
 
 import java.util.ArrayList;
 
-import static org.apache.sysds.hops.rewrite.dfp.utils.MyUtils.deepCopyHopsDag;
+import static org.apache.sysds.hops.rewrite.dfp.utils.ApplyRulesOnDag.applyDAGRule;
+import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
+import static org.apache.sysds.hops.rewrite.dfp.utils.Hash.hashHopDag;
 
 public class Judge {
 
@@ -28,9 +32,14 @@ public class Judge {
         rules.add(new ScalarLeftMoveRule());
         rules.add(new ScalarRightMoveRule());
         rules.add(new TransposeScalarMatrixMultSplitRule());
-        for (int i = 0; i < 300; i++) {
-            hop = MyUtils.applyDAGRule(hop, rules, 10000, false);
-        }
+        Pair<Long,Long> hash1 = null;
+        Pair<Long,Long> hash2 = hashHopDag(hop);
+        do {
+            hop = applyDAGRule(hop, rules, 10000, false);
+            hash1 = hash2;
+            hash2 = hashHopDag(hop);
+        } while (hash2.compareTo(hash1)!=0);
+
         return hop;
     }
 
@@ -77,11 +86,21 @@ public class Judge {
         }
     }
 
-    public static boolean allOfMult(Hop hop) {
+    public static boolean isLeafMatrix(Hop hop) {
+        if ("dg(rand)".equals(hop.getOpString())) {
+            return true;
+        }
+        if (hop instanceof DataOp &&((DataOp) hop).getOp() == Types.OpOpData.TRANSIENTREAD ){
+            return true;
+        }
+        return false;
+    }
+
+    public static boolean isAllOfMult(Hop hop) {
         if (isSampleHop(hop)) return true;
         boolean ans = HopRewriteUtils.isMatrixMultiply(hop);
         for (int i = 0; ans && i < hop.getInput().size(); i++) {
-            ans = allOfMult(hop.getInput().get(i));
+            ans = isAllOfMult(hop.getInput().get(i));
         }
 //        if (ans)
 //            System.out.println(" all of mult");

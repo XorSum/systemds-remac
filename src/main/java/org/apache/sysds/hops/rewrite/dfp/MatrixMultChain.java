@@ -7,9 +7,11 @@ import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+
+import static org.apache.sysds.hops.rewrite.dfp.utils.Hash.hashHopDag;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.*;
-import static org.apache.sysds.hops.rewrite.dfp.utils.MyUtils.deepCopyHopsDag;
-import static org.apache.sysds.hops.rewrite.dfp.utils.MyUtils.hashHopDag;
+import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
+
 
 public class MatrixMultChain {
 
@@ -21,8 +23,14 @@ public class MatrixMultChain {
     public void gao(Hop originTree) {
         this.originalTree = originTree;
         this.allTreeesHashMap = new HashMap<>();
-        this.trees = BaoLi.generateAllTrees(originTree);
 
+                    long  startTime = System.currentTimeMillis();
+        this.trees = BaoLi.generateAllTrees(originTree);
+                    long endTime = System.currentTimeMillis();
+                    long totalTime = endTime -startTime;
+                    System.out.println(">>构造所有的等价二叉树执行耗时：" + totalTime + " ms");
+
+                    startTime = System.currentTimeMillis();
         for (Hop tree: trees) {
             HashMap<Pair<Long,Long>, ArrayList<Hop> > singleTreeHashMap = new HashMap<>();
 //            System.out.println("Stats tree: ");
@@ -46,6 +54,11 @@ public class MatrixMultChain {
                 }
             }
         }
+            endTime = System.currentTimeMillis();
+            totalTime = endTime -startTime;
+            System.out.println(">>所有子式插入哈希表执行耗时：" + totalTime + " ms");
+
+
     }
 
     private void statsAllNode(Hop tree, Hop node, HashMap<Pair<Long,Long>, ArrayList<Hop> > singleTree) {
@@ -73,17 +86,17 @@ public class MatrixMultChain {
     }
 
     public  Hop getTree(Pair<Long,Long> targetHash,Hop targetDag) {
+
         if (!allTreeesHashMap.containsKey(targetHash))
             return this.originalTree;
+//        System.out.println("Get Tree");
 //        System.out.println("change");
         Triple<Hop,Hop,Long> triple = allTreeesHashMap.get(targetHash);
 //        triple.getLeft().resetVisitStatus();
 //        System.out.println(Explain.explain(triple.getLeft()));
         Hop tree = deepCopyHopsDag(triple.getLeft());
-
 //        tree.resetVisitStatus();
 //        System.out.println(Explain.explain(tree));
-
         tree = replace(null,tree,targetHash,targetDag);
         return tree;
     }
@@ -93,12 +106,15 @@ public class MatrixMultChain {
       //  if ( hashHopDag(hop)==targetHash ) {
         Hop tran = HopRewriteUtils.createTranspose(targetDag);
         if (isSame(hop,targetDag)) {
+        //    System.out.println(" = target");
             if (parent!=null)  {
                 HopRewriteUtils.replaceChildReference(parent,hop,targetDag);
                 HopRewriteUtils.cleanupUnreferenced(hop);
             }
             hop = targetDag;
         } else if (isSame(hop,tran)) {
+
+         //   System.out.println(" = t(target)");
             if (parent!=null)  {
                 HopRewriteUtils.replaceChildReference(parent,hop,tran);
                 HopRewriteUtils.cleanupUnreferenced(hop);

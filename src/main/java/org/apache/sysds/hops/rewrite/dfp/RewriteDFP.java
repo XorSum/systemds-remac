@@ -1,6 +1,7 @@
 package org.apache.sysds.hops.rewrite.dfp;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteRule;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
@@ -14,8 +15,10 @@ import org.apache.sysds.utils.Explain;
 
 import java.util.*;
 
+import static org.apache.sysds.hops.rewrite.dfp.utils.ApplyRulesOnDag.applyDAGRule;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.*;
-import static org.apache.sysds.hops.rewrite.dfp.utils.MyUtils.deepCopyHopsDag;
+import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
+import static org.apache.sysds.hops.rewrite.dfp.utils.MyUtils.myResetVisitStatus;
 
 public class RewriteDFP extends HopRewriteRule {
     @Override
@@ -23,8 +26,12 @@ public class RewriteDFP extends HopRewriteRule {
         System.out.println("bbbb");
         for (int i = 0; i < roots.size(); i++) {
             Hop hi = roots.get(i);
+            long startTime = System.currentTimeMillis();
             hi = rewriteDFP(hi, state);
             roots.set(i, hi);
+            long endTime = System.currentTimeMillis();
+            long totalTime = endTime -startTime;
+            System.out.println("rewriteDAG执行耗时：" + totalTime + " ms");
         }
         return roots;
     }
@@ -38,26 +45,46 @@ public class RewriteDFP extends HopRewriteRule {
 
     public static Hop rewriteDFP(Hop root, ProgramRewriteStatus state) {
         if (root == null) return root;
-      //  Gongyinshi.generateGongyinshiTrees(root);
+        //  Gongyinshi.generateGongyinshiTrees(root);
 
+                    long startTime = System.currentTimeMillis();
         root = reorder(root);
-        System.out.println("Root: ");
-        System.out.println(Explain.explain(root));
+                    long endTime = System.currentTimeMillis();
+                    long totalTime = endTime -startTime;
+                    System.out.println(">reorder执行耗时：" + totalTime + " ms");
 
-        ArrayList<Hop> blocks = findMultChains(root);
-        System.out.println("Chain size: "+blocks.size());
+        myResetVisitStatus(root);
+//        System.out.println("Root: ");
+//        System.out.println(Explain.explain(root));
 
+                    startTime = System.currentTimeMillis();
+        ArrayList<Triple<Hop, Hop, Integer>> blocks = findMultChains(root);
+        System.out.println("Chain size: " + blocks.size());
+                    endTime = System.currentTimeMillis();
+                    totalTime = endTime -startTime;
+                    System.out.println(">寻找矩阵连乘块执行耗时：" + totalTime + " ms");
+
+                    startTime = System.currentTimeMillis();
         ArrayList<Hop> solutions = new ArrayList<>();
         chains = new ArrayList<>();
-        for (Hop chain : blocks) {
+        for (Triple<Hop, Hop, Integer> chain : blocks) {
             MatrixMultChain chain1 = new MatrixMultChain();
-            chain1.gao(chain);
+            chain1.gao(chain.getMiddle());
             chains.add(chain1);
         }
+
         Set<Pair<Long, Long>> allSubExps = new HashSet<>();
         for (MatrixMultChain chain : chains) {
             allSubExps.addAll(chain.allTreeesHashMap.keySet());
         }
+        System.out.println("Sub Exp size: " + allSubExps.size());
+                    endTime = System.currentTimeMillis();
+                    totalTime = endTime -startTime;
+                    System.out.println(">初始化哈希表执行耗时：" + totalTime + " ms");
+
+
+
+                    startTime = System.currentTimeMillis();
         for (Pair<Long, Long> targetHash : allSubExps) {
 //            System.out.println("Key:  " + targetHash);
             Long allCount = 0l;
@@ -66,73 +93,87 @@ public class RewriteDFP extends HopRewriteRule {
                 Long count = 0l;
                 if (chain.allTreeesHashMap.containsKey(targetHash)) {
                     count = chain.allTreeesHashMap.get(targetHash).getRight();
-                    if (targetDag==null)
+                    if (targetDag == null)
                         targetDag = chain.allTreeesHashMap.get(targetHash).getMiddle();
                 }
 //                System.out.print(count + ", ");
                 allCount = allCount + count;
             }
 //            System.out.println("");
-            if (targetDag!=null && allCount > 2) {
-                System.out.println("Target:  count="+allCount);
+            if (targetDag != null && allCount > 2) {
+//                System.out.println("<----");
+                System.out.println("Target: " + solutions.size() + ", count=" + allCount);
 //                System.out.println(Explain.explain(targetDag));
                 System.out.println(MyUtils.explain(targetDag));
-//                System.out.println("Solution: ");
-                Hop sol = genSolution(root, targetHash,targetDag);
-//                System.out.println(Explain.explain(sol));
+                Hop sol = genSolution(root, targetHash, targetDag);
+           //     System.out.println("Solution: ");
+           //     myResetVisitStatus(sol);
+           //     System.out.println(Explain.explain(sol));
                 solutions.add(sol);
+//                System.out.println("---->");
             }
         }
-        System.out.println("Solution size: "+solutions.size());
+
+                    endTime = System.currentTimeMillis();
+                    totalTime = endTime -startTime;
+                    System.out.println(">构造所有计划执行耗时：" + totalTime + " ms");
+
+
+
+        System.out.println("Solution size: " + solutions.size());
+//        if (solutions.size()==14) {
+//            myResetVisitStatus(solutions.get(5));
+//            System.out.println(Explain.explain(solutions.get(5)));
+//        }
         System.out.println("\n\n==========================\n\n");
 
         return root;
     }
 
 
-    private static ArrayList<Hop> findMultChains(Hop root) {
-        ArrayList<Hop> result = new ArrayList<Hop>();
-       // root.resetVisitStatus();
-        findMultChains_iter(null, root, result);
+    private static ArrayList<Triple<Hop, Hop, Integer>> findMultChains(Hop root) {
+        ArrayList<Triple<Hop, Hop, Integer>> result = new ArrayList<>();
+        // root.resetVisitStatus();
+        findMultChains_iter(null, root, 0, result);
         return result;
     }
 
-    private static void findMultChains_iter(Hop parent, Hop hop, ArrayList<Hop> result) {
-     //   if (hop.isVisited()) return;
+    private static void findMultChains_iter(Hop parent, Hop hop, int index, ArrayList<Triple<Hop, Hop, Integer>> result) {
+        //   if (hop.isVisited()) return;
         if ((parent == null || !HopRewriteUtils.isMatrixMultiply(parent))
-                && allOfMult(hop)) {
-            result.add(hop);
+                && isAllOfMult(hop)) {
+            result.add(Triple.of(parent, hop, index));
         } else {
             for (int i = 0; i < hop.getInput().size(); i++) {
-                findMultChains_iter(hop, hop.getInput().get(i), result);
+                findMultChains_iter(hop, hop.getInput().get(i), i, result);
             }
         }
-      //  hop.setVisited();
+        //  hop.setVisited();
     }
-
 
     static int chain_index;
 
-    private static Hop genSolution(Hop root, Pair<Long, Long> targetHash,Hop targetDag) {
+    private static Hop genSolution(Hop root, Pair<Long, Long> targetHash, Hop targetDag) {
         Hop copy = deepCopyHopsDag(root);
         chain_index = 0;
-        copy = genSolution_iter(null, copy, targetHash,targetDag);
+        copy = genSolution_iter(null, copy, targetHash, targetDag);
         return copy;
     }
 
-    private static Hop genSolution_iter(Hop parent, Hop hop, Pair<Long, Long> targetHash,Hop targetDag) {
+    private static Hop genSolution_iter(Hop parent, Hop hop, Pair<Long, Long> targetHash, Hop targetDag) {
         if ((parent == null || !HopRewriteUtils.isMatrixMultiply(parent))
-                && allOfMult(hop)) {
+                && isAllOfMult(hop)) {
+          //  System.out.println("++++++++++++++++++++++++++++++++++++++++    " + hop.getHopID() + " replace ");
             Hop subTree = chains.get(chain_index).getTree(targetHash, targetDag);
             chain_index = chain_index + 1;
             if (parent != null) {
                 HopRewriteUtils.replaceChildReference(parent, hop, subTree);
-            //    HopRewriteUtils.cleanupUnreferenced(hop);
+                HopRewriteUtils.cleanupUnreferenced(hop);
             }
             hop = subTree;
         } else {
             for (int i = 0; i < hop.getInput().size(); i++) {
-                Hop tmp = genSolution_iter(hop, hop.getInput().get(i), targetHash,targetDag);
+                Hop tmp = genSolution_iter(hop, hop.getInput().get(i), targetHash, targetDag);
                 hop.getInput().set(i, tmp);
             }
         }
@@ -221,7 +262,7 @@ public class RewriteDFP extends HopRewriteRule {
         ArrayList<MyRule> rules = new ArrayList<>();
         rules.add(new MatrixMultJieheRule());
         rules.add(new MatrixMultJieheRule2());
-        hop = MyUtils.applyDAGRule(hop, rules, 100, false);
+        hop = applyDAGRule(hop, rules, 100, false);
         return hop;
     }
 
@@ -229,14 +270,14 @@ public class RewriteDFP extends HopRewriteRule {
         ArrayList<MyRule> rules = new ArrayList<>();
         rules.add(new MatrixMultJieheRule());
         rules.add(new MatrixMultJieheRule2());
-        hop = MyUtils.applyDAGRule(hop, rules, 100, true);
+        hop = applyDAGRule(hop, rules, 100, true);
         return hop;
     }
 
     private static Hop balance(Hop hop) {
         ArrayList<MyRule> rules = new ArrayList<>();
         rules.add(new BalanceMultiply4Rule());
-        hop = MyUtils.applyDAGRule(hop, rules, 100, false);
+        hop = applyDAGRule(hop, rules, 100, false);
         return hop;
     }
 

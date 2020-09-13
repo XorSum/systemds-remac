@@ -6,29 +6,30 @@ import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.rule.MyRule;
 import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule;
 import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule2;
-import org.apache.sysds.hops.rewrite.dfp.rule.transpose.TransposeMinusSplitRule;
-import org.apache.sysds.hops.rewrite.dfp.rule.transpose.TransposeMatrixMatrixMultMergeRule;
+import org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag;
+import org.apache.sysds.utils.Explain;
 
 import java.util.*;
 
-import static org.apache.sysds.hops.rewrite.dfp.utils.MyUtils.deepCopyHopsDag;
-import static org.apache.sysds.hops.rewrite.dfp.utils.MyUtils.hashHopDag;
+import static org.apache.sysds.hops.rewrite.dfp.utils.Hash.hashHopDag;
+import static org.apache.sysds.hops.rewrite.dfp.utils.MyUtils.*;
 
 public class BaoLi {
 
     private static ArrayList<Hop> dags;
     private static ArrayList<Integer> path;
     private static Hop firstDag;
-    private static Set<Pair<Long,Long>> set;
+    private static Set<Pair<Long,Long>> hashKeysSet;
 
     public static ArrayList<Hop> generateAllTrees(Hop root) {
+//        System.out.println("<--");
         dags = new ArrayList<>();
-        set = new HashSet<>();
+        hashKeysSet = new HashSet<>();
         dags.add(root); // push
-        set.add(hashHopDag(root));
+        hashKeysSet.add(hashHopDag(root));
         path = new ArrayList<>();
-//        System.out.println("Root=");
-//        root.resetVisitStatus();
+//        System.out.println("root=");
+        myResetVisitStatus(root);
 //        System.out.println(Explain.explain(root));
         for (int i = 0; i < dags.size()  ; i++) {
             firstDag = dags.get(i);
@@ -37,6 +38,7 @@ public class BaoLi {
           //  break;
         }
         System.out.println("All trees: " + dags.size());
+//        System.out.println("-->");
         return dags;
 //        for (int i = 0; i < dags.size(); i++) {
 //            System.out.println("HASH=" + hashHopDag(dags.get(i)));
@@ -53,7 +55,7 @@ public class BaoLi {
             generate_iter(current.getInput().get(i), depth + 1);
         }
         //   System.out.println("call F3: dep: "+depth+" , id: "+current.getHopID());
-        if (HopRewriteUtils.isMatrixMultiply(current) && dags.size()<200000 ) {
+        if (HopRewriteUtils.isMatrixMultiply(current) && dags.size()<1000 ) {
             copyChangePush(depth);
         }
     }
@@ -63,32 +65,33 @@ public class BaoLi {
         ArrayList<MyRule> rules = new ArrayList<>();
         rules.add(new MatrixMultJieheRule());
         rules.add(new MatrixMultJieheRule2());
-        rules.add(new TransposeMinusSplitRule());
-        rules.add(new TransposeMatrixMatrixMultMergeRule());
+//        rules.add(new TransposeMinusSplitRule());
+//        rules.add(new TransposePlusSplitRule());
+//        rules.add(new TransposeMatrixMatrixMultMergeRule());
         for (MyRule rule : rules) {
-            Hop shadow = deepCopyHopsDag(firstDag);
-            Hop parent = null;
-            Hop p = shadow;
+            Hop shadowDag = DeepCopyHopsDag.deepCopyHopsDag(firstDag);
+            Hop parentNode = null;
+            Hop currentNode = shadowDag;
             for (int d = 0; d < depth; d++) {
                 int i = path.get(d);
 //                System.out.print(" " + i);
-                parent = p;
-                p = p.getInput().get(i);
+                parentNode = currentNode;
+                currentNode = currentNode.getInput().get(i);
             }
 //            System.out.println("");
-            p = rule.apply(parent, p, 0);
-            if (parent == null) shadow = p;
-//            shadow.resetVisitStatus();
+            currentNode = rule.apply(parentNode, currentNode, 0);
+            if (parentNode == null) shadowDag = currentNode;
+            Pair<Long,Long> hash = hashHopDag(shadowDag);
+//            shadowDag.resetVisitStatus();
 //            System.out.println("the new tree is:");
-//            System.out.println(Explain.explain(shadow));
-            Pair<Long,Long> hash = hashHopDag(shadow);
+//            System.out.println(Explain.explain(shadowDag));
 //            System.out.println("new tree: hash=" + hash);
-//            shadow.resetVisitStatus();
-//            System.out.println(Explain.explain(shadow));
-            if (!set.contains(hash)) {
+//            shadowDag.resetVisitStatus();
+//            System.out.println(Explain.explain(shadowDag));
+            if (!hashKeysSet.contains(hash)) {
 //                System.out.println("push");
-                set.add(hash);
-                dags.add(shadow);
+                hashKeysSet.add(hash);
+                dags.add(shadowDag);
             }
 //            else {
 //                System.out.println("don't push");

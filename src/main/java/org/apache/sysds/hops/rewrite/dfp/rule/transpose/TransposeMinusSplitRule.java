@@ -9,7 +9,7 @@ public class TransposeMinusSplitRule extends MyRule {
 
     @Override
     public Hop apply(Hop parent, Hop hi, int pos) {
-        // t(x+y)->t(x)+t(y)
+        // t(x-y)->t(x)-t(y)
         if (HopRewriteUtils.isTransposeOperation(hi)) {
             Hop xy = hi.getInput().get(0);
             if (HopRewriteUtils.isBinary(xy,Types.OpOp2.MINUS)) {
