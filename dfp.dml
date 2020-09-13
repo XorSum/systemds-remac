@@ -73,7 +73,8 @@ while((i<10)&(!end)) {
     s = pow(rho,mk)*d
     x = x + s
     y = 2 * t(a) %*% a %*% s
-    h = h - (h %*% y %*% t(y) %*% t(h)) / ( t(y) %*% t(h) %*% y)  + (s%*%t(s))/(t(s)%*%y)
+    #h = h - (h %*% y %*% t(y) %*% t(h)) / ( t(y) %*% t(h) %*% y)  + (s%*%t(s))/(t(s)%*%y)
+    h = h - (h %*% y %*% t(y) %*% h) / ( t(y) %*% h %*% y)  + (s%*%t(s))/(t(s)%*%y)
     i = i + 1
 }
 

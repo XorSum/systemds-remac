@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 import static org.apache.sysds.hops.rewrite.dfp.utils.Hash.hashHopDag;
+import static org.apache.sysds.hops.rewrite.dfp.utils.Hash.hashTransposeHopDag;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.*;
 import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
 
@@ -72,6 +73,7 @@ public class MatrixMultChain {
         Hop tran = HopRewriteUtils.createTranspose(node);
         tran = reorder(tran);
         Pair<Long,Long> thash = hashHopDag(tran);
+//        Pair<Long,Long> thash = hashTransposeHopDag(node);
         if (!singleTree.containsKey(thash)) {
             singleTree.put(thash,new ArrayList<>());
         }

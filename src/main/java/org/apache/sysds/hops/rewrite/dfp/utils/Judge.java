@@ -22,6 +22,11 @@ import static org.apache.sysds.hops.rewrite.dfp.utils.Hash.hashHopDag;
 
 public class Judge {
 
+    public static boolean isSymmetryMatrix(Hop hop) {
+        // 是否是对称矩阵，mock
+        return "h".equals(hop.getName() );
+    }
+
     public static Hop reorder(Hop hop) {
         ArrayList<MyRule> rules = new ArrayList<>();
         rules.add(new TransposeMatrixMatrixMultSplitRule());
