@@ -11,14 +11,10 @@ import org.apache.sysds.hops.rewrite.dfp.rule.fenpei.FenpeiRuleLeft;
 import org.apache.sysds.hops.rewrite.dfp.rule.fenpei.FenpeiRuleRight;
 import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule;
 import org.apache.sysds.hops.rewrite.dfp.rule.transpose.TransposeMatrixMatrixMultSplitRule;
-import org.apache.sysds.hops.rewrite.dfp.utils.MyUtils;
 import org.apache.sysds.parser.*;
 import org.apache.sysds.utils.Explain;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.apache.sysds.hops.rewrite.dfp.utils.ApplyRulesOnDag.applyDAGRule;
 
@@ -30,16 +26,18 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
 
     @Override
     public List<StatementBlock> rewriteStatementBlock(StatementBlock sb, ProgramRewriteStatus state) {
-        if (sb==null) return new ArrayList<>();
+        List<StatementBlock> res = new ArrayList<>();
+        if (sb == null) return res;
         System.out.println("ccc");
         if (sb instanceof WhileStatementBlock) {
             System.out.println("While Statement");
             WhileStatementBlock wstmtblk = (WhileStatementBlock) sb;
             VariableSet variablesUpdated = wstmtblk.variablesUpdated();
             WhileStatement wstmt = (WhileStatement) sb.getStatement(0);
+/*
             // step 1. reorder
             ArrayList<StatementBlock> body = wstmt.getBody();
-            for (int j = 0; j < wstmt.getBody().size(); j++) {
+            for (int j = 0; j < body.size(); j++) {
                 StatementBlock s = body.get(j);
                 if (s==null||s.getHops()==null) continue;
                 for (int k = 0; k < s.getHops().size(); k++) {
@@ -56,7 +54,7 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
 
             // step 2. find constant
             ArrayList<Hop> constantHops = new ArrayList<>();
-            for (int j = 0; j < wstmt.getBody().size(); j++) {
+            for (int j = 0; j < body.size(); j++) {
                 StatementBlock s = body.get(j);
                 if (s==null||s.getHops()==null) continue;
                 for (int k = 0; k < s.getHops().size(); k++) {
@@ -103,7 +101,6 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
            // preStmtBlk.setLiveIn(wstmtblk.getLiveIn());
            // preStmtBlk.setLiveOut(wstmtblk.getLiveOut());
 
-
             // step 4. construct new statement blocks
 
             List<StatementBlock> res = new ArrayList<>();
@@ -112,21 +109,21 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
             return res;
 
 
-//            Statement stmt1 = new AssignmentStatement( , );
-//
-//            preStmtBlk.addStatement();
-
-
-        } else {
-            List<StatementBlock> res = new ArrayList<>();
             res.add(sb);
             return res;
+        } else {
+       */
         }
+        res.add(sb);
+        return res;
     }
 
     @Override
     public List<StatementBlock> rewriteStatementBlocks(List<StatementBlock> sbs, ProgramRewriteStatus state) {
-      //  System.out.println("ddd");
+        System.out.println("ddd");
+        for (StatementBlock sb : sbs) {
+
+        }
         return sbs;
     }
 
@@ -158,14 +155,14 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
     }
 
     private boolean rFindConstant(Hop hop, VariableSet variablesUpdated,
-                                  ArrayList<Hop> constantHops, Map<Long,Boolean> mp) {
+                                  ArrayList<Hop> constantHops, Map<Long, Boolean> mp) {
         // if (hop.isVisited()) return false;
         if (mp.containsKey(hop.getHopID())) return mp.get(hop.getHopID());
-        System.out.println("access "+hop.getHopID());
+        System.out.println("access " + hop.getHopID());
         boolean isConstant = true;
         for (int i = 0; i < hop.getInput().size(); i++) {
             Hop child = hop.getInput().get(i);
-            if (rFindConstant(child, variablesUpdated, constantHops,mp) == false) {
+            if (rFindConstant(child, variablesUpdated, constantHops, mp) == false) {
                 isConstant = false;
             }
         }
@@ -174,22 +171,22 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
         if (isConstant == false) {
             for (int i = 0; i < hop.getInput().size(); i++) {
                 Hop child = hop.getInput().get(i);
-                if (rFindConstant(child, variablesUpdated, constantHops,mp) == true) {
-                    if (child.isVisited() == false &&child.getInput().size()>0 ) {
+                if (rFindConstant(child, variablesUpdated, constantHops, mp) == true) {
+                    if (child.isVisited() == false && child.getInput().size() > 0) {
                         constantHops.add(child);
                         child.setVisited();
                     }
                 }
             }
         }
-        mp.put(hop.getHopID(),isConstant);
+        mp.put(hop.getHopID(), isConstant);
         return isConstant;
     }
 
     private void rReplaceConstant(Hop hop, VariableSet variablesUpdated, ArrayList<Hop> constantHops) {
         if (hop.isVisited()) return;
 
-     //   System.out.println("call replace");
+        //   System.out.println("call replace");
         for (int i = 0; i < hop.getInput().size(); i++) {
             Hop child = hop.getInput().get(i);
             int j = -1;

@@ -2,6 +2,7 @@ package org.apache.sysds.hops.rewrite.dfp.utils;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.sysds.common.Types;
+import org.apache.sysds.hops.DataGenOp;
 import org.apache.sysds.hops.DataOp;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
@@ -22,10 +23,6 @@ import static org.apache.sysds.hops.rewrite.dfp.utils.Hash.hashHopDag;
 
 public class Judge {
 
-    public static boolean isSymmetryMatrix(Hop hop) {
-        // 是否是对称矩阵，mock
-        return "h".equals(hop.getName() );
-    }
 
     public static Hop reorder(Hop hop) {
         ArrayList<MyRule> rules = new ArrayList<>();
@@ -37,13 +34,13 @@ public class Judge {
         rules.add(new ScalarLeftMoveRule());
         rules.add(new ScalarRightMoveRule());
         rules.add(new TransposeScalarMatrixMultSplitRule());
-        Pair<Long,Long> hash1 = null;
-        Pair<Long,Long> hash2 = hashHopDag(hop);
+        Pair<Long, Long> hash1 = null;
+        Pair<Long, Long> hash2 = hashHopDag(hop);
         do {
             hop = applyDAGRule(hop, rules, 10000, false);
             hash1 = hash2;
             hash2 = hashHopDag(hop);
-        } while (hash2.compareTo(hash1)!=0);
+        } while (hash2.compareTo(hash1) != 0);
 
         return hop;
     }
@@ -82,6 +79,8 @@ public class Judge {
     public static boolean isSampleHop(Hop a) {
         if ("dg(rand)".equals(a.getOpString())) {
             return true;
+        } else if (isRead(a)) {
+            return true;
         } else if (a.getInput().size() == 0) {
             return true;
         } else if (a.getInput().size() == 1) {
@@ -91,14 +90,31 @@ public class Judge {
         }
     }
 
-    public static boolean isLeafMatrix(Hop hop) {
-        if ("dg(rand)".equals(hop.getOpString())) {
-            return true;
-        }
-        if (hop instanceof DataOp &&((DataOp) hop).getOp() == Types.OpOpData.TRANSIENTREAD ){
-            return true;
+    public static boolean isRead(Hop hop) {
+        return hop instanceof DataOp &&
+                ((DataOp) hop).isRead();
+    }
+
+    public static boolean isWrite(Hop hop) {
+        return hop instanceof DataOp &&
+                ((DataOp) hop).isWrite();
+    }
+
+    public static boolean isDiagMatrix(Hop hop) {
+        // 如果只有对角线上的元素非零，返回true
+        if (HopRewriteUtils.isReorg(hop, Types.ReOrgOp.DIAG)) {
+            Hop son = hop.getInput().get(0);
+            return son.getDim2() == 1;
         }
         return false;
+    }
+
+
+    public static boolean isLeafMatrix(Hop hop) {
+        return "dg(rand)".equals(hop.getOpString())
+                || hop instanceof DataGenOp
+                || isRead(hop)
+                || isDiagMatrix(hop);
     }
 
     public static boolean isAllOfMult(Hop hop) {

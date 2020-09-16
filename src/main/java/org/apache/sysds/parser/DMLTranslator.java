@@ -57,9 +57,11 @@ import org.apache.sysds.hops.codegen.SpoofCompiler.PlanCachePolicy;
 import org.apache.sysds.hops.ipa.InterProceduralAnalysis;
 import org.apache.sysds.hops.recompile.Recompiler;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
+import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
 import org.apache.sysds.hops.rewrite.ProgramRewriter;
+import org.apache.sysds.hops.rewrite.StatementBlockRewriteRule;
+import org.apache.sysds.hops.rewrite.dfp.AnalyzeSymmetryMatrix;
 import org.apache.sysds.hops.rewrite.dfp.RewriteDFP;
-import org.apache.sysds.hops.rewrite.dfp.RewriteLoopConstrant;
 import org.apache.sysds.lops.Lop;
 import org.apache.sysds.lops.LopsException;
 import org.apache.sysds.lops.compile.Dag;
@@ -260,15 +262,21 @@ public class DMLTranslator
 
 		long startTime = System.currentTimeMillis();
 
+        // 分析矩阵是否是对称阵
+        StatementBlockRewriteRule stbrr = new AnalyzeSymmetryMatrix();
+        stbrr.rewriteStatementBlocks(dmlp.getStatementBlocks(),new ProgramRewriteStatus());
+        resetHopsDAGVisitStatus(dmlp);
+
 		// apply common sub expression rewrites
 		ProgramRewriter rewriter3 = new ProgramRewriter(new RewriteDFP());
 		rewriter3.rewriteProgramHopDAGs(dmlp);
 		resetHopsDAGVisitStatus(dmlp);
 
-		// apply common loop constant rewrites
-//		ProgramRewriter rewriter4 = new ProgramRewriter(new RewriteLoopConstrant());
+//
+//		ProgramRewriter rewriter4 = new ProgramRewriter(new RewriteSymmetryMatrix());
 //		rewriter4.rewriteProgramHopDAGs(dmlp);
 //		resetHopsDAGVisitStatus(dmlp);
+
 
 		long endTime = System.currentTimeMillis();
 		long totalTime = endTime -startTime;

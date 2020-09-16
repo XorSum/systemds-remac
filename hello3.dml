@@ -1,12 +1,25 @@
-f = function(double x,double y) return (double z) {
-   z = x * y
+X  = read("/home/han/CLionProjects/untitled/cmake-build-debug/a.csv",format="csv")
+y = read("/home/han/CLionProjects/untitled/cmake-build-debug/b.csv",format="csv")
+
+#print("X="+toString(X))
+#print("y="+toString(y))
+
+X = cbind(X, matrix(1, rows=nrow(X), cols=1))
+max_iter = 100
+
+w = matrix(1.1, rows=ncol(X), cols=1)
+#w = matrix("0 0 0 0",rows=4, cols=1)
+
+print("w="+toString(w))
+
+for(i in 1:max_iter){
+    loss = sum(t(X%*%w-y)%*%(X%*%w-y))
+    print("loss="+toString(loss))
+    XtX = t(X) %*% X
+    dw = XtX %*%w - t(X) %*% y
+    alpha = -(t(dw) %*% dw) / (t(dw) %*% XtX %*% dw)
+    w = w + dw*alpha
+    print("w="+toString(w))
 }
 
-a = 10
-b = 11
-c = 12
-d = f(a,b) + f(a,c)
-
-print(toString(d))
-
-
+print(toString(w))

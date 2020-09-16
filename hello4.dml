@@ -8,10 +8,15 @@ m6 = matrix(4.0, rows=10, cols=10)
 m7 = matrix(4.0, rows=10, cols=10)
 m8 = matrix(4.0, rows=10, cols=10)
 
-ans = m0 + m1%*%t(m2) + m1%*%t(m2)%*%m3 + m1%*%t(m2)%*%m2%*%t(m1)
+#ans = m0 + m1%*%t(m2) + m1%*%t(m2)%*%m3 + m1%*%t(m2)%*%m2%*%t(m1)
+#ans =  m1%*%t(m2)%*%t(m2)%*%m1
 
-#ans = m1%*%t(m2) + m1%*%t(m2)%*%m2%*%t(m1)
+ans = m1%*%t(m2)+ m1%*%t(m2)%*%m2%*%t(m1)
 
 print(toString(ans))
 
 
+# t(m1%*%t(m2)) = m2%*%t(m1)
+# t(abc) = t(c)t(ab) = t(c)t(b)t(a)
+#   012                  2   1   0
+# t(at(b)c) = t(c)t(at(b)) = t(c)bt(a)

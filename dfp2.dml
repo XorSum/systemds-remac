@@ -1,28 +1,18 @@
 # input: a,b
 # output: x
 
-#aa = read("hdfs://10.11.1.209:9000/data/avazu/app-tr-a.bin",format="binary")
-#a = aa[1:1000000,1:300000]
+
 a = read("/home/han/CLionProjects/untitled/cmake-build-debug/a.csv",format="csv")
 
-#bb = read("hdfs://10.11.1.209:9000/data/avazu/app-tr-b.bin",format="binary")
-#b = bb[1:1000000,]
+
 b = read("/home/han/CLionProjects/untitled/cmake-build-debug/b.csv",format="csv")
 
 e = 1000  # 误差
-#rho = 0.02
-#sigma = 0.1
 rho = 0.1
 sigma = 0.1
 
 m = ncol(a)
 n = nrow(a)
-
-#m = 100
-#n = 10
-#a = rand(rows=n,cols=m)
-#b = rand(rows=n,cols=1)
-
 
 f  = function(matrix[double] a,matrix[double] b,matrix[double] x) return (double ret) {
     tmp = a%*%x-b
@@ -38,8 +28,8 @@ pow = function(double x,double y) return (double z) {
    }
 }
 
-x = matrix("0 0 0",rows=3, cols=1)
-#x = matrix(0,rows=3,cols=1)
+#x = matrix("0 0 0",rows=3, cols=1)
+x = matrix(1.1,rows=3,cols=1)
 
 print("x="+toString(x))
 
@@ -60,23 +50,7 @@ while((i<100)&(!end)) {
 
     # 探测步长
     d = - h %*% g
-    mk = 0
-    m = 0
-    found = FALSE
-    oldf = f(a,b,x)
-    print("oldf="+toString(oldf))
-    xishu = sigma * sum(t(g)%*%d)
-    while((m<30)&(!found)) {
-         print("m="+toString(m))
-         newf = f(a,b,pow(rho,m)*d + x)
-         tmpf = oldf + xishu * pow(rho,m)
-        if ( newf < oldf ) {
-            mk = m
-            found = TRUE
-        }
-        m = m + 1
-    }
-    s = pow(rho,mk)*d
+    s = d
     x = x + s
     print("s="+toString(s))
     print("x="+toString(x))

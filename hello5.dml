@@ -1,15 +1,35 @@
-m0 = matrix(1.0, rows=10, cols=10)
-m1 = matrix(2.0, rows=10, cols=10)
-m2 = matrix(3.0, rows=10, cols=10)
-m3 = matrix(4.0, rows=10, cols=10)
-m4 = matrix(5.0, rows=10, cols=10)
-m5 = matrix(6.0, rows=10, cols=10)
-m6 = matrix(4.0, rows=10, cols=10)
-m7 = matrix(4.0, rows=10, cols=10)
-m8 = matrix(4.0, rows=10, cols=10)
 
-ans = m0%*%m1 + m0%*%m2 + m3%*%m1 + m3%*%m2
+func  = function(matrix[double] a,matrix[double] b) return (matrix[double] ret) {
+    tmp = a%*%b
+    ret = tmp%*%t(tmp)+tmp
+}
 
-print(toString(ans))
+h = diag(matrix(1.0,rows=10,cols=1))
+g = diag(matrix(1.0,rows=10,cols=1))
+f = matrix(1.0,rows=10,cols=10)
+
+
+
+a = matrix(1.0,rows=10,cols=10)
+i = 1
+while (i<10) {
+    i = i + 1
+    h = h - g%*%h%*%t(h)%*%t(g)
+    b = func(a,h)
+    k = 1
+    while(k<10) {
+        f = f%*%f
+        k = k + 1
+    }
+    if (sum(g)<sum(f)) {
+        h = h - f%*%h%*%t(h)%*%t(f)
+    } else {
+        h = h + f%*%h%*%t(h)%*%t(f)
+    }
+}
+
+print(toString(h))
+print(toString(b))
+
 
 

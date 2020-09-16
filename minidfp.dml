@@ -1,0 +1,32 @@
+a = read("/home/han/CLionProjects/untitled/cmake-build-debug/a.csv",format="csv")
+b = read("/home/han/CLionProjects/untitled/cmake-build-debug/b.csv",format="csv")
+
+m = 3
+n = 1
+i=1
+e = 2
+x = matrix(1.0,rows=m, cols=1)
+h = diag(matrix(1.0, rows=m, cols=1))
+
+f  = function(matrix[double] a,matrix[double] b,matrix[double] x) return (double ret) {
+    tmp = a%*%x-b
+    ret = sum( t(tmp)%*%tmp )
+}
+
+pow = function(double x,double y) return (double z) {
+   z = 1.0
+   i = 1
+   while(i<=y) {
+      z = z * x
+      i = i + 1
+   }
+}
+
+while(i<10) {
+    i=i+1
+    s =  matrix(1,rows=m,cols=m)
+    lambda =pow(e,i)
+    y = (t(a) %*% a %*% s)*lambda
+    h = h - (h %*% y %*% t(y) %*% h) / ( t(y) %*% h %*% y)  + (s%*%t(s))/(t(s)%*%y)
+}
+print("h="+toString(h))

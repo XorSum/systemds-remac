@@ -7,12 +7,11 @@ import org.apache.sysds.hops.rewrite.dfp.rule.MyRule;
 import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule;
 import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule2;
 import org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag;
-import org.apache.sysds.utils.Explain;
 
 import java.util.*;
 
 import static org.apache.sysds.hops.rewrite.dfp.utils.Hash.hashHopDag;
-import static org.apache.sysds.hops.rewrite.dfp.utils.MyUtils.*;
+import static org.apache.sysds.hops.rewrite.dfp.utils.MyExplain.*;
 
 public class BaoLi {
 
@@ -65,9 +64,6 @@ public class BaoLi {
         ArrayList<MyRule> rules = new ArrayList<>();
         rules.add(new MatrixMultJieheRule());
         rules.add(new MatrixMultJieheRule2());
-//        rules.add(new TransposeMinusSplitRule());
-//        rules.add(new TransposePlusSplitRule());
-//        rules.add(new TransposeMatrixMatrixMultMergeRule());
         for (MyRule rule : rules) {
             Hop shadowDag = DeepCopyHopsDag.deepCopyHopsDag(firstDag);
             Hop parentNode = null;

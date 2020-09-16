@@ -10,7 +10,8 @@ import org.apache.sysds.hops.rewrite.dfp.rule.*;
 import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule;
 import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule2;
 
-import org.apache.sysds.hops.rewrite.dfp.utils.MyUtils;
+import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
+import org.apache.sysds.hops.rewrite.dfp.utils.MyExplain;
 import org.apache.sysds.utils.Explain;
 
 import java.util.*;
@@ -18,7 +19,7 @@ import java.util.*;
 import static org.apache.sysds.hops.rewrite.dfp.utils.ApplyRulesOnDag.applyDAGRule;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.*;
 import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
-import static org.apache.sysds.hops.rewrite.dfp.utils.MyUtils.myResetVisitStatus;
+import static org.apache.sysds.hops.rewrite.dfp.utils.MyExplain.myResetVisitStatus;
 
 public class RewriteDFP extends HopRewriteRule {
     @Override
@@ -38,6 +39,7 @@ public class RewriteDFP extends HopRewriteRule {
 
     @Override
     public Hop rewriteHopDAG(Hop root, ProgramRewriteStatus state) {
+//        return root;
         return rewriteDFP(root, state);
     }
 
@@ -45,13 +47,17 @@ public class RewriteDFP extends HopRewriteRule {
 
     public static Hop rewriteDFP(Hop root, ProgramRewriteStatus state) {
         if (root == null) return root;
-        //  Gongyinshi.generateGongyinshiTrees(root);
+
+        System.out.println(MyExplain.myExplain(root));
+
 
                     long startTime = System.currentTimeMillis();
         root = reorder(root);
                     long endTime = System.currentTimeMillis();
                     long totalTime = endTime -startTime;
                     System.out.println(">reorder执行耗时：" + totalTime + " ms");
+        System.out.println(MyExplain.myExplain(root));
+     //   System.out.println(Judge.isSymmetryMatrixInLoop(root));
 
         myResetVisitStatus(root);
 //        System.out.println("Root: ");
@@ -99,16 +105,17 @@ public class RewriteDFP extends HopRewriteRule {
 //                System.out.print(count + ", ");
                 allCount = allCount + count;
             }
+//            System.out.println("target="+explain(targetDag)+", count="+allCount);
 //            System.out.println("");
             if (targetDag != null && allCount > 2) {
 //                System.out.println("<----");
                 System.out.println("Target: " + solutions.size() + ", count=" + allCount);
 //                System.out.println(Explain.explain(targetDag));
-                System.out.println(MyUtils.explain(targetDag));
+                System.out.println(MyExplain.myExplain(targetDag));
                 Hop sol = genSolution(root, targetHash, targetDag);
-           //     System.out.println("Solution: ");
-           //     myResetVisitStatus(sol);
-           //     System.out.println(Explain.explain(sol));
+                System.out.println("Solution: ");
+                myResetVisitStatus(sol);
+                System.out.println(Explain.explain(sol));
                 solutions.add(sol);
 //                System.out.println("---->");
             }
