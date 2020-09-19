@@ -266,8 +266,8 @@ public class DMLTranslator
         StatementBlockRewriteRule stbrr = new AnalyzeSymmetryMatrix();
         stbrr.rewriteStatementBlocks(dmlp.getStatementBlocks(),new ProgramRewriteStatus());
         resetHopsDAGVisitStatus(dmlp);
-
-		// apply common sub expression rewrites
+//
+//		// apply common sub expression rewrites
 		ProgramRewriter rewriter3 = new ProgramRewriter(new RewriteDFP());
 		rewriter3.rewriteProgramHopDAGs(dmlp);
 		resetHopsDAGVisitStatus(dmlp);

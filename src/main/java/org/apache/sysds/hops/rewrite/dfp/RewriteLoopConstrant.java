@@ -12,7 +12,6 @@ import org.apache.sysds.hops.rewrite.dfp.rule.fenpei.FenpeiRuleRight;
 import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule;
 import org.apache.sysds.hops.rewrite.dfp.rule.transpose.TransposeMatrixMatrixMultSplitRule;
 import org.apache.sysds.parser.*;
-import org.apache.sysds.utils.Explain;
 
 import java.util.*;
 

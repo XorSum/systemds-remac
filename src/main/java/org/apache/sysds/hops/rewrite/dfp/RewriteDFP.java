@@ -113,9 +113,9 @@ public class RewriteDFP extends HopRewriteRule {
 //                System.out.println(Explain.explain(targetDag));
                 System.out.println(MyExplain.myExplain(targetDag));
                 Hop sol = genSolution(root, targetHash, targetDag);
-                System.out.println("Solution: ");
-                myResetVisitStatus(sol);
-                System.out.println(Explain.explain(sol));
+//                System.out.println("Solution: ");
+//                myResetVisitStatus(sol);
+//                System.out.println(Explain.explain(sol));
                 solutions.add(sol);
 //                System.out.println("---->");
             }

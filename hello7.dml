@@ -1,0 +1,21 @@
+
+h  = matrix(1.0,rows = 100,cols=100)
+print(toString(h))
+
+a  = matrix(2.0,rows = 100,cols=100)
+print(toString(a))
+
+s  = matrix(3.0,rows = 100,cols=1)
+print(toString(s))
+
+y = t(a) %*% a %*% s
+
+h = h - (h %*% t(a) %*% a %*% s %*% t( t(a) %*% a %*% s) %*% t(h)) / ( t(t(a) %*% a %*% s) %*% h %*% t(a) %*% a %*% s)  + (s%*%t(s))/(t(s)%*% t(a) %*% a %*% s)
+#h = h - (h %*% (t(a) %*% a %*% s) %*% t( t(a) %*% a %*% s) %*% t(h)) / ( t(t(a) %*% a %*% s) %*% h %*% (t(a) %*% a %*% s))  + (s%*%t(s))/(t(s)%*% (t(a) %*% a %*% s))
+
+#h = h - (h %*% t(a) %*% a %*% s %*% t(s) %*% t(a) %*% a %*% t(h)) / ( t(s) %*% t(a) %*% a %*% h %*% t(a) %*% (a %*% s))  + (s%*%t(s))/(t(s)%*% t(a) %*% a %*% s)
+#h = h - (h %*% t(a) %*% (a %*% s) %*% t(s) %*% t(a) %*% a %*% t(h)) / ( t(s) %*% t(a) %*% a %*% h %*% t(a) %*% (a %*% s))  + (s%*%t(s))/(t(s)%*% t(a) %*% (a %*% s))
+
+print(toString(h))
+
+

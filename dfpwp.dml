@@ -3,11 +3,11 @@
 
 #aa = read("hdfs://10.11.1.209:9000/data/avazu/app-tr-a.bin",format="binary")
 #a = aa[1:1000000,1:300000]
-a = read("/home/han/CLionProjects/untitled/cmake-build-debug/a2.csv",format="csv")
+a = read("/home/han/CLionProjects/untitled/cmake-build-debug/a.csv",format="csv")
 
 #bb = read("hdfs://10.11.1.209:9000/data/avazu/app-tr-b.bin",format="binary")
 #b = bb[1:1000000,]
-b = read("/home/han/CLionProjects/untitled/cmake-build-debug/b2.csv",format="csv")
+b = read("/home/han/CLionProjects/untitled/cmake-build-debug/b.csv",format="csv")
 
 e = 1000  # 误差
 #rho = 0.02
@@ -80,9 +80,9 @@ while((i<100)&(!end)) {
     x = x + s
    # print("s="+toString(s))
    # print("x="+toString(x))
-    #y = 2 * t(a) %*% a %*% s
+   # y = 2 * t(a) %*% a %*% s
     #h = h - (h %*% y %*% t(y) %*% t(h)) / ( t(y) %*% t(h) %*% y)  + (s%*%t(s))/(t(s)%*%y)
-    h = h - (h %*%  t(a) %*% a %*% s %*% t( t(a) %*% a %*% s) %*% h) / ( t(t(a) %*% a %*% s) %*% h %*%  t(a) %*% a %*% s)  + (s%*%t(s))/(2*t(s)%*%t(a) %*% a %*% s)
+    h = h - (h %*% 2 * t(a) %*% a %*% s %*% t(2 * t(a) %*% a %*% s) %*% h) / ( t(2 * t(a) %*% a %*% s) %*% h %*% 2 * t(a) %*% a %*% s)  + (s%*%t(s))/(t(s)%*%2 * t(a) %*% a %*% s)
     i = i + 1
 }
 
