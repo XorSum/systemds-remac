@@ -1,49 +1,15 @@
 package org.apache.sysds.hops.rewrite.dfp.utils;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.sysds.common.Types;
 import org.apache.sysds.hops.DataGenOp;
 import org.apache.sysds.hops.DataOp;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
-import org.apache.sysds.hops.rewrite.dfp.rule.MyRule;
-import org.apache.sysds.hops.rewrite.dfp.rule.RemoveUnnecessaryTransposeRule;
-import org.apache.sysds.hops.rewrite.dfp.rule.fenpei.FenpeiRuleLeft;
-import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule;
-import org.apache.sysds.hops.rewrite.dfp.rule.scalar.ScalarLeftMoveRule;
-import org.apache.sysds.hops.rewrite.dfp.rule.scalar.ScalarRightMoveRule;
-import org.apache.sysds.hops.rewrite.dfp.rule.transpose.TransposeMatrixMatrixMultSplitRule;
-import org.apache.sysds.hops.rewrite.dfp.rule.transpose.TransposeScalarMatrixMultSplitRule;
-
-import java.util.ArrayList;
-
-import static org.apache.sysds.hops.rewrite.dfp.utils.ApplyRulesOnDag.applyDAGRule;
+import org.apache.sysds.hops.rewrite.dfp.AnalyzeSymmetryMatrix;
 import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
-import static org.apache.sysds.hops.rewrite.dfp.utils.Hash.hashHopDag;
+import static org.apache.sysds.hops.rewrite.dfp.utils.Reorder.reorder;
 
 public class Judge {
-
-
-    public static Hop reorder(Hop hop) {
-        ArrayList<MyRule> rules = new ArrayList<>();
-        rules.add(new TransposeMatrixMatrixMultSplitRule());
-        rules.add(new RemoveUnnecessaryTransposeRule());
-        rules.add(new MatrixMultJieheRule());
-        rules.add(new FenpeiRuleLeft(Types.OpOp2.MINUS));
-        rules.add(new FenpeiRuleLeft(Types.OpOp2.PLUS));
-        rules.add(new ScalarLeftMoveRule());
-        rules.add(new ScalarRightMoveRule());
-        rules.add(new TransposeScalarMatrixMultSplitRule());
-        Pair<Long, Long> hash1 = null;
-        Pair<Long, Long> hash2 = hashHopDag(hop);
-        do {
-            hop = applyDAGRule(hop, rules, 10000, false);
-            hash1 = hash2;
-            hash2 = hashHopDag(hop);
-        } while (hash2.compareTo(hash1) != 0);
-
-        return hop;
-    }
 
     public static boolean isSame(Hop a, Hop b) {
         if (a == null || b == null) return false;
@@ -63,10 +29,18 @@ public class Judge {
 
     private static boolean isSame_iter(Hop a, Hop b) {
         if (a.equals(b)) return true;
+        if (HopRewriteUtils.isTransposeOperation(a)
+                && AnalyzeSymmetryMatrix.querySymmetry(a.getInput().get(0).getName())) {
+            return isSame_iter(a.getInput().get(0),b);
+        }
+        if (HopRewriteUtils.isTransposeOperation(b)
+                && AnalyzeSymmetryMatrix.querySymmetry(b.getInput().get(0).getName())) {
+            return isSame_iter(a,b.getInput().get(0));
+        }
         if (a.getInput().size() != b.getInput().size()) return false;
         if (!a.getInput().isEmpty()) {
             for (int i = 0; i < a.getInput().size(); i++) {
-                if (isSame_iter(a.getInput().get(i), b.getInput().get(i)) == false) {
+                if (isSame_iter(a.getInput().get(i), b.getInput().get(i))) {
                     return false;
                 }
             }

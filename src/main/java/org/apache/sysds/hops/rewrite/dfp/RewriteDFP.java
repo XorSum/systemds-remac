@@ -21,6 +21,7 @@ import static org.apache.sysds.hops.rewrite.dfp.utils.ApplyRulesOnDag.applyDAGRu
 import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.*;
 import static org.apache.sysds.hops.rewrite.dfp.utils.MyExplain.myResetVisitStatus;
+import static org.apache.sysds.hops.rewrite.dfp.utils.Reorder.reorder;
 
 public class RewriteDFP extends HopRewriteRule {
     @Override
@@ -112,12 +113,17 @@ public class RewriteDFP extends HopRewriteRule {
 //                System.out.println("<----");
                 System.out.println("Target: " + solutions.size() + ", count=" + allCount);
 //                System.out.println(Explain.explain(targetDag));
-                System.out.println(MyExplain.myExplain(targetDag));
+                String tarExp = MyExplain.myExplain(targetDag);
+                System.out.println(tarExp);
                 Hop sol = genSolution(root, targetHash, targetDag);
-//                System.out.println("Solution: ");
-//                myResetVisitStatus(sol);
-//                System.out.println(Explain.explain(sol));
                 solutions.add(sol);
+
+//                if ("h%*%t(a)%*%a%*%d".equals(tarExp)) {
+//                    System.out.println("Solution: ");
+//                    myResetVisitStatus(sol);
+//                    System.out.println(Explain.explain(sol));
+//                    return sol;
+//                }
 //                System.out.println("---->");
             }
         }
@@ -129,15 +135,7 @@ public class RewriteDFP extends HopRewriteRule {
 
 
         System.out.println("Solution size: " + solutions.size());
-//        if (solutions.size()==14) {
-//            myResetVisitStatus(solutions.get(5));
-//            System.out.println(Explain.explain(solutions.get(5)));
-//        }
         System.out.println("\n\n==========================\n\n");
-        if (solutions.size()==14) {
-            System.out.println("返回计划一");
-            return solutions.get(1);
-        }
         return root;
     }
 

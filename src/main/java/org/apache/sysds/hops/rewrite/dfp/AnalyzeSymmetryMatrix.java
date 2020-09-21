@@ -15,6 +15,7 @@ import java.util.Map;
 
 import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.*;
+import static org.apache.sysds.hops.rewrite.dfp.utils.Reorder.reorder;
 
 public class AnalyzeSymmetryMatrix extends StatementBlockRewriteRule {
 
