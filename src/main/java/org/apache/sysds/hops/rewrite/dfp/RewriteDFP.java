@@ -20,7 +20,6 @@ import java.util.Set;
 import static org.apache.sysds.hops.rewrite.dfp.utils.ApplyRulesOnDag.applyDAGRule;
 import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.*;
-import static org.apache.sysds.hops.rewrite.dfp.utils.MyExplain.myResetVisitStatus;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Reorder.reorder;
 
 public class RewriteDFP extends HopRewriteRule {
@@ -61,7 +60,7 @@ public class RewriteDFP extends HopRewriteRule {
         System.out.println(MyExplain.myExplain(root));
      //   System.out.println(Judge.isSymmetryMatrixInLoop(root));
 
-        myResetVisitStatus(root);
+        root.resetVisitStatusForced(new HashSet<>());
 //        System.out.println("Root: ");
 //        System.out.println(Explain.explain(root));
 

@@ -17,7 +17,6 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static org.apache.sysds.hops.rewrite.dfp.utils.Hash.hashHopDag;
-import static org.apache.sysds.hops.rewrite.dfp.utils.MyExplain.myResetVisitStatus;
 
 
 public class Gongyinshi {
@@ -33,7 +32,7 @@ public class Gongyinshi {
         dags.add(root); // push
         hashKeysSet.add(hashHopDag(root));
         path = new ArrayList<>();
-        myResetVisitStatus(root);
+        root.resetVisitStatusForced(new HashSet<>());
         for (int i = 0; i < dags.size()  ; i++) {
             firstDag = dags.get(i);
             generate_iter(firstDag, 0);

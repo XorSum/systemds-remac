@@ -9,12 +9,12 @@ import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.isLeafMatrix;
 
 public class MyExplain {
 
-    public static void myResetVisitStatus(Hop hop) {
-        hop.setVisited(false);
-        for (int i = 0; i < hop.getInput().size(); i++) {
-            myResetVisitStatus(hop.getInput().get(i));
-        }
-    }
+//    public static void myResetVisitStatus(Hop hop) {
+//        hop.setVisited(false);
+//        for (int i = 0; i < hop.getInput().size(); i++) {
+//            myResetVisitStatus(hop.getInput().get(i));
+//        }
+//    }
 
     public static String myExplain(Hop hop) {
         String ans = explain_iter(hop);

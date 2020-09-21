@@ -13,7 +13,6 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static org.apache.sysds.hops.rewrite.dfp.utils.Hash.hashHopDag;
-import static org.apache.sysds.hops.rewrite.dfp.utils.MyExplain.myResetVisitStatus;
 
 public class BaoLi {
 
@@ -30,7 +29,7 @@ public class BaoLi {
         hashKeysSet.add(hashHopDag(root));
         path = new ArrayList<>();
 //        System.out.println("root=");
-        myResetVisitStatus(root);
+        root.resetVisitStatusForced(new HashSet<>());
 //        System.out.println(Explain.explain(root));
         for (int i = 0; i < dags.size()  ; i++) {
             firstDag = dags.get(i);
