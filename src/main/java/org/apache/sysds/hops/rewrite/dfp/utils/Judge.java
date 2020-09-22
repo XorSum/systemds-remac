@@ -13,34 +13,31 @@ public class Judge {
 
     public static boolean isSame(Hop a, Hop b) {
         if (a == null || b == null) return false;
-//        System.out.println("same<");
         Hop aa = deepCopyHopsDag(a);
         aa = reorder(aa);
-//        System.out.println(Explain.explain(aa));
-//        System.out.println(Explain.explain(b));
         Hop bb = deepCopyHopsDag(b);
         bb = reorder(bb);
-//        System.out.println(Explain.explain(bb));
         boolean ret = isSame_iter(aa, bb);
-//        System.out.println("Ret=" + ret);
-//        System.out.println(">same");
+     //   System.out.println("Compare " +MyExplain.myExplain(a)+" "+MyExplain.myExplain(b) +  "Ret=" + ret);
         return ret;
     }
 
     private static boolean isSame_iter(Hop a, Hop b) {
         if (a.equals(b)) return true;
         if (HopRewriteUtils.isTransposeOperation(a)
+                && isLeafMatrix(a.getInput().get(0))
                 && AnalyzeSymmetryMatrix.querySymmetry(a.getInput().get(0).getName())) {
             return isSame_iter(a.getInput().get(0),b);
         }
         if (HopRewriteUtils.isTransposeOperation(b)
+                && isLeafMatrix(b.getInput().get(0))
                 && AnalyzeSymmetryMatrix.querySymmetry(b.getInput().get(0).getName())) {
             return isSame_iter(a,b.getInput().get(0));
         }
         if (a.getInput().size() != b.getInput().size()) return false;
         if (!a.getInput().isEmpty()) {
             for (int i = 0; i < a.getInput().size(); i++) {
-                if (isSame_iter(a.getInput().get(i), b.getInput().get(i))) {
+                if (!isSame_iter(a.getInput().get(i), b.getInput().get(i))) {
                     return false;
                 }
             }

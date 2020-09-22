@@ -4,6 +4,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
+import org.apache.sysds.hops.rewrite.dfp.utils.MyExplain;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -97,8 +98,8 @@ public class MatrixMultChain {
 //        triple.getLeft().resetVisitStatus();
 //        System.out.println(Explain.explain(triple.getLeft()));
         Hop tree = deepCopyHopsDag(triple.getLeft());
-//        tree.resetVisitStatus();
-//        System.out.println(Explain.explain(tree));
+        tree.resetVisitStatus();
+       // System.out.println(MyExplain.myExplain(tree));
         tree = replace(null, tree, targetHash, targetDag);
         return tree;
     }

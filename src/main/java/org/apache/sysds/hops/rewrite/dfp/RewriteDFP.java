@@ -3,9 +3,7 @@ package org.apache.sysds.hops.rewrite.dfp;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.sysds.hops.Hop;
-import org.apache.sysds.hops.rewrite.HopRewriteRule;
-import org.apache.sysds.hops.rewrite.HopRewriteUtils;
-import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
+import org.apache.sysds.hops.rewrite.*;
 import org.apache.sysds.hops.rewrite.dfp.rule.BalanceMultiply4Rule;
 import org.apache.sysds.hops.rewrite.dfp.rule.MyRule;
 import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule;
@@ -89,39 +87,44 @@ public class RewriteDFP extends HopRewriteRule {
                     totalTime = endTime -startTime;
                     System.out.println(">初始化哈希表执行耗时：" + totalTime + " ms");
 
+        HopRewriteRule rule1 = new RewriteMatrixMultChainOptimization();
+        HopRewriteRule rule2 = new RewriteCommonSubexpressionElimination();
 
 
-                    startTime = System.currentTimeMillis();
+        startTime = System.currentTimeMillis();
         for (Pair<Long, Long> targetHash : allSubExps) {
-//            System.out.println("Key:  " + targetHash);
-            Long allCount = 0l;
+            long allCount = 0L;
             Hop targetDag = null;
             for (MatrixMultChain chain : chains) {
-                Long count = 0l;
                 if (chain.allTreeesHashMap.containsKey(targetHash)) {
-                    count = chain.allTreeesHashMap.get(targetHash).getRight();
-                    if (targetDag == null)
-                        targetDag = chain.allTreeesHashMap.get(targetHash).getMiddle();
+                    allCount = allCount + chain.allTreeesHashMap.get(targetHash).getRight();
+                    if (targetDag == null) {
+                        targetDag = deepCopyHopsDag(chain.allTreeesHashMap.get(targetHash).getMiddle());
+                    }
                 }
-//                System.out.print(count + ", ");
-                allCount = allCount + count;
             }
-//            System.out.println("target="+explain(targetDag)+", count="+allCount);
-//            System.out.println("");
             if (targetDag != null && allCount > 2) {
 //                System.out.println("<----");
-                System.out.println("Target: " + solutions.size() + ", count=" + allCount);
-//                System.out.println(Explain.explain(targetDag));
-                String tarExp = MyExplain.myExplain(targetDag);
-                System.out.println(tarExp);
+                System.out.println("Target: " + solutions.size() + ", count=" + allCount +", exp="+MyExplain.myExplain(targetDag));
+
                 Hop sol = genSolution(root, targetHash, targetDag);
                 solutions.add(sol);
 
 //                if ("h%*%t(a)%*%a%*%d".equals(tarExp)) {
-//                    System.out.println("Solution: ");
-//                    myResetVisitStatus(sol);
+//                //    targetDag = rule1.rewriteHopDAG(targetDag,new ProgramRewriteStatus());
+//                 //   System.out.println(Explain.explain(targetDag));
+////                    System.out.println("Solution: h%*%t(a)%*%a%*%d");
+////                    sol.resetVisitStatusForced(new HashSet<>());
+////                    System.out.println(MyExplain.myExplain(sol));
+////                    System.out.println(Explain.explain(sol));
+//                    sol  = rule1.rewriteHopDAG(sol, new ProgramRewriteStatus() );
+////                  sol.resetVisitStatusForced(new HashSet<>());
+//                    sol.resetVisitStatus();
+//                    sol  = rule2.rewriteHopDAG(sol, new ProgramRewriteStatus() );
+//                    sol.resetVisitStatusForced(new HashSet<>());
+//                    System.out.println("after");
 //                    System.out.println(Explain.explain(sol));
-//                    return sol;
+//                 //   return sol;
 //                }
 //                System.out.println("---->");
             }
@@ -173,6 +176,9 @@ public class RewriteDFP extends HopRewriteRule {
                 && isAllOfMult(hop)) {
           //  System.out.println("++++++++++++++++++++++++++++++++++++++++    " + hop.getHopID() + " replace ");
             Hop subTree = chains.get(chain_index).getTree(targetHash, targetDag);
+//            System.out.println("subtree");
+//            subTree.resetVisitStatusForced(new HashSet<>());
+//            System.out.println(MyExplain.myExplain(subTree));
             chain_index = chain_index + 1;
             if (parent != null) {
                 HopRewriteUtils.replaceChildReference(parent, hop, subTree);
