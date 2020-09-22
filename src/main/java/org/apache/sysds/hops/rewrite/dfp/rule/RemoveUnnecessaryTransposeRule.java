@@ -3,7 +3,7 @@ package org.apache.sysds.hops.rewrite.dfp.rule;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 
-public class RemoveUnnecessaryTransposeRule extends MyRule {
+public class RemoveUnnecessaryTransposeRule implements MyRule {
     @Override
     public Hop apply(Hop parent, Hop ttx, int pos) {
         // t(t(x)) -> x
@@ -24,5 +24,16 @@ public class RemoveUnnecessaryTransposeRule extends MyRule {
             }
         }
         return ttx;
+    }
+
+    @Override
+    public Boolean applicable(Hop parent, Hop ttx, int pos) {
+        if (HopRewriteUtils.isTransposeOperation(ttx)) {
+            Hop tx = ttx.getInput().get(0);
+            if (HopRewriteUtils.isTransposeOperation(tx)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

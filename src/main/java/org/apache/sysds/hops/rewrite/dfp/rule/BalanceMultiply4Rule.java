@@ -4,7 +4,7 @@ import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.utils.Explain;
 
-public class BalanceMultiply4Rule extends MyRule {
+public class BalanceMultiply4Rule implements MyRule {
     @Override
     public Hop apply(Hop parent, Hop hi, int pos) {
         // ((a*b)*c)*d -> (a*b)*(c*d)
@@ -33,5 +33,17 @@ public class BalanceMultiply4Rule extends MyRule {
             }
         }
         return hi;
+    }
+
+    @Override
+    public Boolean applicable(Hop parent, Hop hi, int pos) {
+        if (HopRewriteUtils.isMatrixMultiply(hi)) {
+            Hop abc = hi.getInput().get(0);
+            if (HopRewriteUtils.isMatrixMultiply(abc)) {
+                Hop ab = abc.getInput().get(0);
+                return HopRewriteUtils.isMatrixMultiply(ab);
+            }
+        }
+        return false;
     }
 }

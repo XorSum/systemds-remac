@@ -5,7 +5,7 @@ import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.rule.MyRule;
 
-public class ScalarRightMoveRule extends MyRule {
+public class ScalarRightMoveRule implements MyRule {
 
     @Override
     public Hop apply(Hop parent, Hop hop, int pos) {
@@ -37,5 +37,14 @@ public class ScalarRightMoveRule extends MyRule {
             }
         }
         return hop;
+    }
+
+    @Override
+    public Boolean applicable(Hop parent, Hop hop, int pos) {
+        if (HopRewriteUtils.isMatrixMultiply(hop)) {
+            Hop ab = hop.getInput().get(0);
+            return HopRewriteUtils.isScalarMatrixBinaryMult(ab);
+        }
+        return false;
     }
 }

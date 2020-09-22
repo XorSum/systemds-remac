@@ -5,7 +5,7 @@ import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.rule.MyRule;
 
-public class TransposePlusMergeRule extends MyRule {
+public class TransposePlusMergeRule implements MyRule {
 
     @Override
     public Hop apply(Hop parent, Hop hi, int pos) {
@@ -25,5 +25,16 @@ public class TransposePlusMergeRule extends MyRule {
             }
         }
         return hi;
+    }
+
+    @Override
+    public Boolean applicable(Hop parent, Hop hi, int pos) {
+        if (HopRewriteUtils.isBinary(hi, Types.OpOp2.PLUS)) {
+            Hop left = hi.getInput().get(0);
+            Hop right = hi.getInput().get(1);
+            return HopRewriteUtils.isTransposeOperation(left) &&
+                    HopRewriteUtils.isTransposeOperation(right);
+        }
+        return false;
     }
 }

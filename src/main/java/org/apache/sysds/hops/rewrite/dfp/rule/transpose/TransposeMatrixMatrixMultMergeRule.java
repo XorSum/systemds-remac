@@ -4,7 +4,7 @@ import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.rule.MyRule;
 
-public class TransposeMatrixMatrixMultMergeRule extends MyRule {
+public class TransposeMatrixMatrixMultMergeRule implements MyRule {
 
     @Override
     public Hop apply(Hop parent, Hop hi, int pos) {
@@ -24,5 +24,16 @@ public class TransposeMatrixMatrixMultMergeRule extends MyRule {
             }
         }
         return hi;
+    }
+
+    @Override
+    public Boolean applicable(Hop parent, Hop hi, int pos) {
+        if (HopRewriteUtils.isMatrixMultiply(hi)) {
+            Hop left = hi.getInput().get(0);
+            Hop right = hi.getInput().get(1);
+            return HopRewriteUtils.isTransposeOperation(left) &&
+                    HopRewriteUtils.isTransposeOperation(right);
+        }
+        return false;
     }
 }

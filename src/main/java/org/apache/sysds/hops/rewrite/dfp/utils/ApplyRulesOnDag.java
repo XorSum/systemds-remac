@@ -9,7 +9,7 @@ import java.util.Random;
 public class ApplyRulesOnDag {
 
     private static int count;
-
+   private static Random ran1 = new Random();
     public static Hop applyDAGRule(Hop hop, List<MyRule> rules, int max_count, boolean isrand) {
         count = max_count;
         hop.resetVisitStatus();
@@ -27,23 +27,22 @@ public class ApplyRulesOnDag {
             for (int i = 0; i < hop.getInput().size(); i++) {
                 Hop hi = hop.getInput().get(i);
                 hi = apply_dag_rule_iter(hop, hi, i, rules, descendFirst, isrand);
+                hop.getInput().set(i,hi);
             }
         }
         for (MyRule rule : rules) {
-            if (isrand) {
-                Random ran1 = new Random();
-                if (ran1.nextBoolean())
-                    hop = rule.apply(parent, hop, pos);
-                count = count - 1;
-            } else {
-                hop = rule.apply(parent, hop, pos);
-                count = count - 1;
+            if (rule.applicable(parent,hop,pos)) {
+                if (!isrand || ran1.nextBoolean() ) {
+                   hop = rule.apply(parent, hop, pos);
+                   count = count - 1;
+               }
             }
         }
         if (!descendFirst) {
             for (int i = 0; i < hop.getInput().size(); i++) {
                 Hop hi = hop.getInput().get(i);
                 hi = apply_dag_rule_iter(hop, hi, i, rules, descendFirst, isrand);
+                hop.getInput().set(i,hi);
             }
         }
         hop.setVisited();

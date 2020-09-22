@@ -8,12 +8,12 @@ import org.apache.sysds.hops.rewrite.dfp.rule.MyRule;
 /*
  * a+b -> b+a
  */
-public class JiaoHuanRule extends MyRule {
-     private Types.OpOp2 operator;
+public class JiaoHuanRule implements MyRule {
+    private Types.OpOp2 operator;
 
-     public JiaoHuanRule(Types.OpOp2 operator ) {
-         this.operator = operator;
-     }
+    public JiaoHuanRule(Types.OpOp2 operator) {
+        this.operator = operator;
+    }
 
     @Override
     public Hop apply(Hop parent, Hop hop, int pos) {
@@ -31,5 +31,10 @@ public class JiaoHuanRule extends MyRule {
             hop = ba;
         }
         return hop;
+    }
+
+    @Override
+    public Boolean applicable(Hop parent, Hop hop, int pos) {
+        return HopRewriteUtils.isBinary(hop, this.operator);
     }
 }

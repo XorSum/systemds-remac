@@ -5,7 +5,7 @@ import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.rule.MyRule;
 
-public class TransposePlusSplitRule extends MyRule {
+public class TransposePlusSplitRule implements MyRule {
 
     @Override
     public Hop apply(Hop parent, Hop hi, int pos) {
@@ -26,5 +26,14 @@ public class TransposePlusSplitRule extends MyRule {
             }
         }
         return hi;
+    }
+
+    @Override
+    public Boolean applicable(Hop parent, Hop hi, int pos) {
+        if (HopRewriteUtils.isTransposeOperation(hi)) {
+            Hop xy = hi.getInput().get(0);
+            return HopRewriteUtils.isBinary(xy, Types.OpOp2.PLUS);
+        }
+        return false;
     }
 }

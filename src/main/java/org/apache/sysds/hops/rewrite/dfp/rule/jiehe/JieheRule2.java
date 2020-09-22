@@ -7,7 +7,7 @@ import org.apache.sysds.hops.rewrite.dfp.rule.MyRule;
 
 
 // (a*b)*c -> a*(b*c)
-public class JieheRule2 extends MyRule {
+public class JieheRule2 implements MyRule {
     private OpOp2 operator;
 
     public JieheRule2(OpOp2 operator) {
@@ -35,6 +35,15 @@ public class JieheRule2 extends MyRule {
             }
         }
         return hi;
+    }
+
+    @Override
+    public Boolean applicable(Hop parent, Hop hi, int pos) {
+        if (HopRewriteUtils.isBinary(hi, operator)) {
+            Hop ab = hi.getInput().get(0);
+            return HopRewriteUtils.isBinary(ab, operator);
+        }
+        return false;
     }
 
 }

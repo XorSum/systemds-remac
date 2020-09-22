@@ -6,7 +6,7 @@ import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.rule.MyRule;
 
 // a*(b+c) -> a*b+a*c
-public class FenpeiRuleLeft extends MyRule {
+public class FenpeiRuleLeft implements MyRule {
 
     private OpOp2 cross;
 
@@ -36,5 +36,14 @@ public class FenpeiRuleLeft extends MyRule {
             }
         }
         return abc;
+    }
+
+    @Override
+    public Boolean applicable(Hop parent, Hop abc, int pos) {
+        if (HopRewriteUtils.isMatrixMultiply(abc)) {
+            Hop bc = abc.getInput().get(1);
+            return HopRewriteUtils.isBinary(bc, cross);
+        }
+        return false;
     }
 }

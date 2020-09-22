@@ -4,7 +4,7 @@ import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.rule.MyRule;
 
-public class TransposeMatrixMatrixMultSplitRule extends MyRule {
+public class TransposeMatrixMatrixMultSplitRule implements MyRule {
 
     @Override
     public Hop apply(Hop parent, Hop hi, int pos) {
@@ -27,5 +27,14 @@ public class TransposeMatrixMatrixMultSplitRule extends MyRule {
             }
         }
         return hi;
+    }
+
+    @Override
+    public Boolean applicable(Hop parent, Hop hi, int pos) {
+        if (HopRewriteUtils.isTransposeOperation(hi)) {
+            Hop xy = hi.getInput().get(0);
+            return HopRewriteUtils.isMatrixMultiply(xy);
+        }
+        return false;
     }
 }
