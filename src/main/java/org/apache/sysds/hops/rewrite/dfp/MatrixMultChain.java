@@ -22,12 +22,17 @@ public class MatrixMultChain {
     HashMap<Pair<Long, Long>, Triple<Hop, Hop, Long>> allTreeesHashMap;
     // HashMap<hashkey      , Triple<tree,subExp,count>
 
-    public void gao(Hop originTree) {
-        this.originalTree = originTree;
-        this.allTreeesHashMap = new HashMap<>();
+    ArrayList<Integer> path;
+    int depth;
 
+    public MatrixMultChain( Hop originalTree, ArrayList<Integer> path,int depth ) {
+        this.originalTree = originalTree;
+        this.path =  (ArrayList<Integer>) path.clone();
+        this.depth =depth;
+
+        this.allTreeesHashMap = new HashMap<>();
         long startTime = System.currentTimeMillis();
-        this.trees = BaoLi.generateAllTrees(originTree);
+        this.trees = BaoLi.generateAllTrees(originalTree);
         long endTime = System.currentTimeMillis();
         long totalTime = endTime - startTime;
         System.out.println(">>构造所有的等价二叉树执行耗时：" + totalTime + " ms");
@@ -59,7 +64,6 @@ public class MatrixMultChain {
         endTime = System.currentTimeMillis();
         totalTime = endTime - startTime;
         System.out.println(">>所有子式插入哈希表执行耗时：" + totalTime + " ms");
-
 
     }
 
