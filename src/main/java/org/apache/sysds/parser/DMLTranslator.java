@@ -64,7 +64,6 @@ import org.apache.sysds.hops.rewrite.StatementBlockRewriteRule;
 import org.apache.sysds.hops.rewrite.dfp.AnalyzeSymmetryMatrix;
 import org.apache.sysds.hops.rewrite.dfp.RewriteDFP;
 import org.apache.sysds.hops.rewrite.dfp.RewriteLoopConstrant;
-import org.apache.sysds.hops.rewrite.dfp.RewriteScratch;
 import org.apache.sysds.lops.Lop;
 import org.apache.sysds.lops.LopsException;
 import org.apache.sysds.lops.compile.Dag;
