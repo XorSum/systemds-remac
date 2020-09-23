@@ -1,5 +1,6 @@
 package org.apache.sysds.hops.rewrite.dfp;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.sysds.common.Types;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
@@ -11,16 +12,21 @@ import org.apache.sysds.hops.rewrite.dfp.rule.fenpei.FenpeiRuleLeft;
 import org.apache.sysds.hops.rewrite.dfp.rule.fenpei.FenpeiRuleRight;
 import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule;
 import org.apache.sysds.hops.rewrite.dfp.rule.transpose.TransposeMatrixMatrixMultSplitRule;
+import org.apache.sysds.hops.rewrite.dfp.utils.MyExplain;
 import org.apache.sysds.parser.StatementBlock;
 import org.apache.sysds.parser.VariableSet;
 import org.apache.sysds.parser.WhileStatement;
 import org.apache.sysds.parser.WhileStatementBlock;
+import org.apache.sysds.utils.Explain;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.apache.sysds.hops.rewrite.dfp.utils.ApplyRulesOnDag.applyDAGRule;
+import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
+import static org.apache.sysds.hops.rewrite.dfp.utils.Hash.hashHopDag;
+import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.isLeafMatrix;
+import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.isSampleHop;
+
 
 public class RewriteLoopConstrant extends StatementBlockRewriteRule {
     @Override
@@ -31,187 +37,126 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
     @Override
     public List<StatementBlock> rewriteStatementBlock(StatementBlock sb, ProgramRewriteStatus state) {
         List<StatementBlock> res = new ArrayList<>();
+        System.out.println("rewriteStatementBlock");
         if (sb == null) return res;
-        System.out.println("ccc");
         if (sb instanceof WhileStatementBlock) {
             System.out.println("While Statement");
-            WhileStatementBlock wstmtblk = (WhileStatementBlock) sb;
-            VariableSet variablesUpdated = wstmtblk.variablesUpdated();
-            WhileStatement wstmt = (WhileStatement) sb.getStatement(0);
-/*
-            // step 1. reorder
-            ArrayList<StatementBlock> body = wstmt.getBody();
+            WhileStatementBlock wsb = (WhileStatementBlock) sb;
+            VariableSet variablesUpdated = wsb.variablesUpdated();
+            WhileStatement ws = (WhileStatement) wsb.getStatement(0);
+            ArrayList<StatementBlock> body = ws.getBody();
             for (int j = 0; j < body.size(); j++) {
                 StatementBlock s = body.get(j);
-                if (s==null||s.getHops()==null) continue;
+                if (s == null || s.getHops() == null) continue;
                 for (int k = 0; k < s.getHops().size(); k++) {
+
                     Hop hop = s.getHops().get(k);
-                    hop.resetVisitStatus();
-//                    System.out.println(Explain.explain(hop));
-//                    System.out.println("========");
-                    hop = splitExp(hop);
-//                    hop.resetVisitStatus();
-//                    System.out.println(Explain.explain(hop));
-                    s.getHops().set(k, hop);
+                    Hop copy = deepCopyHopsDag(hop);
+                    System.out.println(" Exp =" + MyExplain.myExplain(copy));
+
+                    ArrayList<Hop> trees = BaoLi.generateAllTrees(copy);
+
+
+                    ArrayList<MySolution> solutions = new ArrayList<>();
+                    for (Hop h : trees) {
+                        MySolution solution = liftLoopConstant(h, variablesUpdated);
+                     //   System.out.println(solution);
+                        solutions.add(solution);
+                    }
                 }
             }
-
-            // step 2. find constant
-            ArrayList<Hop> constantHops = new ArrayList<>();
-            for (int j = 0; j < body.size(); j++) {
-                StatementBlock s = body.get(j);
-                if (s==null||s.getHops()==null) continue;
-                for (int k = 0; k < s.getHops().size(); k++) {
-                    Hop hop = s.getHops().get(k);
-                    hop.resetVisitStatus();
-                    //      System.out.println("qqqqqqqqqqqqqqqqqqqqqqqqq");
-                    Map<Long, Boolean> mp = new HashMap<>();
-                    rFindConstant(hop, variablesUpdated, constantHops,mp);
-                }
-            }
-            System.out.println("found constant hops:");
-
-            ArrayList<Hop> twriteHops = new ArrayList<>();
-            for (int j = 0; j < constantHops.size(); j++) {
-                Hop hop = constantHops.get(j);
-                String name = "constant" + hop.getHopID();
-                Hop twriteHop = HopRewriteUtils.createTransientWrite(name, hop);
-                twriteHops.add(twriteHop);
-                System.out.println(j + " " + hop.getName());
-                hop.resetVisitStatus();
-                System.out.println(Explain.explain(hop));
-                System.out.println("x");
-                constantHops.set(j, hop);
-            }
-
-            for (int j = 0; j < wstmt.getBody().size(); j++) {
-                StatementBlock s = body.get(j);
-                if (s==null||s.getHops()==null) continue;
-                for (int k = 0; k < s.getHops().size(); k++) {
-                    Hop hop = s.getHops().get(k);
-                    hop.resetVisitStatus();
-                    //      System.out.println("qqqqqqqqqqqqqqqqqqqqqqqqq");
-                    rReplaceConstant(hop, variablesUpdated, constantHops);
-                }
-            }
-
-
-            // step 3. take constant
-            StatementBlock preStmtBlk = new StatementBlock();
-            preStmtBlk.setHops(twriteHops);
-            preStmtBlk.setLiveIn(new VariableSet());
-            preStmtBlk.setLiveOut(new VariableSet());
-
-           // preStmtBlk.setLiveIn(wstmtblk.getLiveIn());
-           // preStmtBlk.setLiveOut(wstmtblk.getLiveOut());
-
-            // step 4. construct new statement blocks
-
-            List<StatementBlock> res = new ArrayList<>();
-            res.add(preStmtBlk);
-            res.add(sb);
-            return res;
-
-
-            res.add(sb);
-            return res;
-        } else {
-       */
         }
+//        else {
+//            if (sb.getHops() != null) {
+//                for (int k = 0; k < sb.getHops().size(); k++) {
+//                    Hop hop = sb.getHops().get(k);
+//                    System.out.println(" Exp =" + MyExplain.myExplain(hop));
+//                }
+//            }
+//        }
         res.add(sb);
         return res;
     }
 
     @Override
     public List<StatementBlock> rewriteStatementBlocks(List<StatementBlock> sbs, ProgramRewriteStatus state) {
-        System.out.println("ddd");
-        for (StatementBlock sb : sbs) {
-
-        }
         return sbs;
     }
 
 
-    private static Hop splitExp(Hop hop) {
-        ArrayList<MyRule> rules = new ArrayList<>();
-        rules.add(new TransposeMatrixMatrixMultSplitRule());
-        rules.add(new RemoveUnnecessaryTransposeRule());
-        rules.add(new MatrixMultJieheRule());
-        rules.add(new FenpeiRuleLeft(Types.OpOp2.MINUS));
-        rules.add(new FenpeiRuleLeft(Types.OpOp2.PLUS));
-        rules.add(new FenpeiRuleRight(Types.OpOp2.MINUS));
-        rules.add(new FenpeiRuleRight(Types.OpOp2.PLUS));
-        hop = applyDAGRule(hop, rules, 100, false);
-        return hop;
-    }
+    private static MySolution liftLoopConstant(Hop hop, VariableSet variablesUpdated) {
 
-    private static Hop checkConstant(Hop hop) {
-        if (hop.isVisited()) return hop;
-        for (int i = 0; i < hop.getInput().size(); i++) {
-            Hop child = hop.getInput().get(i);
-            checkConstant(child);
+        Map<Long, Pair<Hop, Hop>> topConstantHops = new HashMap<>(); //   <id,<tread,twrite>        Map<Long, Boolean> constantTable = new HashMap<>();
+        Map<Long, Boolean> constantTable = new HashMap<>();
+        // step 1. 判断子节点是否是常量
+        rFindConstant(hop, variablesUpdated, constantTable);
+        // step 2. 把top常量替换为tread，把twrite放入哈希表
+        collectConstantHops(hop, topConstantHops, constantTable);
+        hop.resetVisitStatusForced(new HashSet<>());
+        // step 3. 创建solution
+        MySolution mySolution = new MySolution();
+        mySolution.body = hop;
+        mySolution.preLoopConstants = new ArrayList<>();
+        for (Map.Entry<Long, Pair<Hop, Hop>> c : topConstantHops.entrySet()) {
+            Hop h = c.getValue().getRight();
+            h.resetVisitStatusForced(new HashSet<>());
+            mySolution.preLoopConstants.add(h);
         }
 
-        System.out.println("aaa");
-
-        hop.setVisited();
-        return hop;
+        return mySolution;
     }
 
-    private boolean rFindConstant(Hop hop, VariableSet variablesUpdated,
-                                  ArrayList<Hop> constantHops, Map<Long, Boolean> mp) {
-        // if (hop.isVisited()) return false;
-        if (mp.containsKey(hop.getHopID())) return mp.get(hop.getHopID());
-        System.out.println("access " + hop.getHopID());
+    private static boolean rFindConstant(Hop hop,
+                                         VariableSet variablesUpdated,
+                                         Map<Long, Boolean> constantTable) {
+        if (constantTable.containsKey(hop.getHopID())) { // 记忆化搜索
+            return constantTable.get(hop.getHopID());
+        }
         boolean isConstant = true;
-        for (int i = 0; i < hop.getInput().size(); i++) {
-            Hop child = hop.getInput().get(i);
-            if (rFindConstant(child, variablesUpdated, constantHops, mp) == false) {
-                isConstant = false;
-            }
+        if (variablesUpdated.containsVariable(hop.getName())) { // 判断自己是否改变
+            isConstant = false;
         }
-        if (variablesUpdated.containsVariable(hop.getName())) isConstant = false;
-        // System.out.println(hop.getName()+" "+isConstant);
-        if (isConstant == false) {
+        if (!isLeafMatrix(hop)) {  // 判断儿子是否改变
             for (int i = 0; i < hop.getInput().size(); i++) {
                 Hop child = hop.getInput().get(i);
-                if (rFindConstant(child, variablesUpdated, constantHops, mp) == true) {
-                    if (child.isVisited() == false && child.getInput().size() > 0) {
-                        constantHops.add(child);
-                        child.setVisited();
-                    }
+                if (!rFindConstant(child, variablesUpdated, constantTable)) {
+                    isConstant = false;
                 }
             }
         }
-        mp.put(hop.getHopID(), isConstant);
+        //  System.out.println("cons(" + hop.getHopID() + ") " + hop.getName()+" " + isConstant);
+        constantTable.put(hop.getHopID(), isConstant);
         return isConstant;
     }
 
-    private void rReplaceConstant(Hop hop, VariableSet variablesUpdated, ArrayList<Hop> constantHops) {
+    private static void collectConstantHops(Hop hop,
+                                            Map<Long, Pair<Hop, Hop>> topConstantHops,
+                                            Map<Long, Boolean> constantTable) {
         if (hop.isVisited()) return;
-
-        //   System.out.println("call replace");
+        if (constantTable.get(hop.getHopID())) return;
         for (int i = 0; i < hop.getInput().size(); i++) {
             Hop child = hop.getInput().get(i);
-            int j = -1;
-            for (int k = 0; k < constantHops.size(); k++) {
-                if (child.getHopID() == constantHops.get(k).getHopID()) {
-                    j = k;
-                    break;
+            Long id = child.getHopID();
+            if ( constantTable.get(child.getHopID())) {// 非常量父节点指向常量子节点,说明子节点是个top常量
+                if (!isSampleHop(child) && !hop.isScalar()) {
+                    if (!topConstantHops.containsKey(id)) {
+                        String name = "constant" + id;
+                        Hop twrite = HopRewriteUtils.createTransientWrite(name, child);
+                        Hop tread = HopRewriteUtils.createTransientRead(name, child);
+                        topConstantHops.put(id, Pair.of(tread, twrite));
+                        HopRewriteUtils.replaceChildReference(hop, child, tread);
+                        HopRewriteUtils.cleanupUnreferenced(child);
+                    } else {
+                        Hop tread = topConstantHops.get(id).getLeft();
+                        HopRewriteUtils.replaceChildReference(hop, child, tread);
+                        HopRewriteUtils.cleanupUnreferenced(child);
+                    }
                 }
-            }
-            if (j < 0) rReplaceConstant(child, variablesUpdated, constantHops);
-            else {
-                System.out.println("REPLACE");
-
-                String name = "constant" + child.getHopID();
-                Hop tread = HopRewriteUtils.createTransientRead(name, child);
-                HopRewriteUtils.replaceChildReference(hop, child, tread);
-
+            } else {// 儿子也不是常量，则继续向下递归
+                collectConstantHops(child, topConstantHops, constantTable);
             }
         }
         hop.setVisited();
     }
-
 
 }

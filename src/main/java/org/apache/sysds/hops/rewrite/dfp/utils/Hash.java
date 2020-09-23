@@ -22,8 +22,10 @@ public class Hash {
             r = root.getName().hashCode();
         }
         else if (HopRewriteUtils.isTransposeOperation(root)
+                && Judge.isLeafMatrix(root.getInput().get(0))
                 && querySymmetry(root.getInput().get(0).getName())) {
             // 对称矩阵
+         //   System.out.println("对称");
             return rHashHopDag(root.getInput().get(0));
         }
         else {
@@ -38,6 +40,7 @@ public class Hash {
                 r = r + tmp.getRight() * getPrime(i + 1);
             }
         }
+      //  System.out.println("hash "+root.getHopID()+" "+l+" "+r);
         return Pair.of(l, r);
     }
 

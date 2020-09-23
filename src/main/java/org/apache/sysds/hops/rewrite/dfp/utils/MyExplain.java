@@ -1,11 +1,12 @@
 package org.apache.sysds.hops.rewrite.dfp.utils;
 
 import org.apache.sysds.common.Types;
+import org.apache.sysds.hops.BinaryOp;
 import org.apache.sysds.hops.DataOp;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 
-import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.isLeafMatrix;
+import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.*;
 
 public class MyExplain {
 
@@ -23,10 +24,10 @@ public class MyExplain {
 
     private static String explain_iter(Hop hop) {
         StringBuilder sb = new StringBuilder();
-        if (hop instanceof DataOp && ((DataOp) hop).getOp() == Types.OpOpData.TRANSIENTREAD) {
+        if (isRead(hop)) {
             // Tread
             sb.append(((DataOp) hop).getName());
-        } else if (hop instanceof DataOp && ((DataOp) hop).getOp() == Types.OpOpData.TRANSIENTWRITE) {
+        } else if (isWrite(hop)) {
             // Twrite
             sb.append(((DataOp) hop).getName());
             sb.append(":=");
@@ -44,6 +45,12 @@ public class MyExplain {
             sb.append("t(");
             sb.append(explain_iter(hop.getInput().get(0)));
             sb.append(")");
+        } else if (hop instanceof BinaryOp) {
+            String op = ((BinaryOp) hop).getOp().toString();
+            //System.out.println(op);
+            sb.append(explain_iter(hop.getInput().get(0)));
+            sb.append(op);
+            sb.append(explain_iter(hop.getInput().get(1)));
         } else {
             sb.append("{");
             sb.append(hop.getOpString());

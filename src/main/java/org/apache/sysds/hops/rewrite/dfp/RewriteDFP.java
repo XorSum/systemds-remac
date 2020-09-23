@@ -27,8 +27,7 @@ public class RewriteDFP extends HopRewriteRule {
         for (int i = 0; i < roots.size(); i++) {
             Hop hi = roots.get(i);
             long startTime = System.currentTimeMillis();
-            hi = rewriteDFP(hi, state);
-            roots.set(i, hi);
+            rewriteDFP(hi, state);
             long endTime = System.currentTimeMillis();
             long totalTime = endTime -startTime;
             System.out.println("rewriteDAG执行耗时：" + totalTime + " ms");
@@ -39,13 +38,14 @@ public class RewriteDFP extends HopRewriteRule {
     @Override
     public Hop rewriteHopDAG(Hop root, ProgramRewriteStatus state) {
 //        return root;
-        return rewriteDFP(root, state);
+        rewriteDFP(root, state);
+        return root;
     }
 
     private static ArrayList<MatrixMultChain> chains;
 
-    public static Hop rewriteDFP(Hop root, ProgramRewriteStatus state) {
-        if (root == null) return root;
+    public static ArrayList<MySolution> rewriteDFP(Hop root, ProgramRewriteStatus state) {
+        if (root == null) return null;
 
         System.out.println(MyExplain.myExplain(root));
 
@@ -70,7 +70,7 @@ public class RewriteDFP extends HopRewriteRule {
                     System.out.println(">寻找矩阵连乘块执行耗时：" + totalTime + " ms");
 
                     startTime = System.currentTimeMillis();
-        ArrayList<Hop> solutions = new ArrayList<>();
+        ArrayList<MySolution> solutions = new ArrayList<>();
         chains = new ArrayList<>();
         for (Triple<Hop, Hop, Integer> chain : blocks) {
             MatrixMultChain chain1 = new MatrixMultChain();
@@ -107,8 +107,10 @@ public class RewriteDFP extends HopRewriteRule {
 //                System.out.println("<----");
                 System.out.println("Target: " + solutions.size() + ", count=" + allCount +", exp="+MyExplain.myExplain(targetDag));
 
-                Hop sol = genSolution(root, targetHash, targetDag);
-                solutions.add(sol);
+                MySolution solution = new MySolution();
+                solution.body = genSolution(root, targetHash, targetDag);
+
+                solutions.add(solution);
 
 //                if ("h%*%t(a)%*%a%*%d".equals(tarExp)) {
 //                //    targetDag = rule1.rewriteHopDAG(targetDag,new ProgramRewriteStatus());
@@ -138,7 +140,7 @@ public class RewriteDFP extends HopRewriteRule {
 
         System.out.println("Solution size: " + solutions.size());
         System.out.println("\n\n==========================\n\n");
-        return root;
+        return solutions;
     }
 
 
