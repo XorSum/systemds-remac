@@ -4,11 +4,16 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
+import org.apache.sysds.hops.rewrite.dfp.utils.ConstantUtil;
+import org.apache.sysds.hops.rewrite.dfp.utils.Hash;
 import org.apache.sysds.hops.rewrite.dfp.utils.MyExplain;
+import org.apache.sysds.parser.VariableSet;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 
+import static org.apache.sysds.hops.rewrite.dfp.utils.ConstantUtil.rFindConstant;
 import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Hash.hashHopDag;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.*;
@@ -25,27 +30,35 @@ public class MatrixMultChain {
     ArrayList<Integer> path;
     int depth;
 
-    public MatrixMultChain( Hop originalTree, ArrayList<Integer> path,int depth ) {
-        this.originalTree = originalTree;
-        this.path =  (ArrayList<Integer>) path.clone();
-        this.depth =depth;
+    boolean onlySearchConstantSubExp=false;
 
-        this.allTreeesHashMap = new HashMap<>();
+    public MatrixMultChain(Hop originalTree, ArrayList<Integer> path,int depth ) {
+        this.originalTree = originalTree;
+        this.path = (ArrayList<Integer>) path.clone();
+        this.depth = depth;
+    }
+
+    public void generateAlltrees() {
         long startTime = System.currentTimeMillis();
         this.trees = BaoLi.generateAllTrees(originalTree);
         long endTime = System.currentTimeMillis();
         long totalTime = endTime - startTime;
         System.out.println(">>构造所有的等价二叉树执行耗时：" + totalTime + " ms");
+    }
 
-        startTime = System.currentTimeMillis();
+    public void recordSubexp(){
+        long startTime = System.currentTimeMillis();
+        this.allTreeesHashMap = new HashMap<>();
         for (Hop tree : trees) {
             HashMap<Pair<Long, Long>, ArrayList<Hop>> singleTreeHashMap = new HashMap<>();
 //            System.out.println("Stats tree: ");
 //            tree.resetVisitStatus();
 //            System.out.println(Explain.explain(tree));
-
-            statsAllNode(tree, tree, singleTreeHashMap);
-
+            if (onlySearchConstantSubExp){
+                statConstantNode(tree,tree,singleTreeHashMap);
+            }else {
+                statsAllNode(tree, tree, singleTreeHashMap);
+            }
             for (HashMap.Entry<Pair<Long, Long>, ArrayList<Hop>> keyValue : singleTreeHashMap.entrySet()) {
                 Pair<Long, Long> key = keyValue.getKey();
                 ArrayList<Hop> value = keyValue.getValue();
@@ -61,19 +74,35 @@ public class MatrixMultChain {
                 }
             }
         }
-        endTime = System.currentTimeMillis();
-        totalTime = endTime - startTime;
+       long endTime = System.currentTimeMillis();
+       long totalTime = endTime - startTime;
         System.out.println(">>所有子式插入哈希表执行耗时：" + totalTime + " ms");
+    }
 
+    private void  statConstantNode(Hop tree,Hop node,HashMap<Pair<Long, Long>, ArrayList<Hop>> singleTree ) {
+        if (isSampleHop(node)) return;
+        if (ConstantUtil.rFindConstant(node)) {
+            Pair<Long, Long> hash = hashHopDag(node);
+            if (!singleTree.containsKey(hash)) {
+                singleTree.put(hash, new ArrayList<>());
+            }
+            singleTree.get(hash).add(node);
+        } else {
+            for (int i=0;i<node.getInput().size();i++) {
+                statConstantNode(tree,node.getInput().get(i),singleTree);
+            }
+        }
     }
 
     private void statsAllNode(Hop tree, Hop node, HashMap<Pair<Long, Long>, ArrayList<Hop>> singleTree) {
         if (isSampleHop(node)) return;
-        Pair<Long, Long> hash = hashHopDag(node);
+        Hop copy = deepCopyHopsDag(node);
+        copy = reorder(copy);
+        Pair<Long, Long> hash = hashHopDag(copy);
         if (!singleTree.containsKey(hash)) {
             singleTree.put(hash, new ArrayList<>());
         }
-        singleTree.get(hash).add(node);
+        singleTree.get(hash).add(copy);
         //  begin
         Hop tran = HopRewriteUtils.createTranspose(node);
         tran = reorder(tran);

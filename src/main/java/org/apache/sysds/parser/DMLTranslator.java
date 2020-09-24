@@ -293,14 +293,14 @@ public class DMLTranslator
 
 
 
-//        ProgramRewriter rewriter4 = new ProgramRewriter(new RewriteLoopConstrant());
-//        rewriter4.rewriteProgramHopDAGs(dmlp);
-//        resetHopsDAGVisitStatus(dmlp);
+        ProgramRewriter rewriter4 = new ProgramRewriter(new RewriteLoopConstrant());
+        rewriter4.rewriteProgramHopDAGs(dmlp);
+        resetHopsDAGVisitStatus(dmlp);
 
 		// apply common sub expression rewrites
-        ProgramRewriter rewriter3 = new ProgramRewriter(new RewriteDFP());
-        rewriter3.rewriteProgramHopDAGs(dmlp);
-        resetHopsDAGVisitStatus(dmlp);
+//        ProgramRewriter rewriter3 = new ProgramRewriter(new RewriteDFP());
+//        rewriter3.rewriteProgramHopDAGs(dmlp);
+//        resetHopsDAGVisitStatus(dmlp);
 
 //
 //		ProgramRewriter rewriter4 = new ProgramRewriter(new RewriteSymmetryMatrix());

@@ -8,6 +8,7 @@ import org.apache.sysds.hops.rewrite.dfp.rule.BalanceMultiply4Rule;
 import org.apache.sysds.hops.rewrite.dfp.rule.MyRule;
 import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule;
 import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule2;
+import org.apache.sysds.hops.rewrite.dfp.utils.ConstantUtil;
 import org.apache.sysds.hops.rewrite.dfp.utils.MyExplain;
 import org.apache.sysds.utils.Explain;
 
@@ -27,7 +28,7 @@ public class RewriteDFP extends HopRewriteRule {
         for (int i = 0; i < roots.size(); i++) {
             Hop hi = roots.get(i);
             long startTime = System.currentTimeMillis();
-            rewriteDFP(hi, state);
+            rewriteDFP(hi);
             long endTime = System.currentTimeMillis();
             long totalTime = endTime -startTime;
             System.out.println("rewriteDAG执行耗时：" + totalTime + " ms");
@@ -38,14 +39,21 @@ public class RewriteDFP extends HopRewriteRule {
     @Override
     public Hop rewriteHopDAG(Hop root, ProgramRewriteStatus state) {
 //        return root;
-        rewriteDFP(root, state);
+        rewriteDFP(root);
         return root;
     }
 
+   private static HopRewriteRule rewriteMatrixMultChainOptimization = new RewriteMatrixMultChainOptimization();
+   private static HopRewriteRule rewriteCommonSubexpressionElimination = new RewriteCommonSubexpressionElimination();
+
+
+    private static ArrayList<MySolution> solutions ;
     private static ArrayList<MatrixMultChain> chains;
 
-    public static ArrayList<MySolution> rewriteDFP(Hop root, ProgramRewriteStatus state) {
+    public static ArrayList<MySolution> rewriteDFP(Hop root) {
         if (root == null) return null;
+
+        solutions =  new ArrayList<>();
 
         System.out.println(MyExplain.myExplain(root));
 
@@ -64,28 +72,39 @@ public class RewriteDFP extends HopRewriteRule {
 
                     startTime = System.currentTimeMillis();
 //        ArrayList<Triple<Hop, Hop, Integer>> blocks = findMultChains(root);
-        ArrayList<MatrixMultChain> chains = findMultChains(root);
+         chains = findMultChains(root);
 
         System.out.println("Chain size: " + chains.size());
                     endTime = System.currentTimeMillis();
                     totalTime = endTime -startTime;
                     System.out.println(">寻找矩阵连乘块执行耗时：" + totalTime + " ms");
 
-                    startTime = System.currentTimeMillis();
-        ArrayList<MySolution> solutions = new ArrayList<>();
+        for (MatrixMultChain chain: chains) {
+            chain.generateAlltrees();
+        }
+
+        func(root,false);
+        func(root,true);
 
 
+        return solutions;
+    }
+
+
+    private static void func(Hop root,
+            boolean onlySearchConstantSubExp )   {
+
+      long  startTime = System.currentTimeMillis();
         Set<Pair<Long, Long>> allSubExps = new HashSet<>();
         for (MatrixMultChain chain : chains) {
+            chain.onlySearchConstantSubExp = onlySearchConstantSubExp;
+            chain.recordSubexp();
             allSubExps.addAll(chain.allTreeesHashMap.keySet());
         }
         System.out.println("Sub Exp size: " + allSubExps.size());
-                    endTime = System.currentTimeMillis();
-                    totalTime = endTime -startTime;
-                    System.out.println(">初始化哈希表执行耗时：" + totalTime + " ms");
-
-        HopRewriteRule rule1 = new RewriteMatrixMultChainOptimization();
-        HopRewriteRule rule2 = new RewriteCommonSubexpressionElimination();
+       long endTime = System.currentTimeMillis();
+       long totalTime = endTime -startTime;
+        System.out.println(">初始化哈希表执行耗时：" + totalTime + " ms");
 
 
         startTime = System.currentTimeMillis();
@@ -102,13 +121,23 @@ public class RewriteDFP extends HopRewriteRule {
             }
             if (targetDag != null && allCount > 2) {
 //                System.out.println("<----");
+                ProgramRewriteStatus prs = new ProgramRewriteStatus();
+               // targetDag =  rewriteMatrixMultChainOptimization.rewriteHopDAG(targetDag,prs);
+               // targetDag = rewriteCommonSubexpressionElimination.rewriteHopDAG(targetDag,prs);
                 System.out.println("Target: " + solutions.size() + ", count=" + allCount +", exp="+MyExplain.myExplain(targetDag));
+                Hop hop  = genSolution( root, chains, targetHash, targetDag);
 
-                MySolution solution = new MySolution();
-                solution.body = genSolution( root,chains, targetHash, targetDag);
+                MySolution solution ;
 
+
+                if (onlySearchConstantSubExp) {
+                    solution = ConstantUtil.liftLoopConstant(hop);
+                    System.out.println(solution);
+                }else {
+                   solution = new MySolution();
+                   solution.body = hop;
+                }
                 solutions.add(solution);
-
 //                if ("h%*%t(a)%*%a%*%d".equals(tarExp)) {
 //                //    targetDag = rule1.rewriteHopDAG(targetDag,new ProgramRewriteStatus());
 //                 //   System.out.println(Explain.explain(targetDag));
@@ -129,15 +158,11 @@ public class RewriteDFP extends HopRewriteRule {
             }
         }
 
-                    endTime = System.currentTimeMillis();
-                    totalTime = endTime -startTime;
-                    System.out.println(">构造所有计划执行耗时：" + totalTime + " ms");
+        endTime = System.currentTimeMillis();
+        totalTime = endTime -startTime;
+        System.out.println(">构造所有计划执行耗时：" + totalTime + " ms");
+        System.out.println("Solution Size: "+solutions.size());
 
-
-
-        System.out.println("Solution size: " + solutions.size());
-        System.out.println("\n\n==========================\n\n");
-        return solutions;
     }
 
 
@@ -166,7 +191,6 @@ public class RewriteDFP extends HopRewriteRule {
         //  hop.setVisited();
     }
 
-    static int chain_index;
 
     private static Hop genSolution(Hop root,ArrayList<MatrixMultChain> chains, Pair<Long, Long> targetHash, Hop targetDag) {
         Hop copy = deepCopyHopsDag(root);
@@ -186,118 +210,6 @@ public class RewriteDFP extends HopRewriteRule {
             }
         }
         return copy;
-    }
-
-    private static Hop findCommonSubExp(Hop hop) {
-        ArrayList<Hop> allSubExpression = new ArrayList<>();
-        Hop target = null;
-        hop.resetVisitStatus();
-        getAllSubExpression(hop, allSubExpression);
-//        for (int i = 0; i < allSubExpression.size(); i++) {
-//            System.out.println("exp " + i);
-//            Hop h1 = allSubExpression.get(i);
-//            h1.resetVisitStatus();
-//            System.out.println(Explain.explain(h1));
-//        }
-        DisjointSet djs = new DisjointSet(allSubExpression.size());
-        for (int i = 0; i < allSubExpression.size() && target == null; i++) {
-            for (int j = i + 1; j < allSubExpression.size() && target == null; j++) {
-                Hop h1 = allSubExpression.get(i);
-                Hop h2 = allSubExpression.get(j);
-                Hop th2 = HopRewriteUtils.createTranspose(h2);
-                if (h1.getInput().size() > 0
-                        && h2.getInput().size() > 0
-                        && !"dg(rand)".equals(h1.getOpString())
-                        && !"dg(rand)".equals(h2.getOpString())
-                ) {
-//                if (isSampleHop(h1)&&isSampleHop(h2)){
-                    if (isSame(h1, h2) || isSame(h1, th2)) {
-                        djs.merge(i, j);
-                    }
-                }
-            }
-        }
-        for (int i = 0; i < allSubExpression.size(); i++) {
-            if (djs.find(i) == i && djs.count(i) > 1) {
-                Hop h1 = allSubExpression.get(i);
-                if (!isSampleHop(h1)) {
-                    System.out.println("exp " + i + "  " + djs.count(i) + " " + isSampleHop(h1));
-                    h1.resetVisitStatus();
-                    System.out.println(Explain.explain(h1));
-                }
-            }
-        }
-        return null;
-    }
-
-
-    private static Hop replaceCommonSubExp(Hop hop, Hop subexp) {
-        hop.resetVisitStatus();
-        Hop tsubexp = HopRewriteUtils.createTranspose(subexp);
-        replaceCommonSubExp_iter(null, hop, subexp, tsubexp);
-        System.out.println("after replace");
-        hop.resetVisitStatus();
-        System.out.println(Explain.explain(hop));
-        return hop;
-    }
-
-    private static void replaceCommonSubExp_iter(Hop parent, Hop hop, Hop subexp, Hop tsubexp) {
-        if (hop.isVisited())
-            return;
-        hop.setVisited();
-        if (isSame(hop, subexp)) {
-            if (parent != null) {
-                // System.out.println("replace");
-                HopRewriteUtils.replaceChildReference(parent, hop, subexp);
-                HopRewriteUtils.cleanupUnreferenced(hop);
-            }
-        } else if (isSame(hop, tsubexp)) {
-            if (parent != null) {
-                //  System.out.println("replace");
-                HopRewriteUtils.replaceChildReference(parent, hop, tsubexp);
-                HopRewriteUtils.cleanupUnreferenced(hop);
-            }
-        }
-        for (int i = 0; i < hop.getInput().size(); i++) {
-            replaceCommonSubExp_iter(hop, hop.getInput().get(i), subexp, tsubexp);
-        }
-        return;
-    }
-
-
-    private static Hop double_jiehe(Hop hop) {
-        ArrayList<MyRule> rules = new ArrayList<>();
-        rules.add(new MatrixMultJieheRule());
-        rules.add(new MatrixMultJieheRule2());
-        hop = applyDAGRule(hop, rules, 100, false);
-        return hop;
-    }
-
-    private static Hop random_change(Hop hop) {
-        ArrayList<MyRule> rules = new ArrayList<>();
-        rules.add(new MatrixMultJieheRule());
-        rules.add(new MatrixMultJieheRule2());
-        hop = applyDAGRule(hop, rules, 100, true);
-        return hop;
-    }
-
-    private static Hop balance(Hop hop) {
-        ArrayList<MyRule> rules = new ArrayList<>();
-        rules.add(new BalanceMultiply4Rule());
-        hop = applyDAGRule(hop, rules, 100, false);
-        return hop;
-    }
-
-
-    private static void getAllSubExpression(Hop hop, ArrayList<Hop> result) {
-        if (hop.isVisited())
-            return;
-        result.add(hop);
-        hop.setVisited();
-        for (int i = 0; i < hop.getInput().size(); i++) {
-            Hop hi = hop.getInput().get(i);
-            getAllSubExpression(hi, result);
-        }
     }
 
 
