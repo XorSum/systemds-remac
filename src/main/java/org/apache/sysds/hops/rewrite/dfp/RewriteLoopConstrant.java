@@ -58,8 +58,8 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
                     Hop hop = s.getHops().get(k);
                     Hop copy = deepCopyHopsDag(hop);
                     System.out.println(" Exp =" + MyExplain.myExplain(copy));
-                    RewriteDFP.rewriteDFP(copy);
-
+                 //   RewriteDFP.rewriteDFP(copy);
+                    RewriteDFP.main(copy);
 //                    ArrayList<Hop> trees = BaoLi.generateAllTrees(copy);
 
 
