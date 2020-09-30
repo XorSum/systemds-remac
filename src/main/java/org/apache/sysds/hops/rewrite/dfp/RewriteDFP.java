@@ -2,14 +2,21 @@ package org.apache.sysds.hops.rewrite.dfp;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
+import org.apache.hadoop.yarn.webapp.hamlet.Hamlet;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.*;
 import org.apache.sysds.hops.rewrite.dfp.utils.ConstantUtil;
+import org.apache.sysds.hops.rewrite.dfp.utils.Hash;
 import org.apache.sysds.hops.rewrite.dfp.utils.MyExplain;
 import org.apache.sysds.hops.rewrite.dfp.utils.Prime;
-import spire.macros.Auto;
+import org.spark_project.jetty.util.ArrayQueue;
+
 
 import java.util.*;
+
+import static java.lang.Math.min;
+import static java.lang.Math.max;
+//import static org.apache.commons.lang3.ObjectUtils.max;
 import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.*;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Reorder.reorder;
@@ -210,8 +217,26 @@ public class RewriteDFP extends HopRewriteRule {
     static DisjointSet djs = new DisjointSet(1000);
     static HashMap<Long, Integer> hopId2LeafIndex = new HashMap<>();
     static ArrayList<Leaf> leaves = new ArrayList<>();
-    private static ArrayList<Pair<Integer, Integer>> nodeRange = new ArrayList<>();
-    private static HashMap<Pair<Long, Long>, ArrayList<Pair<Integer, Integer>>> tmp = new HashMap<>();
+    private static ArrayList<Range> nodeRange = new ArrayList<>();
+    private static HashMap<HashKey, ArrayList<Range>> tmp = new HashMap<>();
+
+
+    static class Range {
+        public int left;
+        public int right;
+        public static Range of(int l,int r) {
+            Range range = new Range();
+            range.left = l;
+            range.right = r;
+            return range;
+        }
+
+        @Override
+        public String toString() {
+            return "(" + left + "," + right + ")";
+        }
+    }
+
 
     private static int findAllLeaf(Hop hop,
                                    ArrayList<Integer> path,
@@ -246,6 +271,8 @@ public class RewriteDFP extends HopRewriteRule {
         return -1;
     }
 
+    static  int rrr =0;
+    static int sss = 0;
 
     public static void main(Hop hop) {
         djs = new DisjointSet(1000);
@@ -264,7 +291,7 @@ public class RewriteDFP extends HopRewriteRule {
                 int l = i, r = i;
                 while (l - 1 >= 0 && djs.find(l - 1) == djs.find(i)) l--;
                 while (r + 1 < leaves.size() && djs.find(r + 1) == djs.find(i)) r++;
-                nodeRange.add(Pair.of(l, r));
+                nodeRange.add(Range.of(l, r));
                 System.out.println("Range " + l + " " + r);
                 for (int j = l; j <= r; j++) {
                     System.out.print(MyExplain.myExplain(leaves.get(j).hop) + " ");
@@ -273,78 +300,238 @@ public class RewriteDFP extends HopRewriteRule {
             }
         }
 
-        for (Pair<Integer, Integer> block : nodeRange) {
-            for (int l = block.getLeft(); l <= block.getRight(); l++) {
-                for (int r = l + 1; r <= block.getRight(); r++) {
-                    Long hashTag = hash(l, r);
-                    Long tHashTag = tHash(l, r);
-                    if (hashTag > tHashTag) {
-                        Long t = hashTag;
-                        hashTag = tHashTag;
-                        tHashTag = t;
-                    }
-                    Pair<Long, Long> hash = Pair.of(hashTag, tHashTag);
+        for (Range block : nodeRange) {
+            for (int l = block.left; l <= block.right; l++) {
+                for (int r = l + 1; r <= block.right; r++) {
+                    HashKey hash = rangeHash(l, r);
                     if (!tmp.containsKey(hash))
                         tmp.put(hash, new ArrayList<>());
-                    tmp.get(hash).add(Pair.of(l, r));
+                    tmp.get(hash).add(Range.of(l, r));
                 }
             }
         }
 
-        for (Iterator<Map.Entry<Pair<Long, Long>, ArrayList<Pair<Integer, Integer>>>> it = tmp.entrySet().iterator(); it.hasNext(); ) {
-            Map.Entry<Pair<Long, Long>, ArrayList<Pair<Integer, Integer>>> e = it.next();
-            ArrayList<Pair<Integer, Integer>> list = e.getValue();
-            if (list.size() < 2 || list.get(0).getRight() >= list.get(list.size() - 1).getLeft()) {
+        for (Iterator<Map.Entry<HashKey, ArrayList<Range>>> it = tmp.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<HashKey, ArrayList<Range>> e = it.next();
+            ArrayList<Range> list = e.getValue();
+            if (list.size() < 2 || list.get(0).right >= list.get(list.size() - 1).left) {
                 it.remove();
             }
         }
 
-        for (Map.Entry<Pair<Long, Long>, ArrayList<Pair<Integer, Integer>>> e : tmp.entrySet()) {
+        ArrayList<Cse> cse = new ArrayList<>();
+        for (Map.Entry<HashKey, ArrayList<Range>> e : tmp.entrySet()) {
             System.out.print("\n\nexp = ");
-            Pair<Integer, Integer> r = e.getValue().get(0);
-            for (int i = r.getLeft(); i <= r.getRight(); i++) {
+            Range r = e.getValue().get(0);
+            for (int i = r.left; i <= r.right; i++) {
                 System.out.print(MyExplain.myExplain(leaves.get(i).hop) + " ");
             }
             System.out.println();
             System.out.println("hash = " + e.getKey());
-            for (Pair<Integer, Integer> range : e.getValue()) {
-                System.out.println("range = [" + range.getLeft() + "," + range.getRight() + "]");
+            for (Range range : e.getValue()) {
+                System.out.println("range = [" + range.left + "," + range.right + "]");
             }
+            ArrayList<Cse> ac = genCse(e.getKey(), e.getValue());
+            cse.addAll(ac);
+            System.out.println(ac.size());
+            for (Cse c: ac) {
+                System.out.println(c.ranges);
+            }
+        }
+        ArrayList<Cses> cses = genCses(cse);
+        System.out.println("cses.size="+cses.size());
+        System.out.println("rrr="+rrr);
+        System.out.println("sss="+sss);
+    }
+
+    static class Cse {
+        public HashKey hash;
+        public ArrayList<Range> ranges;
+        public  int last_index=0;
+        public Cse(HashKey hash) {
+            this.hash = hash;
+            this.ranges = new ArrayList<>();
+        }
+        public boolean intersect( Cse other ) {
+            sss ++;
+            for (Range p: ranges) {
+                for (Range q : other.ranges) {
+                    rrr++;
+                    boolean a = max(p.left,q.left) <=min(p.right,q.right);
+                    boolean b = (p.left<=q.left&&p.right>=q.right)||(q.left<=p.left&&q.right>=p.right);
+                    if (a && !b) return true;
+//                    if (a) return true;
+                }
+            }
+            return false;
         }
     }
 
+    static class HashKey {
+        public long left;
+        public long right;
+        public static HashKey of(Long l,Long r) {
+            HashKey key = new HashKey();
+            key.left = l;
+            key.right = r;
+            return key;
+        }
 
-    private static Long hash(int l, int r) {
-        Long ret = 0L;
+        @Override
+        public boolean equals(Object obj) {
+            HashKey o = (HashKey)obj;
+            return left == o.left && right==o.right;
+        }
+
+        @Override
+        public int hashCode() {
+            return (int)(left*(1e9+7)+right);
+        }
+    }
+
+    public static ArrayList<Cse> genCse(HashKey hash, ArrayList<Range> ranges) {
+        ArrayList<Cse> result = new ArrayList<>();
+        for (int j = 0; j < ranges.size(); j++) {
+            Cse tmp = new Cse(hash);
+            tmp.ranges.add(ranges.get(j));
+            tmp.last_index = j;
+            result.add(tmp);
+        }
+        for (int i = 0; i < result.size(); i++) {
+            Cse tmp = result.get(i);
+            for (int j = tmp.last_index + 1; j < ranges.size(); j++) {
+                Range a = ranges.get(j);
+                boolean ok = true;
+                for (int k = 0; ok && k < tmp.ranges.size(); k++) {
+                    Range b = tmp.ranges.get(k);
+                    if (max(a.left, b.right) <= min(a.right, b.right)) {
+                        ok = false;
+                    }
+                }
+                if (ok) {
+                    Cse xin = new Cse(hash);
+                    xin.ranges = (ArrayList<Range>) tmp.ranges.clone();
+                    xin.ranges.add(a);
+                    xin.last_index = j;
+                    result.add(xin);
+                }
+            }
+        }
+        for (int j = 0; j < ranges.size(); j++) {
+            result.remove(0);
+        }
+        return result;
+    }
+
+    static class Cses {
+        public ArrayList<Cse> cses= new ArrayList<>();
+        int last_index=0;
+        public Cses() {}
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("cses:\n");
+            for (Cse c: cses) {
+                for (int i=c.ranges.get(0).left;i<=c.ranges.get(0).right;i++) {
+                    Hop h = leaves.get(i).hop;
+                    if (!HopRewriteUtils.isTransposeOperation(h)) {
+                        sb.append(h.getName()+" ");
+                    }else  {
+                        h = h.getInput().get(0);
+                        sb.append("t("+h.getName()+") ");
+                    }
+                }
+                for (Range r: c.ranges) {
+                    sb.append(r+" ");
+                }
+                sb.append("\n");
+            }
+            return sb.toString();
+        }
+    }
+
+    private static ArrayList<Cses> genCses(ArrayList<Cse> cse) {
+        ArrayList<Cses> result = new ArrayList<>();
+        for (int j=0;j<cse.size();j++) {
+            Cses c = new Cses();
+            c.cses.add(cse.get(j));
+            c.last_index = j;
+            result.add(c);
+        }
+        for (int i=0;i<result.size();i++) {
+            System.out.println("i="+i);
+            Cses front = result.get(i);
+            System.out.println(front);
+//            System.out.println("Front: ");
+//            for (Cse c: front.cses) {
+//                System.out.println(c.hash +" "+c.ranges);
+//            }
+//            System.out.println("\n\n");
+            for (int j=front.last_index+1;j<cse.size();j++) {
+                Cse cj = cse.get(j);
+                boolean ok = true;
+                for (int k=0;ok&&k<front.cses.size();k++) {
+                    Cse ck = front.cses.get(k);
+                    if ( ck.hash == cj.hash || ck.intersect(cj)  ) ok = false;
+                }
+                if (ok) {
+                    Cses xin = new Cses();
+                    xin.cses = (ArrayList<Cse>)front.cses.clone();
+                    xin.cses.add( cj );
+                    xin.last_index = j;
+                    result.add(xin);
+//                    System.out.println("Xin: ");
+//                    for (Cse c: xin.cses) {
+//                        System.out.println(c.hash +" "+c.ranges);
+//                    }
+//                    System.out.println("\n\n");
+
+                }
+            }
+        }
+        return result;
+    }
+
+    public static HashKey rangeHash(int l, int r) {
+        Long first = 0L;
         for (int i = 0; l + i <= r; i++) {
             Long single;
             Hop h = leaves.get(l + i).hop;
-            if (!HopRewriteUtils.isTransposeOperation(h)) {
-                single = (long) h.getOpString().hashCode();
-            } else {
+            if (HopRewriteUtils.isTransposeOperation(h)) {
                 h = h.getInput().get(0);
-                single = (long) h.getOpString().hashCode() * 998244853;
+                if (AnalyzeSymmetryMatrix.querySymmetry(h.getName())) {
+                    single = (long) h.getOpString().hashCode();
+                } else {
+                    single = (long) h.getOpString().hashCode() * 998244353;
+                }
+            } else {
+                single = (long) h.getOpString().hashCode();
             }
-            ret = ret + single * Prime.getPrime(i);
+            first = first + single * Prime.getPrime(i);
         }
-        return ret;
-    }
-
-    private static Long tHash(int l, int r) {
-        Long ret = 0L;
+        Long second = 0L;
         for (int i = 0; r - i >= l; i++) {
-            Long single = 0L;
+            Long single;
             Hop h = leaves.get(r - i).hop;
-            if (!HopRewriteUtils.isTransposeOperation(h)) {
-                single = (long) h.getOpString().hashCode() * 998244853;
-
-            } else {
+            if (HopRewriteUtils.isTransposeOperation(h)) {
                 h = h.getInput().get(0);
                 single = (long) h.getOpString().hashCode();
+            } else {
+                if (AnalyzeSymmetryMatrix.querySymmetry(h.getName())) {
+                    single = (long) h.getOpString().hashCode();
+                } else {
+                    single = (long) h.getOpString().hashCode() * 998244353;
+                }
             }
-            ret = ret + single * Prime.getPrime(i);
+            second = second + single * Prime.getPrime(i);
         }
-        return ret;
+        if (first < second) {
+            Long tmp = first;
+            first = second;
+            second = tmp;
+        }
+        return HashKey.of(first, second);
     }
 
 
