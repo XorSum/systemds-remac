@@ -224,7 +224,8 @@ public class RewriteDFP extends HopRewriteRule {
     static class Range {
         public int left;
         public int right;
-        public static Range of(int l,int r) {
+
+        public static Range of(int l, int r) {
             Range range = new Range();
             range.left = l;
             range.right = r;
@@ -271,7 +272,7 @@ public class RewriteDFP extends HopRewriteRule {
         return -1;
     }
 
-    static  int rrr =0;
+    static int rrr = 0;
     static int sss = 0;
 
     public static void main(Hop hop) {
@@ -332,35 +333,60 @@ public class RewriteDFP extends HopRewriteRule {
                 System.out.println("range = [" + range.left + "," + range.right + "]");
             }
             ArrayList<Cse> ac = genCse(e.getKey(), e.getValue());
+
+
             cse.addAll(ac);
             System.out.println(ac.size());
-            for (Cse c: ac) {
+            for (Cse c : ac) {
                 System.out.println(c.ranges);
             }
         }
         ArrayList<Cses> cses = genCses(cse);
         System.out.println("cses.size="+cses.size());
-        System.out.println("rrr="+rrr);
-        System.out.println("sss="+sss);
+//        if (cses.size()>70000) {
+//            for (int i=70000;i<70010;i++) {
+//                genHop(cses.get(i));
+//            }
+//        }
+        for (Cses c: cses) {
+            genHop(c);
+        }
+        System.out.println("cses.size="+cses.size());
+//        System.out.println("rrr="+rrr);
+//        System.out.println("sss="+sss);
+//        genCsesBaoli();
+
     }
 
     static class Cse {
         public HashKey hash;
         public ArrayList<Range> ranges;
-        public  int last_index=0;
+        public int last_index = 0;
+
         public Cse(HashKey hash) {
             this.hash = hash;
             this.ranges = new ArrayList<>();
         }
-        public boolean intersect( Cse other ) {
-            sss ++;
-            for (Range p: ranges) {
+
+        public boolean intersect(Cse other) {
+            sss++;
+            for (Range p : ranges) {
                 for (Range q : other.ranges) {
                     rrr++;
-                    boolean a = max(p.left,q.left) <=min(p.right,q.right);
-                    boolean b = (p.left<=q.left&&p.right>=q.right)||(q.left<=p.left&&q.right>=p.right);
+                    boolean a = max(p.left, q.left) <= min(p.right, q.right);
+                    boolean b = (p.left <= q.left && p.right >= q.right) || (q.left <= p.left && q.right >= p.right);
                     if (a && !b) return true;
 //                    if (a) return true;
+                }
+            }
+            return false;
+        }
+        public boolean contain(Cse innner) {
+            if (intersect(innner)) return false;
+            for (Range p : ranges) {
+                for (Range q : innner.ranges) {
+                    boolean b = p.left <= q.left && p.right >= q.right;
+                    if (b) return true;
                 }
             }
             return false;
@@ -370,7 +396,8 @@ public class RewriteDFP extends HopRewriteRule {
     static class HashKey {
         public long left;
         public long right;
-        public static HashKey of(Long l,Long r) {
+
+        public static HashKey of(Long l, Long r) {
             HashKey key = new HashKey();
             key.left = l;
             key.right = r;
@@ -379,13 +406,13 @@ public class RewriteDFP extends HopRewriteRule {
 
         @Override
         public boolean equals(Object obj) {
-            HashKey o = (HashKey)obj;
-            return left == o.left && right==o.right;
+            HashKey o = (HashKey) obj;
+            return left == o.left && right == o.right;
         }
 
         @Override
         public int hashCode() {
-            return (int)(left*(1e9+7)+right);
+            return (int) (left * (1e9 + 7) + right);
         }
     }
 
@@ -424,26 +451,30 @@ public class RewriteDFP extends HopRewriteRule {
     }
 
     static class Cses {
-        public ArrayList<Cse> cses= new ArrayList<>();
-        int last_index=0;
-        public Cses() {}
+        public ArrayList<Cse> cses = new ArrayList<>();
+        public ArrayList<Hop> hops ;
+        public boolean [][] contain;
+        int last_index = 0;
+
+        public Cses() {
+        }
 
         @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();
             sb.append("cses:\n");
-            for (Cse c: cses) {
-                for (int i=c.ranges.get(0).left;i<=c.ranges.get(0).right;i++) {
+            for (Cse c : cses) {
+                for (int i = c.ranges.get(0).left; i <= c.ranges.get(0).right; i++) {
                     Hop h = leaves.get(i).hop;
                     if (!HopRewriteUtils.isTransposeOperation(h)) {
-                        sb.append(h.getName()+" ");
-                    }else  {
+                        sb.append(h.getName() + " ");
+                    } else {
                         h = h.getInput().get(0);
-                        sb.append("t("+h.getName()+") ");
+                        sb.append("t(" + h.getName() + ") ");
                     }
                 }
-                for (Range r: c.ranges) {
-                    sb.append(r+" ");
+                for (Range r : c.ranges) {
+                    sb.append(r + " ");
                 }
                 sb.append("\n");
             }
@@ -452,46 +483,207 @@ public class RewriteDFP extends HopRewriteRule {
     }
 
     private static ArrayList<Cses> genCses(ArrayList<Cse> cse) {
+        long start = System.currentTimeMillis();
         ArrayList<Cses> result = new ArrayList<>();
-        for (int j=0;j<cse.size();j++) {
+        for (int j = 0; j < cse.size(); j++) {
             Cses c = new Cses();
             c.cses.add(cse.get(j));
             c.last_index = j;
             result.add(c);
         }
-        for (int i=0;i<result.size();i++) {
-            System.out.println("i="+i);
+        for (int i = 0; i < result.size(); i++) {
+            System.out.println("i=" + i);
             Cses front = result.get(i);
             System.out.println(front);
-//            System.out.println("Front: ");
-//            for (Cse c: front.cses) {
-//                System.out.println(c.hash +" "+c.ranges);
-//            }
-//            System.out.println("\n\n");
-            for (int j=front.last_index+1;j<cse.size();j++) {
+            for (int j = front.last_index + 1; j < cse.size(); j++) {
                 Cse cj = cse.get(j);
                 boolean ok = true;
-                for (int k=0;ok&&k<front.cses.size();k++) {
+                for (int k = 0; ok && k < front.cses.size(); k++) {
                     Cse ck = front.cses.get(k);
-                    if ( ck.hash == cj.hash || ck.intersect(cj)  ) ok = false;
+                    if (ck.hash == cj.hash || ck.intersect(cj)) ok = false;
                 }
                 if (ok) {
                     Cses xin = new Cses();
-                    xin.cses = (ArrayList<Cse>)front.cses.clone();
-                    xin.cses.add( cj );
+                    xin.cses = (ArrayList<Cse>) front.cses.clone();
+                    xin.cses.add(cj);
                     xin.last_index = j;
                     result.add(xin);
-//                    System.out.println("Xin: ");
-//                    for (Cse c: xin.cses) {
-//                        System.out.println(c.hash +" "+c.ranges);
-//                    }
-//                    System.out.println("\n\n");
-
                 }
             }
         }
+        long end = System.currentTimeMillis();
+        long totalTime = end - start;
+        System.out.println(">广搜所有相容坐标耗时：" + totalTime + " ms");
         return result;
     }
+
+    private static Hop genHop(Cses cses) {
+        int n = cses.cses.size();
+        cses.hops = new ArrayList<>();
+        for (int i=0;i<n;i++) cses.hops.add(null);
+        cses.contain = new boolean[n][n];
+        for (int i=0;i<n;i++) {
+            for (int j=0;j<n;j++) {
+                Cse ci = cses.cses.get(i);
+                Cse cj = cses.cses.get(j);
+                cses.contain[i][j] = ci.contain(cj);
+                System.out.print(cses.contain[i][j]+" ");
+            }
+            System.out.println();
+        }
+        for (Range block: nodeRange) {
+          Hop block_hop =  build_sub_hop(cses,block.left,block.right);
+            if (block_hop==null) {
+                System.out.println("NULL");
+            }
+        }
+        return null;
+    }
+
+
+    private static Hop build_sub_hop(Cses cses,int L,int R) {
+        ArrayList<Pair<Range, Cse>> ranges = new ArrayList<>();
+        for (Cse cse : cses.cses) {
+            for (Range range : cse.ranges) {
+                if (range.left >= L && range.right <= R) {
+                    ranges.add(Pair.of(range, cse));
+                    break;
+                }
+            }
+        }
+        Stack<Pair<Range, Cse>> stack = new Stack<>();
+        for (Pair<Range, Cse> p : ranges) {
+            while (!stack.empty() && stack.peek().getLeft().left >= p.getLeft().left) stack.pop();
+            stack.push(p);
+        }
+        System.out.println("stack "+L+ " "+R);
+        ArrayList<Hop> children = new ArrayList<>();
+        int cur = L;
+        for (Pair<Range, Cse> p : stack) {
+            System.out.println(p.getLeft());
+            int l = p.getLeft().left;
+            int r = p.getLeft().right;
+            while (cur < l) {
+                children.add(leaves.get(cur).hop);
+                cur++;
+            }
+            Hop t = build_sub_hop(cses, p.getRight(), p.getLeft().left, p.getLeft().right);
+            children.add(t);
+            cur = r + 1;
+        }
+        while (cur <= R) {
+            children.add(leaves.get(cur).hop);
+            cur++;
+        }
+        if (children.size() > 0) {
+
+            Hop ret = children.get(0);
+            for (int i = 1; i < children.size(); i++) {
+                ret = HopRewriteUtils.createMatrixMultiply(ret, children.get(i));
+            }
+            return ret;
+        } else {
+            return null;
+        }
+    }
+
+
+    private static Hop build_sub_hop(Cses cses,Cse cse,int L,int R) {
+        int index = cses.cses.indexOf(cse);
+        Hop ret = cses.hops.get(index);
+        if (ret !=null ) {
+            return ret;
+        }
+        ArrayList<Pair<Range,Cse>> stack = new ArrayList<>();
+        for (int j=0;j<cses.cses.size();j++) {
+            if (cses.contain[index][j]) {
+                Cse cj = cses.cses.get(j);
+                int l = -1, r = -1;
+                for (Range range : cj.ranges) {
+                    if (range.left >= L && range.right <= R  && ( range.right-range.left < R-L)  ) {
+                        l = range.left;
+                        r = range.right;
+                        break;
+                    }
+                }
+                if (l!=-1&&r!=-1)
+                    stack.add(Pair.of(Range.of(l, r), cj));
+            }
+        }
+        System.out.println(" cse:");
+        ArrayList<Hop> children = new ArrayList<>();
+        int cur = L;
+        for (Pair<Range,Cse> p: stack) {
+            System.out.println(" "+p.getLeft());
+            int l = p.getLeft().left;
+            int r = p.getLeft().right;
+            while (cur<l) {
+                children.add( leaves.get(cur).hop );
+                cur++;
+            }
+            Hop t = build_sub_hop(cses,p.getRight(),l,r);
+            children.add(t);
+            cur = r+1;
+        }
+        while (cur<=R) {
+            children.add( leaves.get(cur).hop );
+            cur++;
+        }
+        if (children.size()>0) {
+            ret = children.get(0);
+            for (int i=1;i<children.size();i++) {
+                ret = HopRewriteUtils.createMatrixMultiply(ret,children.get(i));
+            }
+        }
+        cses.hops.set(index,ret);
+        return ret;
+    }
+
+
+    private static ArrayList<Cses> genCsesBaoli() {
+        long start = System.currentTimeMillis();
+        ArrayList<Cses> result = new ArrayList<>();
+        Cses cses = new Cses();
+        result.add(cses);
+        for (Map.Entry<HashKey, ArrayList<Range>> e : tmp.entrySet()) {
+            ArrayList<Cse> cses1 = genCse(e.getKey(), e.getValue());
+            int size = result.size();
+            System.out.println("size=" + size + " x" + (cses1.size() + 1));
+            for (int j = 0; j < size; j++) {
+                for (Cse c : cses1) {
+                    Cses novel = new Cses();
+                    novel.cses = (ArrayList<Cse>) result.get(j).cses.clone();
+                    novel.cses.add(c);
+                    result.add(novel);
+                }
+            }
+        }
+        System.out.println("baoli size = " + result.size());
+        long end = System.currentTimeMillis();
+        long totalTime = end - start;
+        System.out.println(">构造所有坐标耗时：" + totalTime + " ms");
+        start = System.currentTimeMillis();
+        ArrayList<Cses> compatibleResult = new ArrayList<>();
+        for (Cses c : result) {
+            boolean compatible = true;
+            for (int i = 0; compatible && i < c.cses.size(); i++) {
+                for (int j = i + 1; compatible && j < c.cses.size(); j++) {
+                    if (c.cses.get(i).intersect(c.cses.get(j))) {
+                        compatible = false;
+                    }
+                }
+            }
+            if (compatible) compatibleResult.add(c);
+        }
+
+        System.out.println("compitable size = " + compatibleResult.size());
+        end = System.currentTimeMillis();
+        totalTime = end - start;
+        System.out.println(">判断相容坐标执行耗时：" + totalTime + " ms");
+
+        return result;
+    }
+
 
     public static HashKey rangeHash(int l, int r) {
         Long first = 0L;
