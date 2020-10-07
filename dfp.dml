@@ -1,0 +1,105 @@
+# input: a,b
+# output: x
+
+#aa = read("hdfs://10.11.1.209:9000/data/avazu/app-tr-a.bin",format="binary")
+#a = aa[1:1000000,1:300000]
+a = read("/home/han/CLionProjects/untitled/cmake-build-debug/a2.csv",format="csv")
+#a  = matrix(1.0,rows = 1000,cols=100)
+
+#bb = read("hdfs://10.11.1.209:9000/data/avazu/app-tr-b.bin",format="binary")
+#b = bb[1:1000000,]
+b = read("/home/han/CLionProjects/untitled/cmake-build-debug/b2.csv",format="csv")
+#b  = matrix(2.0,rows = 1000,cols=1)
+
+e = 0.0001  # 误差
+#rho = 0.02
+#sigma = 0.1
+rho = 0.1
+sigma = 0.1
+
+m = ncol(a)
+n = nrow(a)
+
+#m = 100
+#n = 10
+#a = rand(rows=n,cols=m)
+#b = rand(rows=n,cols=1)
+
+
+f  = function(matrix[double] a,matrix[double] b,matrix[double] x) return (double ret) {
+    tmp = a%*%x-b
+    ret = sum( t(tmp)%*%tmp)
+}
+
+pow = function(double x,double y) return (double z) {
+   z = 1.0
+   i = 1
+   while(i<=y) {
+      z = z * x
+      i = i + 1
+   }
+}
+
+#x = matrix("0 0 0",rows=3, cols=1)
+x = matrix(1.0,rows=m,cols=1)
+
+#print("x="+toString(x))
+
+h = diag(matrix(1, rows=m, cols=1))
+o = diag(matrix(1, rows=m, cols=1))
+
+i = 1
+end = FALSE
+while((i<30)&(!end)) {
+    g = 2 * t(a) %*% (a %*% x - b)
+    loss = sum(t(g)%*%g)
+    print("i="+toString(i)+"  loss="+toString(loss))
+    if (loss < e) {
+    	end = TRUE
+     }
+  #  print("g=")
+  #   print(toString(g))
+  #  print("x=")
+  #  print(toString(x))
+
+    # 探测步长
+    d = - h %*% g
+    mk = 0
+    m = 0
+    found = FALSE
+    oldf = f(a,b,x)
+    print("oldf="+toString(oldf))
+    xishu = sigma * sum(t(g)%*%d)
+    while((m<30)&(!found)) {
+         print("m="+toString(m))
+         newf = f(a,b,pow(rho,m)*d + x)
+         tmpf = oldf + xishu * pow(rho,m)
+        if ( newf < oldf ) {
+            mk = m
+            found = TRUE
+        }
+        m = m + 1
+    }
+    s = pow(rho,mk)*d
+    x = x + s
+   # print("s="+toString(s))
+   # print("x="+toString(x))
+    #y = 2 * t(a) %*% a %*% s
+    #h = h - (h %*% y %*% t(y) %*% t(h)) / ( t(y) %*% t(h) %*% y)  + (s%*%t(s))/(t(s)%*%y)
+    #h = h - (h %*%  t(a) %*% a %*% s %*% t( t(a) %*% a %*% s) %*% h) / ( t(h %*% t(a) %*% a %*% s) %*%  t(a) %*% a %*% s)  + (s%*%t(s))/(2*t(s)%*%t(a) %*% a %*% s)
+    h = h-(h%*%t(a)%*%a%*%d%*%t(d)%*%t(a)%*%a%*%h)/(t(d)%*%t(a)%*%a%*%h%*%t(a)%*%a%*%d)+(d%*%t(d))/(2*t(d)%*%t(a)%*%a%*%d)
+   # hy = h%*%t(a)%*%a%*%d
+   # h = h-(hy%*%t(hy))/(t(hy)%*%t(a)%*%a%*%d)+(d%*%t(d))/(2*t(d)%*%t(a)%*%a%*%d)
+  #  h = hy%*%t(hy)
+
+    i = i + 1
+}
+
+print("i="+toString(i))
+#print("x=")
+#print(toString(sum(x)))
+#print("h=")
+#print(toString(sum(h)))
+
+#write(x,"hdfs://10.11.1.209:9000/data/avazu/app-tr-x1.bin",format="binary")
+#write(h,"hdfs://10.11.1.209:9000/data/avazu/app-tr-h.bin",format="binary")
