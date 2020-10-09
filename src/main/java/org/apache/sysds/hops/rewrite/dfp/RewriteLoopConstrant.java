@@ -38,7 +38,7 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
     @Override
     public List<StatementBlock> rewriteStatementBlock(StatementBlock sb, ProgramRewriteStatus state) {
         List<StatementBlock> res = new ArrayList<>();
-        System.out.println("rewriteStatementBlock");
+//        System.out.println("rewriteStatementBlock  " + sb.toString());
         if (sb == null) return res;
         if (sb instanceof WhileStatementBlock) {
             System.out.println("While Statement");
@@ -59,7 +59,8 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
                     Hop copy = deepCopyHopsDag(hop);
                     System.out.println(" Exp =" + MyExplain.myExplain(copy));
 //                  RewriteDFP.rewriteDFP(copy);
-                    RewriteCoordinate.main(copy,ec);
+                    RewriteCoordinate.ec = ec;
+                    RewriteCoordinate.main(copy);
 //                    ArrayList<Hop> trees = BaoLi.generateAllTrees(copy);
 
 

@@ -21,6 +21,9 @@ package org.apache.sysds.hops.recompile;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
+import org.apache.sysds.hops.rewrite.dfp.RewriteLoopConstrant;
+import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
 import org.apache.wink.json4j.JSONObject;
 import org.apache.sysds.api.DMLScript;
 import org.apache.sysds.api.jmlc.JMLCUtils;
@@ -140,11 +143,13 @@ public class Recompiler
 	 */
 	public static void reinitRecompiler() {
 		_rewriter.set(new ProgramRewriter(false, true));
+		//_rewriter.set(new ProgramRewriter(new RewriteLoopConstrant()));
 	}
 	
 	public static ArrayList<Instruction> recompileHopsDag( StatementBlock sb, ArrayList<Hop> hops, 
 			ExecutionContext ec, RecompileStatus status, boolean inplace, boolean replaceLit, long tid ) 
 	{
+		System.out.println("ReCompileHopsDag");
 		ArrayList<Instruction> newInst = null;
 
 		//need for synchronization as we do temp changes in shared hops/lops
@@ -322,7 +327,13 @@ public class Recompiler
 		boolean codegen = ConfigurationManager.isCodegenEnabled()
 			&& !(forceEt && et == null ) //not on reset
 			&& SpoofCompiler.RECOMPILE_CODEGEN;
-		
+		// todo: new & call program rewriter
+		ProgramRewriter rewriter = new ProgramRewriter(new RewriteCoordinate());
+		ArrayList<StatementBlock> sbs = new ArrayList<>();
+		sbs.add(sb);
+		RewriteCoordinate.ec = ec;
+		rewriter.rRewriteStatementBlocks(sbs,new ProgramRewriteStatus(),true);
+
 		// prepare hops dag for recompile
 		if( !inplace ){ 
 			// deep copy hop dag (for non-reversable rewrites)
@@ -398,14 +409,14 @@ public class Recompiler
 		Hop.resetVisitStatus(hops);
 		rSetMaxParallelism(hops, maxK);
 		
-		// construct lops
+		// construct lops  // 构造lop
 		Dag<Lop> dag = new Dag<>();
 		for( Hop hopRoot : hops ){
 			Lop lops = hopRoot.constructLops();
 			lops.addToDag(dag);
 		}
 		
-		// generate runtime instructions (incl piggybacking)
+		// generate runtime instructions (incl piggybacking)  // 构造 运行时 指令
 		ArrayList<Instruction> newInst = dag
 			.getJobs(sb, ConfigurationManager.getDMLConfig());
 		

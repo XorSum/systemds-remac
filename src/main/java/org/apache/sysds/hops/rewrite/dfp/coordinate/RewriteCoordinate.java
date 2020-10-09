@@ -2,23 +2,28 @@ package org.apache.sysds.hops.rewrite.dfp.coordinate;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.sysds.hops.Hop;
+import org.apache.sysds.hops.rewrite.HopRewriteRule;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
+import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
+import org.apache.sysds.hops.rewrite.StatementBlockRewriteRule;
 import org.apache.sysds.hops.rewrite.dfp.AnalyzeSymmetryMatrix;
 import org.apache.sysds.hops.rewrite.dfp.DisjointSet;
 import org.apache.sysds.hops.rewrite.dfp.Leaf;
 import org.apache.sysds.hops.rewrite.dfp.utils.FakeCostEstimator;
 import org.apache.sysds.hops.rewrite.dfp.utils.MyExplain;
 import org.apache.sysds.hops.rewrite.dfp.utils.Prime;
+import org.apache.sysds.parser.StatementBlock;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
 
 import java.util.*;
 
 import static java.lang.Math.max;
 import static java.lang.Math.min;
+import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.isLeafMatrix;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Reorder.reorder;
 
-public class RewriteCoordinate {
+public class RewriteCoordinate extends StatementBlockRewriteRule {
 
 
     static DisjointSet djs = new DisjointSet(1000);
@@ -26,61 +31,63 @@ public class RewriteCoordinate {
     public static ArrayList<Leaf> leaves = new ArrayList<>();
     private static ArrayList<Range> nodeRange = new ArrayList<>();
     private static HashMap<HashKey, ArrayList<Range>> hash2Ranges = new HashMap<>();
-    private static ExecutionContext ec;
+    public static ExecutionContext ec;
 
-    public static void main(Hop hop, ExecutionContext executionContext) {
-        ec = executionContext;
-        djs = new DisjointSet(1000);
-        hopId2LeafIndex = new HashMap<>();
-        leaves = new ArrayList<>();
-        nodeRange = new ArrayList<>();
-        hash2Ranges = new HashMap<>();
+    public static void main(Hop root) {
+        try {
 
-        // 1. 格式化
-        hop = reorder(hop);
+            djs = new DisjointSet(1000);
+            hopId2LeafIndex = new HashMap<>();
+            leaves = new ArrayList<>();
+            nodeRange = new ArrayList<>();
+            hash2Ranges = new HashMap<>();
 
-        System.out.println(MyExplain.myExplain(hop));
-        // 2. 找到所有的叶子，把叶子根据乘法放入并查集中
-        findAllLeaf(hop, new ArrayList<>(), 0);
-        // 3. 把叶子根据并查集分为多个块
-        for (int i = 0; i < leaves.size(); i++) {
-            if (djs.find(i) == i) {
-                int l = i, r = i;
-                while (l - 1 >= 0 && djs.find(l - 1) == djs.find(i)) l--;
-                while (r + 1 < leaves.size() && djs.find(r + 1) == djs.find(i)) r++;
-                nodeRange.add(Range.of(l, r));
-                System.out.println("Range " + l + " " + r);
-                for (int j = l; j <= r; j++) {
-                    System.out.print(MyExplain.myExplain(leaves.get(j).hop) + " ");
-                }
-                System.out.println();
-            }
-        }
-        // 4. 求出每个区间的哈希值，并把哈希值相同的汇聚起来
-        for (Range block : nodeRange) {
-            for (int l = block.left; l <= block.right; l++) {
-                for (int r = l + 1; r <= block.right; r++) {
-                    HashKey hash = rangeHash(l, r);
-                    if (!hash2Ranges.containsKey(hash))
-                        hash2Ranges.put(hash, new ArrayList<>());
-                    hash2Ranges.get(hash).add(Range.of(l, r));
+            // 1. 深拷贝，格式化
+            Hop hop = deepCopyHopsDag(root);
+            hop = reorder(hop);
+
+            System.out.println(MyExplain.myExplain(hop));
+            // 2. 找到所有的叶子，把叶子根据乘法放入并查集中
+            findAllLeaf(hop, new ArrayList<>(), 0);
+            // 3. 把叶子根据并查集分为多个块
+            for (int i = 0; i < leaves.size(); i++) {
+                if (djs.find(i) == i) {
+                    int l = i, r = i;
+                    while (l - 1 >= 0 && djs.find(l - 1) == djs.find(i)) l--;
+                    while (r + 1 < leaves.size() && djs.find(r + 1) == djs.find(i)) r++;
+                    nodeRange.add(Range.of(l, r));
+                    System.out.println("Range " + l + " " + r);
+                    for (int j = l; j <= r; j++) {
+                        System.out.print(MyExplain.myExplain(leaves.get(j).hop) + " ");
+                    }
+                    System.out.println();
                 }
             }
-        }
-        // 过滤掉不是公共子式的区间
-        for (Iterator<Map.Entry<HashKey, ArrayList<Range>>> it = hash2Ranges.entrySet().iterator(); it.hasNext(); ) {
-            Map.Entry<HashKey, ArrayList<Range>> e = it.next();
-            ArrayList<Range> list = e.getValue();
-            if (list.size() < 2 || list.get(0).right >= list.get(list.size() - 1).left) {
-                it.remove();
+            // 4. 求出每个区间的哈希值，并把哈希值相同的汇聚起来
+            for (Range block : nodeRange) {
+                for (int l = block.left; l <= block.right; l++) {
+                    for (int r = l + 1; r <= block.right; r++) {
+                        HashKey hash = rangeHash(l, r);
+                        if (!hash2Ranges.containsKey(hash))
+                            hash2Ranges.put(hash, new ArrayList<>());
+                        hash2Ranges.get(hash).add(Range.of(l, r));
+                    }
+                }
             }
-        }
+            // 过滤掉不是公共子式的区间
+            for (Iterator<Map.Entry<HashKey, ArrayList<Range>>> it = hash2Ranges.entrySet().iterator(); it.hasNext(); ) {
+                Map.Entry<HashKey, ArrayList<Range>> e = it.next();
+                ArrayList<Range> list = e.getValue();
+                if (list.size() < 2 || list.get(0).right >= list.get(list.size() - 1).left) {
+                    it.remove();
+                }
+            }
 
-        // 构造出所有的SingleCse
-        ArrayList<SingleCse> singleCse = new ArrayList<>();
-        for (Map.Entry<HashKey, ArrayList<Range>> e : hash2Ranges.entrySet()) {
-            ArrayList<SingleCse> sc = genSingleCse(e.getKey(), e.getValue());
-            singleCse.addAll(sc);
+            // 构造出所有的SingleCse
+            ArrayList<SingleCse> singleCse = new ArrayList<>();
+            for (Map.Entry<HashKey, ArrayList<Range>> e : hash2Ranges.entrySet()) {
+                ArrayList<SingleCse> sc = genSingleCse(e.getKey(), e.getValue());
+                singleCse.addAll(sc);
 //            Range r = e.getValue().get(0);
 //            System.out.print("\n\nexp = ");
 //            for (int i = r.left; i <= r.right; i++) {
@@ -95,37 +102,35 @@ public class RewriteCoordinate {
 //            for (SingleCse c : sc) {
 //                System.out.println(c.ranges);
 //            }
-        }
+            }
 
 
-        // 构造出所有的MultiCse
-        long srtart = System.currentTimeMillis();
-        ArrayList<MultiCse> cs = genMultiCse(singleCse);
-        System.out.println("cses.size=" + cs.size());
+            // 构造出所有的MultiCse
+            long srtart = System.currentTimeMillis();
+            ArrayList<MultiCse> cs = genMultiCse(singleCse);
+            System.out.println("cses.size=" + cs.size());
 
-        long end = System.currentTimeMillis();
-        System.out.println("生成计划耗时" + (end - srtart) + "ms");
-//        if (cses.size()>70000) {
-//            for (int i=70000;i<70010;i++) {
-//                genHop(cses.get(i));
-//            }
-//        }
+            long end = System.currentTimeMillis();
+            System.out.println("生成计划耗时" + (end - srtart) + "ms");
 
+            // 构造出所有的Hop
+            srtart = System.currentTimeMillis();
+            ArrayList<Hop> hops = new ArrayList<>();
+            int i = 0;
+            for (MultiCse c : cs) {
+                Hop hop1 = genHop(c, i<1000);
+                i++;
+                hops.add(hop1);
+            }
 
-        // 构造出所有的Hop
-        srtart = System.currentTimeMillis();
-        ArrayList<Hop> hops = new ArrayList<>();
-        for (MultiCse c : cs) {
-            Hop hop1 = genHop(c);
-            hops.add(hop1);
-            FakeCostEstimator.estimate(hop);
-        }
-
-        end = System.currentTimeMillis();
-        System.out.println("生成hop耗时" + (end - srtart) + "ms");
-        System.out.println("cses.size=" + cs.size());
+            end = System.currentTimeMillis();
+            System.out.println("生成hop耗时" + (end - srtart) + "ms");
+            System.out.println("cses.size=" + cs.size());
 
 //        genCsesBaoli();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
 
@@ -234,7 +239,7 @@ public class RewriteCoordinate {
     }
 
 
-    private static Hop genHop(MultiCse multiCse) {
+    private static Hop genHop(MultiCse multiCse,boolean esti) {
         int n = multiCse.cses.size();
         multiCse.hops = new ArrayList<>();
         for (int i = 0; i < n; i++) multiCse.hops.add(null);
@@ -253,6 +258,11 @@ public class RewriteCoordinate {
             if (block_hop == null) {
                 System.out.println("NULL");
             }
+
+            // 代价估计
+            if (esti)
+            FakeCostEstimator.estimate(block_hop, ec);
+
         }
         return null;
     }
@@ -442,4 +452,30 @@ public class RewriteCoordinate {
         return HashKey.of(first, second);
     }
 
+
+    @Override
+    public boolean createsSplitDag() {
+        return false;
+    }
+
+    @Override
+    public List<StatementBlock> rewriteStatementBlock(StatementBlock sb, ProgramRewriteStatus state) {
+       try {
+           if (sb.getHops() != null) {
+               for (Hop h : sb.getHops()) {
+                   main(h);
+               }
+           }
+       }catch (Exception e) {
+           e.printStackTrace();
+       }
+        ArrayList<StatementBlock> list = new ArrayList<>();
+        list.add(sb);
+        return list;
+    }
+
+    @Override
+    public List<StatementBlock> rewriteStatementBlocks(List<StatementBlock> sbs, ProgramRewriteStatus state) {
+        return sbs;
+    }
 }
