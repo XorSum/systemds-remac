@@ -14,14 +14,16 @@ public class TransposeMatrixMatrixMultSplitRule implements MyRule {
             if (HopRewriteUtils.isMatrixMultiply(xy)) {
                 Hop x = xy.getInput().get(0);
                 Hop y = xy.getInput().get(1);
-                Hop tx = HopRewriteUtils.createTranspose(x);
-                Hop ty = HopRewriteUtils.createTranspose(y);
-                Hop result = HopRewriteUtils.createMatrixMultiply(ty, tx);
-                if (parent != null) {
-                    HopRewriteUtils.replaceChildReference(parent, hi, result);
-                    HopRewriteUtils.cleanupUnreferenced(hi);
+                if (x.isMatrix() && y.isMatrix()) {
+                    Hop tx = HopRewriteUtils.createTranspose(x);
+                    Hop ty = HopRewriteUtils.createTranspose(y);
+                    Hop result = HopRewriteUtils.createMatrixMultiply(ty, tx);
+                    if (parent != null) {
+                        HopRewriteUtils.replaceChildReference(parent, hi, result);
+                        HopRewriteUtils.cleanupUnreferenced(hi);
+                    }
+                    hi = result;
                 }
-                hi = result;
 //                System.out.println("New Hop:");
 //                System.out.println(Explain.explain(hi));
             }
@@ -33,7 +35,13 @@ public class TransposeMatrixMatrixMultSplitRule implements MyRule {
     public Boolean applicable(Hop parent, Hop hi, int pos) {
         if (HopRewriteUtils.isTransposeOperation(hi)) {
             Hop xy = hi.getInput().get(0);
-            return HopRewriteUtils.isMatrixMultiply(xy);
+            if (HopRewriteUtils.isMatrixMultiply(xy) && xy.getInput().size()==2) {
+                Hop x = xy.getInput().get(0);
+                Hop y = xy.getInput().get(1);
+                if (x.isMatrix() && y.isMatrix()) {
+                    return true;
+                }
+            }
         }
         return false;
     }

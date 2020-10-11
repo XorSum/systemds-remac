@@ -22,17 +22,19 @@ public class MatrixMultJieheRule implements MyRule {
             if (HopRewriteUtils.isMatrixMultiply(bc)) {
                 Hop b = bc.getInput().get(0);
                 Hop c = bc.getInput().get(1);
-               // System.out.println("apply  a*(b*c) -> (a*b)*c "+hi.getHopID());
-                // create
-                Hop ab = HopRewriteUtils.createMatrixMultiply(a, b);
-                Hop result = HopRewriteUtils.createMatrixMultiply(ab, c);
+                if (b.isMatrix() && c.isMatrix()) {
+                    // System.out.println("apply  a*(b*c) -> (a*b)*c "+hi.getHopID());
+                    // create
+                    Hop ab = HopRewriteUtils.createMatrixMultiply(a, b);
+                    Hop result = HopRewriteUtils.createMatrixMultiply(ab, c);
 //                System.out.println(Explain.explain(result));
-                // replace
-                if (parent != null) {
-                    HopRewriteUtils.replaceChildReference(parent, hi, result);
-                    HopRewriteUtils.cleanupUnreferenced(hi);
+                    // replace
+                    if (parent != null) {
+                        HopRewriteUtils.replaceChildReference(parent, hi, result);
+                        HopRewriteUtils.cleanupUnreferenced(hi);
+                    }
+                    hi = result;
                 }
-                hi = result;
             }
         }
         return hi;
@@ -40,9 +42,15 @@ public class MatrixMultJieheRule implements MyRule {
 
     @Override
     public Boolean applicable(Hop parent, Hop hi, int pos) {
-        if (HopRewriteUtils.isMatrixMultiply(hi)) {
+        if (HopRewriteUtils.isMatrixMultiply(hi) && hi.getInput().size()==2 ) {
             Hop bc = hi.getInput().get(1);
-            return HopRewriteUtils.isMatrixMultiply(bc);
+            if (HopRewriteUtils.isMatrixMultiply(bc)) {
+                Hop b = bc.getInput().get(0);
+                Hop c = bc.getInput().get(1);
+                if (b.isMatrix() && c.isMatrix()) {
+                    return true;
+                }
+            }
         }
         return false;
     }

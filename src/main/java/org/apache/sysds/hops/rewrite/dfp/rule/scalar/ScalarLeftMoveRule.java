@@ -41,7 +41,7 @@ public class ScalarLeftMoveRule implements MyRule {
 
     @Override
     public Boolean applicable(Hop parent, Hop hop, int pos) {
-        if (HopRewriteUtils.isMatrixMultiply(hop)) {
+        if (HopRewriteUtils.isMatrixMultiply(hop) && hop.getInput().size()==2 ) {
             Hop bc = hop.getInput().get(1);
             return HopRewriteUtils.isScalarMatrixBinaryMult(bc);
         }

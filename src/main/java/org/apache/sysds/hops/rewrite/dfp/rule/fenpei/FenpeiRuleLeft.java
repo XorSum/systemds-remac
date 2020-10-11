@@ -23,16 +23,19 @@ public class FenpeiRuleLeft implements MyRule {
             if (HopRewriteUtils.isBinary(bc, cross)) {
                 Hop b = bc.getInput().get(0);
                 Hop c = bc.getInput().get(1);
+                if (b.isMatrix() && c.isMatrix()) {
+                    if (b.isMatrix() && c.isMatrix()) {
+                        Hop ab = HopRewriteUtils.createMatrixMultiply(a, b);
+                        Hop ac = HopRewriteUtils.createMatrixMultiply(a, c);
+                        Hop result = HopRewriteUtils.createBinary(ab, ac, cross);
 
-                Hop ab = HopRewriteUtils.createMatrixMultiply(a, b);
-                Hop ac = HopRewriteUtils.createMatrixMultiply(a, c);
-                Hop result = HopRewriteUtils.createBinary(ab, ac, cross);
-
-                if (parent != null) {
-                    HopRewriteUtils.replaceChildReference(parent, abc, result);
-                    HopRewriteUtils.cleanupUnreferenced(abc);
+                        if (parent != null) {
+                            HopRewriteUtils.replaceChildReference(parent, abc, result);
+                            HopRewriteUtils.cleanupUnreferenced(abc);
+                        }
+                        abc = result;
+                    }
                 }
-                abc = result;
             }
         }
         return abc;
@@ -40,9 +43,15 @@ public class FenpeiRuleLeft implements MyRule {
 
     @Override
     public Boolean applicable(Hop parent, Hop abc, int pos) {
-        if (HopRewriteUtils.isMatrixMultiply(abc)) {
+        if (HopRewriteUtils.isMatrixMultiply(abc) &&abc.getInput().size()==2 ) {
             Hop bc = abc.getInput().get(1);
-            return HopRewriteUtils.isBinary(bc, cross);
+            if (HopRewriteUtils.isBinary(bc, cross)) {
+                Hop b = bc.getInput().get(0);
+                Hop c = bc.getInput().get(1);
+                if (b.isMatrix() && c.isMatrix()) {
+                    return true;
+                }
+            }
         }
         return false;
     }
