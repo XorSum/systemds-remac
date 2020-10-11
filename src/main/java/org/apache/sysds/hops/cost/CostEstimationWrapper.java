@@ -69,15 +69,18 @@ public class CostEstimationWrapper
 		LOG.debug("Finished estimation in "+time.stop()+"ms.");
 		return costs;
 	}
-	
+
 	public static double getTimeEstimate(ProgramBlock pb, ExecutionContext ec, boolean recursive) {
 		Timing time = new Timing(true);
-		
-		HashMap<String,VarStats> stats = new HashMap<>();
-		LocalVariableMap vars = (ec!=null)? ec.getVariables() : new LocalVariableMap(); 
-		
-		double costs = _costEstim.getTimeEstimate(pb, vars, stats, recursive);
-		LOG.debug("Finished estimation in "+time.stop()+"ms.");
+		double costs = 1e9 ;
+		try {
+			HashMap<String, VarStats> stats = new HashMap<>();
+			LocalVariableMap vars = (ec != null) ? ec.getVariables() : new LocalVariableMap();
+			costs = _costEstim.getTimeEstimate(pb, vars, stats, recursive);
+			LOG.debug("Finished estimation in " + time.stop() + "ms.");
+		}catch (Exception e) {
+
+		}
 		return costs;
 	}
 

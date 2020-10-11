@@ -1,7 +1,10 @@
 package org.apache.sysds.hops.rewrite.dfp.coordinate;
 
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.sysds.conf.ConfigurationManager;
 import org.apache.sysds.hops.Hop;
+import org.apache.sysds.hops.cost.CostEstimationWrapper;
 import org.apache.sysds.hops.rewrite.HopRewriteRule;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
@@ -12,8 +15,11 @@ import org.apache.sysds.hops.rewrite.dfp.Leaf;
 import org.apache.sysds.hops.rewrite.dfp.utils.FakeCostEstimator;
 import org.apache.sysds.hops.rewrite.dfp.utils.MyExplain;
 import org.apache.sysds.hops.rewrite.dfp.utils.Prime;
-import org.apache.sysds.parser.StatementBlock;
+import org.apache.sysds.parser.*;
+import org.apache.sysds.runtime.controlprogram.Program;
+import org.apache.sysds.runtime.controlprogram.ProgramBlock;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
+import org.apache.sysds.utils.Explain;
 
 import java.util.*;
 
@@ -32,10 +38,12 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     private static ArrayList<Range> nodeRange = new ArrayList<>();
     private static HashMap<HashKey, ArrayList<Range>> hash2Ranges = new HashMap<>();
     public static ExecutionContext ec;
+    public static StatementBlock statementBlock;
+    private static Hop originRoot = null;
 
-    public static void main(Hop root) {
+    public static Hop  main(Hop root) {
         try {
-
+            originRoot = root;
             djs = new DisjointSet(1000);
             hopId2LeafIndex = new HashMap<>();
             leaves = new ArrayList<>();
@@ -49,6 +57,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             System.out.println(MyExplain.myExplain(hop));
             // 2. 找到所有的叶子，把叶子根据乘法放入并查集中
             findAllLeaf(hop, new ArrayList<>(), 0);
+
+            if (leaves.size()<20) return root;
+
             // 3. 把叶子根据并查集分为多个块
             for (int i = 0; i < leaves.size(); i++) {
                 if (djs.find(i) == i) {
@@ -117,22 +128,38 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             srtart = System.currentTimeMillis();
             ArrayList<Hop> hops = new ArrayList<>();
             int i = 0;
+        //    CostEstimationWrapper.costtime = 0;
+
+            time_stats = 0;
+            Hop result = null;
+            Double cost = 1e9;
             for (MultiCse c : cs) {
-                Hop hop1 = genHop(c, i<1000);
+                Pair<Hop,Double> hop1 = genHop(c, true, hop);
                 i++;
-                hops.add(hop1);
+                hops.add(hop1.getLeft());
+                if (result==null || cost>hop1.getRight()) {
+                    result = hop1.getLeft();
+                    cost = hop1.getRight();
+                }
+                if (i>10) break;
             }
 
             end = System.currentTimeMillis();
             System.out.println("生成hop耗时" + (end - srtart) + "ms");
-            System.out.println("cses.size=" + cs.size());
+            System.out.println("cses.size=" + cs.size() );
+           // System.out.println("estimator cost time = " + (CostEstimationWrapper.costtime / 1000000.0) + "ms");
+            System.out.println("time_stats="+ (time_stats/1000000.0)+"ms");
 
+            System.out.println("minium cost = "+cost);
+            return result;
 //        genCsesBaoli();
         } catch (Exception e) {
             e.printStackTrace();
         }
+        return root;
     }
 
+    private  static long time_stats = 0;
 
     private static int findAllLeaf(Hop hop,
                                    ArrayList<Integer> path,
@@ -239,7 +266,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     }
 
 
-    private static Hop genHop(MultiCse multiCse,boolean esti) {
+    private static Pair<Hop,Double> genHop(MultiCse multiCse, boolean esti, Hop template) {
         int n = multiCse.cses.size();
         multiCse.hops = new ArrayList<>();
         for (int i = 0; i < n; i++) multiCse.hops.add(null);
@@ -253,18 +280,57 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             }
             //  System.out.println();
         }
+        Hop copy = deepCopyHopsDag(template);
+//        copy = rGenHop(copy, null, new MutableInt(0), multiCse);
+//        System.out.println("Copy = ");
+//        System.out.println(Explain.explain(copy));
+
         for (Range block : nodeRange) {
             Hop block_hop = build_sub_hop(multiCse, block.left, block.right);
             if (block_hop == null) {
                 System.out.println("NULL");
             }
+            Hop cur = copy;
+            Hop parent = null;
+            Leaf leaf1 = leaves.get(block.left);
+            Leaf leaf2 = leaves.get(block.right);
 
-            // 代价估计
-            if (esti)
-            FakeCostEstimator.estimate(block_hop, ec);
-
+            for ( int i=0;i<leaf1.depth && i<leaf2.depth;i++)  {
+                if (leaf1.path.get(i).equals(leaf2.path.get(i))) {
+                    parent = cur;
+                    assert cur != null;
+                    cur = cur.getInput().get(leaf1.path.get(i));
+                } else {
+                    break;
+                }
+            }
+            if (parent!=null) {
+                HopRewriteUtils.replaceChildReference(parent,cur, block_hop);
+                HopRewriteUtils.cleanupUnreferenced(cur);
+           //     System.out.println("replace");
+            } else {
+                copy = block_hop;
+            }
         }
-        return null;
+        double cost = 0;
+        // 代价估计
+//        if (esti) {
+            long start = System.nanoTime();
+//                double cost = FakeCostEstimator.estimate(block_hop, ec);
+           try {
+               ArrayList<ProgramBlock> programBlocks = constructProgramBlocks(copy);
+               for (ProgramBlock pb : programBlocks) {
+                 cost +=  CostEstimationWrapper.getTimeEstimate(pb, ec, false);
+               }
+           }catch ( Exception e) {
+                e.printStackTrace();
+           }
+            long end = System.nanoTime();
+           time_stats += end - start;
+//                System.out.println("getTimeEstimate "+((end-start)/1000000.0)+"ms");
+            //    System.out.println("cost="+cost);
+//        }
+        return Pair.of(copy,cost);
     }
 
 
@@ -366,6 +432,33 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     }
 
 
+//    private static Hop rGenHop(Hop curNode, Hop parent, MutableInt opIndex, MultiCse multiCse) {
+//        int left = opIndex.getValue();
+//        if (isLeafMatrix(curNode)) {
+//            opIndex.increment();
+//        } else {
+//            for (int i = 0; i < curNode.getInput().size(); i++) {
+//                Hop child = curNode.getInput().get(i);
+//                Hop newChild = rGenHop(child, curNode, opIndex, multiCse);
+//                if (parent!=null) {
+//                    HopRewriteUtils.replaceChildReference(curNode, child, newChild);
+//                    HopRewriteUtils.cleanupUnreferenced(child);
+//                }
+////                curNode.getInput().set(i,newChild);
+//            }
+//        }
+//        int right = opIndex.getValue() - 1;
+//     //   System.out.println(curNode.getHopID() + " " + left + " " + right);
+//        for (Range range : nodeRange) {
+//            if (range.left == left && range.right == right) {
+//                Hop block_hop = build_sub_hop( multiCse, left,  right);
+//                return block_hop;
+//            }
+//        }
+//        return curNode;
+//    }
+
+
     private static ArrayList<MultiCse> genCsesBaoli() {
         long start = System.currentTimeMillis();
         ArrayList<MultiCse> result = new ArrayList<>();
@@ -460,15 +553,23 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     @Override
     public List<StatementBlock> rewriteStatementBlock(StatementBlock sb, ProgramRewriteStatus state) {
-       try {
-           if (sb.getHops() != null) {
-               for (Hop h : sb.getHops()) {
-                   main(h);
-               }
-           }
-       }catch (Exception e) {
-           e.printStackTrace();
-       }
+        try {
+            statementBlock = sb;
+            if (sb.getHops() != null) {
+                for (int i=0;i<sb.getHops().size();i++) {
+                    Hop h = sb.getHops().get(i);
+                    Hop g = main(h);
+                    sb.getHops().set(i,g);
+                }
+//                for (Hop h : sb.getHops()) {
+//                    main(h);
+//                }
+
+
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         ArrayList<StatementBlock> list = new ArrayList<>();
         list.add(sb);
         return list;
@@ -478,4 +579,38 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     public List<StatementBlock> rewriteStatementBlocks(List<StatementBlock> sbs, ProgramRewriteStatus state) {
         return sbs;
     }
+
+    private static ArrayList<ProgramBlock> constructProgramBlocks(Hop hop) {
+//        ParserWrapper parser = ParserFactory.createParser();
+//        DMLProgram prog = parser.parse(DML_FILE_PATH_ANTLR_PARSER, dmlScri  ptStr, argVals);
+
+        DMLProgram prog = new DMLProgram();
+
+        StatementBlock sb = new StatementBlock();
+        ArrayList<Hop> hops = new ArrayList<>();
+        hops.add(hop);
+        sb.setHops(hops);
+        sb.setLiveIn(statementBlock.liveIn());
+        sb.setLiveOut(statementBlock.liveOut());
+        prog.addStatementBlock(sb);
+        //Step 4: construct HOP DAGs (incl LVA, validate, and setup)
+        DMLTranslator dmlt = new DMLTranslator(prog);
+        //   dmlt.liveVariableAnalysis(prog);
+        //   dmlt.validateParseTree(prog);
+        //  dmlt.constructHops(prog);
+
+        //Step 5: rewrite HOP DAGs (incl IPA and memory estimates)
+//        dmlt.rewriteHopsDAG(prog);
+
+        //Step 6: construct lops (incl exec type and op selection)
+        dmlt.constructLops(prog);
+
+        //Step 7: generate runtime program, incl codegen
+        Program rtprog = dmlt.getRuntimeProgram(prog, ConfigurationManager.getDMLConfig());
+
+        return rtprog.getProgramBlocks();
+
+    }
+
+
 }

@@ -24,6 +24,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
 import org.apache.sysds.hops.rewrite.dfp.RewriteLoopConstrant;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
+import org.apache.sysds.hops.rewrite.dfp.utils.FakeCostEstimator;
 import org.apache.wink.json4j.JSONObject;
 import org.apache.sysds.api.DMLScript;
 import org.apache.sysds.api.jmlc.JMLCUtils;
@@ -149,7 +150,6 @@ public class Recompiler
 	public static ArrayList<Instruction> recompileHopsDag( StatementBlock sb, ArrayList<Hop> hops, 
 			ExecutionContext ec, RecompileStatus status, boolean inplace, boolean replaceLit, long tid ) 
 	{
-		System.out.println("ReCompileHopsDag");
 		ArrayList<Instruction> newInst = null;
 
 		//need for synchronization as we do temp changes in shared hops/lops
@@ -328,11 +328,17 @@ public class Recompiler
 			&& !(forceEt && et == null ) //not on reset
 			&& SpoofCompiler.RECOMPILE_CODEGEN;
 		// todo: new & call program rewriter
-		ProgramRewriter rewriter = new ProgramRewriter(new RewriteCoordinate());
-		ArrayList<StatementBlock> sbs = new ArrayList<>();
-		sbs.add(sb);
-		RewriteCoordinate.ec = ec;
-		rewriter.rRewriteStatementBlocks(sbs,new ProgramRewriteStatus(),true);
+
+//		FakeCostEstimator.time = 0;
+//		ProgramRewriter rewriter = new ProgramRewriter(new RewriteCoordinate());
+//		ArrayList<StatementBlock> sbs = new ArrayList<>();
+//		sbs.add(sb);
+//		RewriteCoordinate.ec = ec;
+//		rewriter.rRewriteStatementBlocks(sbs,new ProgramRewriteStatus(),true);
+//	//	FakeCostEstimator.printTime();
+//		FakeCostEstimator.time = 0;
+
+
 
 		// prepare hops dag for recompile
 		if( !inplace ){ 

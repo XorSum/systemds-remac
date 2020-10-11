@@ -3,15 +3,17 @@
 
 #aa = read("hdfs://10.11.1.209:9000/data/avazu/app-tr-a.bin",format="binary")
 #a = aa[1:1000000,1:300000]
-a = read("/home/han/CLionProjects/untitled/cmake-build-debug/a2.csv",format="csv")
-#a  = matrix(1.0,rows = 1000,cols=100)
+#a = read("/home/han/CLionProjects/untitled/cmake-build-debug/a2.csv",format="csv")
+a = read("../data/a2.csv",format="csv")
+#a  = matrix(1.0,rows = 10000,cols=100)
 
 #bb = read("hdfs://10.11.1.209:9000/data/avazu/app-tr-b.bin",format="binary")
 #b = bb[1:1000000,]
-b = read("/home/han/CLionProjects/untitled/cmake-build-debug/b2.csv",format="csv")
-#b  = matrix(2.0,rows = 1000,cols=1)
+#b = read("/home/han/CLionProjects/untitled/cmake-build-debug/b2.csv",format="csv")
+b = read("../data/b2.csv",format="csv")
+#b  = matrix(2.0,rows = 10000,cols=1)
 
-e = 0.0001  # 误差
+e = 0.1  # 误差
 #rho = 0.02
 #sigma = 0.1
 rho = 0.1
@@ -19,6 +21,8 @@ sigma = 0.1
 
 m = ncol(a)
 n = nrow(a)
+print("rows="+toString(n))
+print("cols="+toString(m))
 
 #m = 100
 #n = 10
@@ -64,6 +68,7 @@ while((i<10)&(!end)) {
 
     # 探测步长
     d = - h %*% g
+ #   print("d="+toString(d))
     mk = 0
     m = 0
     found = FALSE
