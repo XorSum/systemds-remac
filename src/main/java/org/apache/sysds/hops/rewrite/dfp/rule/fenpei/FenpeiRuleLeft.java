@@ -20,11 +20,10 @@ public class FenpeiRuleLeft implements MyRule {
         if (HopRewriteUtils.isMatrixMultiply(abc)) {
             Hop a = abc.getInput().get(0);
             Hop bc = abc.getInput().get(1);
-            if (HopRewriteUtils.isBinary(bc, cross)) {
+            if (a.isMatrix() &&  HopRewriteUtils.isBinary(bc, cross)) {
                 Hop b = bc.getInput().get(0);
                 Hop c = bc.getInput().get(1);
                 if (b.isMatrix() && c.isMatrix()) {
-                    if (b.isMatrix() && c.isMatrix()) {
                         Hop ab = HopRewriteUtils.createMatrixMultiply(a, b);
                         Hop ac = HopRewriteUtils.createMatrixMultiply(a, c);
                         Hop result = HopRewriteUtils.createBinary(ab, ac, cross);
@@ -34,7 +33,7 @@ public class FenpeiRuleLeft implements MyRule {
                             HopRewriteUtils.cleanupUnreferenced(abc);
                         }
                         abc = result;
-                    }
+
                 }
             }
         }
@@ -44,8 +43,9 @@ public class FenpeiRuleLeft implements MyRule {
     @Override
     public Boolean applicable(Hop parent, Hop abc, int pos) {
         if (HopRewriteUtils.isMatrixMultiply(abc) &&abc.getInput().size()==2 ) {
+            Hop a = abc.getInput().get(0);
             Hop bc = abc.getInput().get(1);
-            if (HopRewriteUtils.isBinary(bc, cross)) {
+            if (a.isMatrix() &&  HopRewriteUtils.isBinary(bc, cross)) {
                 Hop b = bc.getInput().get(0);
                 Hop c = bc.getInput().get(1);
                 if (b.isMatrix() && c.isMatrix()) {

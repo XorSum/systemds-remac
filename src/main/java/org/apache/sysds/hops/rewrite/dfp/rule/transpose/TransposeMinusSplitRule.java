@@ -15,16 +15,18 @@ public class TransposeMinusSplitRule implements MyRule {
             if (HopRewriteUtils.isBinary(xy, Types.OpOp2.MINUS)) {
                 Hop x = xy.getInput().get(0);
                 Hop y = xy.getInput().get(1);
-                Hop tx = HopRewriteUtils.createTranspose(x);
-                Hop ty = HopRewriteUtils.createTranspose(y);
-                Hop result = HopRewriteUtils.createBinary(tx, ty, Types.OpOp2.MINUS);
-                if (parent != null) {
-                    HopRewriteUtils.replaceChildReference(parent, hi, result);
-                    HopRewriteUtils.cleanupUnreferenced(hi);
-                }
-                hi = result;
+                if (x.isMatrix() && y.isMatrix()) {
+                    Hop tx = HopRewriteUtils.createTranspose(x);
+                    Hop ty = HopRewriteUtils.createTranspose(y);
+                    Hop result = HopRewriteUtils.createBinary(tx, ty, Types.OpOp2.MINUS);
+                    if (parent != null) {
+                        HopRewriteUtils.replaceChildReference(parent, hi, result);
+                        HopRewriteUtils.cleanupUnreferenced(hi);
+                    }
+                    hi = result;
 //                System.out.println("New Hop:");
 //                System.out.println(Explain.explain(hi));
+                }
             }
         }
         return hi;
@@ -34,7 +36,11 @@ public class TransposeMinusSplitRule implements MyRule {
     public Boolean applicable(Hop parent, Hop hi, int pos) {
         if (HopRewriteUtils.isTransposeOperation(hi)) {
             Hop xy = hi.getInput().get(0);
-            return HopRewriteUtils.isBinary(xy, Types.OpOp2.MINUS);
+            if (HopRewriteUtils.isBinary(xy, Types.OpOp2.MINUS)) {
+                Hop x = xy.getInput().get(0);
+                Hop y = xy.getInput().get(1);
+                return x.isMatrix() && y.isMatrix();
+            }
         }
         return false;
     }

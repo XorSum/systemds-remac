@@ -20,7 +20,7 @@ public class FenpeiRuleRight implements MyRule {
         if (HopRewriteUtils.isMatrixMultiply(bca)) {
             Hop bc = bca.getInput().get(0);
             Hop a = bca.getInput().get(1);
-            if (HopRewriteUtils.isBinary(bc, cross)) {
+            if (a.isMatrix() && HopRewriteUtils.isBinary(bc, cross)) {
                 Hop b = bc.getInput().get(0);
                 Hop c = bc.getInput().get(1);
                 if (b.isMatrix() && c.isMatrix()) {
@@ -43,7 +43,8 @@ public class FenpeiRuleRight implements MyRule {
     public Boolean applicable(Hop parent, Hop bca, int pos) {
         if (HopRewriteUtils.isMatrixMultiply(bca)) {
             Hop bc = bca.getInput().get(0);
-            if (HopRewriteUtils.isBinary(bc,cross)) {
+            Hop a = bca.getInput().get(1);
+            if (a.isMatrix() && HopRewriteUtils.isBinary(bc,cross)) {
                 Hop b = bc.getInput().get(0);
                 Hop c = bc.getInput().get(1);
                 if (b.isMatrix() && c.isMatrix()) {
