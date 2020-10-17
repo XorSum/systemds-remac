@@ -64,6 +64,8 @@ import org.apache.sysds.hops.rewrite.StatementBlockRewriteRule;
 import org.apache.sysds.hops.rewrite.dfp.AnalyzeSymmetryMatrix;
 import org.apache.sysds.hops.rewrite.dfp.RewriteDFP;
 import org.apache.sysds.hops.rewrite.dfp.RewriteLoopConstrant;
+import org.apache.sysds.hops.rewrite.dfp.RewriteTempStatementBlock;
+import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
 import org.apache.sysds.lops.Lop;
 import org.apache.sysds.lops.LopsException;
 import org.apache.sysds.lops.compile.Dag;
@@ -95,6 +97,7 @@ import org.apache.sysds.runtime.controlprogram.ProgramBlock;
 import org.apache.sysds.runtime.controlprogram.WhileProgramBlock;
 import org.apache.sysds.runtime.instructions.Instruction;
 import org.apache.sysds.runtime.instructions.cp.VariableCPInstruction;
+import org.apache.sysds.utils.Explain;
 
 
 public class DMLTranslator 
@@ -284,7 +287,7 @@ public class DMLTranslator
 //        ProgramRewriter rewriter5 = new ProgramRewriter(new RewriteScratch());
 //        rewriter5.rewriteProgramHopDAGs(dmlp);
 //        resetHopsDAGVisitStatus(dmlp);
-
+	//	System.out.println(Explain.explain(dmlp));
 
         // 分析矩阵是否是对称阵
         StatementBlockRewriteRule stbrr = new AnalyzeSymmetryMatrix();
@@ -292,8 +295,7 @@ public class DMLTranslator
         resetHopsDAGVisitStatus(dmlp);
 
 
-
-        ProgramRewriter rewriter4 = new ProgramRewriter(new RewriteLoopConstrant());
+        ProgramRewriter rewriter4 = new ProgramRewriter(new RewriteCoordinate(null));
         rewriter4.rewriteProgramHopDAGs(dmlp);
         resetHopsDAGVisitStatus(dmlp);
 
@@ -330,7 +332,16 @@ public class DMLTranslator
 		ProgramRewriter rewriter2 = new ProgramRewriter(false, true);
 		rewriter2.rewriteProgramHopDAGs(dmlp);
 		resetHopsDAGVisitStatus(dmlp);
-		
+
+//		System.out.println(Explain.explain(dmlp));
+
+		ProgramRewriter rewriter3 = new ProgramRewriter(new RewriteTempStatementBlock());
+		rewriter3.rewriteProgramHopDAGs(dmlp);
+		resetHopsDAGVisitStatus(dmlp);
+//		System.out.println("after reorder");
+//		System.out.println(Explain.explain(dmlp));
+
+
 		//compute memory estimates for all the hops. These estimates are used
 		//subsequently in various optimizations, e.g. CP vs. MR scheduling and parfor.
 		refreshMemEstimates(dmlp);

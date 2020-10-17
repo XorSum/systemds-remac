@@ -30,21 +30,21 @@ import org.apache.sysds.runtime.controlprogram.ProgramBlock;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
 import org.apache.sysds.runtime.controlprogram.parfor.stat.Timing;
 
-public class CostEstimationWrapper 
+public class CostEstimationWrapper
 {
-	
-	public enum CostType { 
+
+	public enum CostType {
 		NUM_MRJOBS, //based on number of MR jobs, [number MR jobs]
 		STATIC // based on FLOPS, read/write, etc, [time in sec]
 	}
-	
+
 	private static final Log LOG = LogFactory.getLog(CostEstimationWrapper.class.getName());
 	private static final CostType DEFAULT_COSTTYPE = CostType.STATIC;
-	
+
 	private static CostEstimator _costEstim = null;
-	
-	
-	static 
+
+
+	static
 	{
 
 		//create cost estimator
@@ -58,28 +58,31 @@ public class CostEstimationWrapper
 			LOG.error("Failed cost estimator initialization.", ex);
 		}
 	}
-	
+
 	public static double getTimeEstimate(Program rtprog, ExecutionContext ec) {
 		Timing time = new Timing(true);
-		
-		HashMap<String,VarStats> stats = new HashMap<>();
-		LocalVariableMap vars = (ec!=null)? ec.getVariables() : new LocalVariableMap(); 
-		
-		double costs = _costEstim.getTimeEstimate(rtprog, vars, stats);
-		LOG.debug("Finished estimation in "+time.stop()+"ms.");
+		double costs = 1e30;
+		try {
+			HashMap<String, VarStats> stats = new HashMap<>();
+			LocalVariableMap vars = (ec != null) ? ec.getVariables() : new LocalVariableMap();
+			costs = _costEstim.getTimeEstimate(rtprog, vars, stats);
+			LOG.debug("Finished estimation in " + time.stop() + "ms.");
+		}catch (Exception e) {
+			e.printStackTrace();
+		}
 		return costs;
 	}
 
 	public static double getTimeEstimate(ProgramBlock pb, ExecutionContext ec, boolean recursive) {
 		Timing time = new Timing(true);
-		double costs = 1e9 ;
+		double costs = 1e30 ;
 		try {
 			HashMap<String, VarStats> stats = new HashMap<>();
 			LocalVariableMap vars = (ec != null) ? ec.getVariables() : new LocalVariableMap();
 			costs = _costEstim.getTimeEstimate(pb, vars, stats, recursive);
 			LOG.debug("Finished estimation in " + time.stop() + "ms.");
 		}catch (Exception e) {
-
+			e.printStackTrace();
 		}
 		return costs;
 	}
@@ -92,5 +95,5 @@ public class CostEstimationWrapper
 			default:
 				throw new DMLRuntimeException("Unknown cost type: "+type);
 		}
-	}	
+	}
 }

@@ -48,9 +48,9 @@ public class RewriteMatrixMultChainOptimization extends HopRewriteRule
 			return null;
 
 		// Find the optimal order for the chain whose result is the current HOP
-		for( Hop h : roots ) 
+		for( Hop h : roots )
 			rule_OptimizeMMChains(h, state);
-		
+
 		return roots;
 	}
 
@@ -62,7 +62,7 @@ public class RewriteMatrixMultChainOptimization extends HopRewriteRule
 
 		// Find the optimal order for the chain whose result is the current HOP
 		rule_OptimizeMMChains(root, state);
-		
+
 		return root;
 	}
 	
@@ -181,7 +181,7 @@ public class RewriteMatrixMultChainOptimization extends HopRewriteRule
 			optimizeMMChain(hop, mmChain, mmOperators, state);
 	}
 	
-	protected void optimizeMMChain(Hop hop, ArrayList<Hop> mmChain, ArrayList<Hop> mmOperators, ProgramRewriteStatus state) {
+	public void optimizeMMChain(Hop hop, ArrayList<Hop> mmChain, ArrayList<Hop> mmOperators, ProgramRewriteStatus state) {
 		// Step 2: construct dims array
 		double[] dimsArray = new double[mmChain.size() + 1];
 		boolean dimsKnown = getDimsArray( hop, mmChain, dimsArray );

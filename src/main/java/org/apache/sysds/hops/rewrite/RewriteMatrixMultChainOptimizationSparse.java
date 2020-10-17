@@ -48,7 +48,7 @@ import org.apache.sysds.runtime.matrix.data.MatrixBlock;
 public class RewriteMatrixMultChainOptimizationSparse extends RewriteMatrixMultChainOptimization
 {
 	@Override
-	protected void optimizeMMChain(Hop hop, ArrayList<Hop> mmChain, ArrayList<Hop> mmOperators, ProgramRewriteStatus state) {
+	public void optimizeMMChain(Hop hop, ArrayList<Hop> mmChain, ArrayList<Hop> mmOperators, ProgramRewriteStatus state) {
 		// Step 2: construct dims array and input matrices
 		double[] dimsArray = new double[mmChain.size() + 1];
 		boolean dimsKnown = getDimsArray( hop, mmChain, dimsArray );

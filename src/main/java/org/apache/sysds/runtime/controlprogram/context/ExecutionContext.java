@@ -230,7 +230,7 @@ public class ExecutionContext {
 
 	public MatrixObject getMatrixObject(String varname) {
 		Data dat = getVariable(varname);
-		
+
 		//error handling if non existing or no matrix
 		if( dat == null )
 			throw new DMLRuntimeException(getNonExistingVarError(varname));

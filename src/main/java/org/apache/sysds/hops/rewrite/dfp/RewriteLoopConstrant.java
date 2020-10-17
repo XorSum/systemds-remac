@@ -1,7 +1,6 @@
 package org.apache.sysds.hops.rewrite.dfp;
 
 import org.apache.sysds.hops.Hop;
-import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
 import org.apache.sysds.hops.rewrite.StatementBlockRewriteRule;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
@@ -63,9 +62,12 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
 //                    System.out.println("cost="+cost);
 //                   RewriteDFP.rewriteDFP(copy);
                     FakeCostEstimator.time = 0;
+
                     RewriteCoordinate.statementBlock = sb;
-                    RewriteCoordinate.main(copy);
-                //    FakeCostEstimator.printTime();
+
+                    RewriteCoordinate.rewiteHopDag(copy);
+
+                    //  FakeCostEstimator.printTime();
                     FakeCostEstimator.time = 0;
 
 //                    ArrayList<Hop> trees = BaoLi.generateAllTrees(copy);

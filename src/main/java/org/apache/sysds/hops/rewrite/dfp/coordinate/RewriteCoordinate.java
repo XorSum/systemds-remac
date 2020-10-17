@@ -1,30 +1,23 @@
 package org.apache.sysds.hops.rewrite.dfp.coordinate;
 
-import org.apache.commons.lang3.mutable.MutableInt;
-import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.sysds.conf.ConfigurationManager;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.cost.CostEstimationWrapper;
-import org.apache.sysds.hops.rewrite.HopRewriteRule;
-import org.apache.sysds.hops.rewrite.HopRewriteUtils;
-import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
-import org.apache.sysds.hops.rewrite.StatementBlockRewriteRule;
+import org.apache.sysds.hops.rewrite.*;
 import org.apache.sysds.hops.rewrite.dfp.AnalyzeSymmetryMatrix;
 import org.apache.sysds.hops.rewrite.dfp.DisjointSet;
 import org.apache.sysds.hops.rewrite.dfp.Leaf;
-import org.apache.sysds.hops.rewrite.dfp.utils.FakeCostEstimator;
 import org.apache.sysds.hops.rewrite.dfp.utils.MyExplain;
 import org.apache.sysds.hops.rewrite.dfp.utils.Prime;
 import org.apache.sysds.parser.*;
 import org.apache.sysds.runtime.controlprogram.Program;
-import org.apache.sysds.runtime.controlprogram.ProgramBlock;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
 import org.apache.sysds.utils.Explain;
 
 import java.util.*;
 
-import static java.lang.Math.max;
-import static java.lang.Math.min;
 import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.isLeafMatrix;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Reorder.reorder;
@@ -32,139 +25,60 @@ import static org.apache.sysds.hops.rewrite.dfp.utils.Reorder.reorder;
 public class RewriteCoordinate extends StatementBlockRewriteRule {
 
 
-    static DisjointSet djs = new DisjointSet(1000);
-    static HashMap<Long, Integer> hopId2LeafIndex = new HashMap<>();
-    public static ArrayList<Leaf> leaves = new ArrayList<>();
-    private static ArrayList<Range> nodeRange = new ArrayList<>();
+    private static DisjointSet djs = new DisjointSet(1000);
+    private static HashMap<Long, Integer> hopId2LeafIndex = new HashMap<>();
+    private static ArrayList<Leaf> leaves = new ArrayList<>();
+    private static ArrayList<Range> blockRanges = new ArrayList<>();
     private static HashMap<HashKey, ArrayList<Range>> hash2Ranges = new HashMap<>();
-    public static ExecutionContext ec;
+    private static ExecutionContext ec;
     public static StatementBlock statementBlock;
-    private static Hop originRoot = null;
 
-    public static Hop  main(Hop root) {
+    private static RewriteMatrixMultChainOptimization rewriteMatrixMultChainOptimization = new RewriteMatrixMultChainOptimization();
+    private static RewriteCommonSubexpressionElimination rewriteCommonSubexpressionElimination = new RewriteCommonSubexpressionElimination();
+    private static final Log LOG = LogFactory.getLog(RewriteCoordinate.class.getName());
+
+    // <configuration>
+    private static boolean showBlock = false;
+    private static boolean showSingleCse = false;
+    private static boolean showMultiCse = false;
+    private static boolean showCost = false;
+    private static boolean showMinCostHop = false;
+    // </configuration>
+
+    public static Hop rewiteHopDag(Hop root) {
         try {
-            originRoot = root;
-            djs = new DisjointSet(1000);
-            hopId2LeafIndex = new HashMap<>();
-            leaves = new ArrayList<>();
-            nodeRange = new ArrayList<>();
-            hash2Ranges = new HashMap<>();
 
             // 1. 深拷贝，格式化
             Hop hop = deepCopyHopsDag(root);
             hop = reorder(hop);
 
-            System.out.println(MyExplain.myExplain(hop));
-            // 2. 找到所有的叶子，把叶子根据乘法放入并查集中
+            hop.resetVisitStatusForced(new HashSet<>());
+            LOG.info("start coordinate " + MyExplain.myExplain(hop) );
+
+            prepare();
+
             findAllLeaf(hop, new ArrayList<>(), 0);
 
-            if (leaves.size()<20) return root;
+            genBlocks();
 
-            // 3. 把叶子根据并查集分为多个块
-            for (int i = 0; i < leaves.size(); i++) {
-                if (djs.find(i) == i) {
-                    int l = i, r = i;
-                    while (l - 1 >= 0 && djs.find(l - 1) == djs.find(i)) l--;
-                    while (r + 1 < leaves.size() && djs.find(r + 1) == djs.find(i)) r++;
-                    nodeRange.add(Range.of(l, r));
-                    System.out.println("Range " + l + " " + r);
-                    for (int j = l; j <= r; j++) {
-                        System.out.print(MyExplain.myExplain(leaves.get(j).hop) + " ");
-                    }
-                    System.out.println();
-                }
-            }
-            // 4. 求出每个区间的哈希值，并把哈希值相同的汇聚起来
-            for (Range block : nodeRange) {
-                for (int l = block.left; l <= block.right; l++) {
-                    for (int r = l + 1; r <= block.right; r++) {
-                        HashKey hash = rangeHash(l, r);
-                        if (!hash2Ranges.containsKey(hash))
-                            hash2Ranges.put(hash, new ArrayList<>());
-                        hash2Ranges.get(hash).add(Range.of(l, r));
-                    }
-                }
-            }
-            // 过滤掉不是公共子式的区间
-            for (Iterator<Map.Entry<HashKey, ArrayList<Range>>> it = hash2Ranges.entrySet().iterator(); it.hasNext(); ) {
-                Map.Entry<HashKey, ArrayList<Range>> e = it.next();
-                ArrayList<Range> list = e.getValue();
-                if (list.size() < 2 || list.get(0).right >= list.get(list.size() - 1).left) {
-                    it.remove();
-                }
-            }
+            if (leaves.size() < 20) return root;
 
-            // 构造出所有的SingleCse
-            ArrayList<SingleCse> singleCse = new ArrayList<>();
-            for (Map.Entry<HashKey, ArrayList<Range>> e : hash2Ranges.entrySet()) {
-                ArrayList<SingleCse> sc = genSingleCse(e.getKey(), e.getValue());
-                singleCse.addAll(sc);
-//            Range r = e.getValue().get(0);
-//            System.out.print("\n\nexp = ");
-//            for (int i = r.left; i <= r.right; i++) {
-//                System.out.print(MyExplain.myExplain(leaves.get(i).hop) + " ");
-//            }
-//            System.out.println();
-//            System.out.println("hash = " + e.getKey());
-//            for (Range range : e.getValue()) {
-//                System.out.println("range = [" + range.left + "," + range.right + "]");
-//            }
-//            System.out.println(sc.size());
-//            for (SingleCse c : sc) {
-//                System.out.println(c.ranges);
-//            }
-            }
-
+            ArrayList<SingleCse> singleCses = genSingleCse();
 
             // 构造出所有的MultiCse
-            long srtart = System.currentTimeMillis();
-            ArrayList<MultiCse> cs = genMultiCse(singleCse);
-            System.out.println("cses.size=" + cs.size());
+            ArrayList<MultiCse> multiCses = genMultiCse(singleCses);
 
-            long end = System.currentTimeMillis();
-            System.out.println("生成计划耗时" + (end - srtart) + "ms");
+            Hop result = genAndSelectHop(multiCses, hop,root);
 
-            // 构造出所有的Hop
-            srtart = System.currentTimeMillis();
-            ArrayList<Hop> hops = new ArrayList<>();
-            int i = 0;
-        //    CostEstimationWrapper.costtime = 0;
-
-            time_stats = 0;
-            Hop result = null;
-            Double cost = 1e9;
-            for (MultiCse c : cs) {
-                Pair<Hop,Double> hop1 = genHop(c, true, hop);
-                i++;
-                hops.add(hop1.getLeft());
-                if (result==null || cost>hop1.getRight()) {
-                    result = hop1.getLeft();
-                    cost = hop1.getRight();
-                }
-                if (i>10) break;
-            }
-
-            end = System.currentTimeMillis();
-            System.out.println("生成hop耗时" + (end - srtart) + "ms");
-            System.out.println("cses.size=" + cs.size() );
-           // System.out.println("estimator cost time = " + (CostEstimationWrapper.costtime / 1000000.0) + "ms");
-            System.out.println("time_stats="+ (time_stats/1000000.0)+"ms");
-
-            System.out.println("minium cost = "+cost);
             return result;
-//        genCsesBaoli();
+
         } catch (Exception e) {
             e.printStackTrace();
         }
         return root;
     }
 
-    private  static long time_stats = 0;
-
-    private static int findAllLeaf(Hop hop,
-                                   ArrayList<Integer> path,
-                                   int depth
-    ) {
+    private static int findAllLeaf(Hop hop, ArrayList<Integer> path, int depth) {
         if (isLeafMatrix(hop) ||
                 (HopRewriteUtils.isTransposeOperation(hop) && isLeafMatrix(hop.getInput().get(0)))) {
             int index = leaves.size();
@@ -194,32 +108,95 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return -1;
     }
 
+    private static void prepare() {
 
-    public static ArrayList<SingleCse> genSingleCse(HashKey hash, ArrayList<Range> ranges) {
+        djs = new DisjointSet(1000);
+        hopId2LeafIndex = new HashMap<>();
+        leaves = new ArrayList<>();
+        blockRanges = new ArrayList<>();
+        hash2Ranges = new HashMap<>();
+
+    }
+
+    private static void genBlocks() {
+
+        // 3. 把叶子根据并查集分为多个块
+        for (int i = 0; i < leaves.size(); i++) {
+            if (djs.find(i) == i) {
+                int l = i, r = i;
+                while (l - 1 >= 0 && djs.find(l - 1) == djs.find(i)) l--;
+                while (r + 1 < leaves.size() && djs.find(r + 1) == djs.find(i)) r++;
+                blockRanges.add(Range.of(l, r));
+                if (showBlock)
+                    LOG.info("Range " + l + " " + r + " " + getRangeName(l, r));
+            }
+        }
+        // 4. 求出每个区间的哈希值，并把哈希值相同的汇聚起来
+        for (Range block : blockRanges) {
+            for (int l = block.left; l <= block.right; l++) {
+                for (int r = l + 1; r <= block.right; r++) {
+                    long first = rangeHash1(l, r);
+                    long second = rangeHash2(l, r);
+                    if (first < second) {
+                        Long tmp = first;
+                        first = second;
+                        second = tmp;
+                    }
+                    HashKey hash = HashKey.of(first, second);
+                    if (!hash2Ranges.containsKey(hash))
+                        hash2Ranges.put(hash, new ArrayList<>());
+                    hash2Ranges.get(hash).add(Range.of(l, r));
+                }
+            }
+        }
+        // 过滤掉不是公共子式的区间
+        for (Iterator<Map.Entry<HashKey, ArrayList<Range>>> it = hash2Ranges.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<HashKey, ArrayList<Range>> e = it.next();
+            ArrayList<Range> list = e.getValue();
+            if (list.size() < 2 || list.get(0).right >= list.get(list.size() - 1).left) {
+                it.remove();
+            }
+        }
+    }
+
+    private static ArrayList<SingleCse> genSingleCse() {
+        // 构造出所有的SingleCse
         ArrayList<SingleCse> result = new ArrayList<>();
-        for (int j = 0; j < ranges.size(); j++) {
-            SingleCse tmp = new SingleCse(hash);
-            tmp.ranges.add(ranges.get(j));
-            tmp.last_index = j;
+        for (Map.Entry<HashKey, ArrayList<Range>> e : hash2Ranges.entrySet()) {
+            ArrayList<SingleCse> singleCses = genSingleCseFromRanges(e.getKey(), e.getValue());
+            result.addAll(singleCses);
+        }
+        if (showSingleCse) {
+            for (SingleCse singleCse : result) {
+                LOG.info(singleCse);
+            }
+        }
+        LOG.info("number of single cse = " + result.size());
+        return result;
+    }
+
+    private static ArrayList<SingleCse> genSingleCseFromRanges(HashKey hash, ArrayList<Range> ranges) {
+        ArrayList<SingleCse> result = new ArrayList<>();
+        for (int index = 0; index < ranges.size(); index++) {
+            SingleCse tmp = new SingleCse(hash, new ArrayList<>(), ranges.get(index), index);
+            tmp.name = getRangeName(ranges.get(index));
             result.add(tmp);
         }
         for (int i = 0; i < result.size(); i++) {
-            SingleCse tmp = result.get(i);
-            for (int j = tmp.last_index + 1; j < ranges.size(); j++) {
-                Range a = ranges.get(j);
+            SingleCse frontSC = result.get(i);
+            for (int index = frontSC.last_index + 1; index < ranges.size(); index++) {
+                Range rangeA = ranges.get(index);
                 boolean ok = true;
-                for (int k = 0; ok && k < tmp.ranges.size(); k++) {
-                    Range b = tmp.ranges.get(k);
-                    if (max(a.left, b.right) <= min(a.right, b.right)) {
+                for (int k = 0; ok && k < frontSC.ranges.size(); k++) {
+                    Range rangeB = frontSC.ranges.get(k);
+                    if (rangeA.intersect(rangeB)) {
                         ok = false;
                     }
                 }
                 if (ok) {
-                    SingleCse xin = new SingleCse(hash);
-                    xin.ranges = (ArrayList<Range>) tmp.ranges.clone();
-                    xin.ranges.add(a);
-                    xin.last_index = j;
-                    result.add(xin);
+                    SingleCse newSC = new SingleCse(hash, frontSC.ranges, rangeA, index);
+                    newSC.name = frontSC.name;
+                    result.add(newSC);
                 }
             }
         }
@@ -229,9 +206,20 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return result;
     }
 
-
     private static ArrayList<MultiCse> genMultiCse(ArrayList<SingleCse> singleCse) {
-        long start = System.currentTimeMillis();
+        long start = System.nanoTime();
+
+        singleCse.sort((SingleCse a, SingleCse b) -> {
+            Range ra = a.ranges.get(0);
+            int la = ra.right - ra.left;
+            Range rb = b.ranges.get(0);
+            int lb = rb.right - rb.left;
+            return lb - la;
+        });
+//        for (int j = 0; j < singleCse.size(); j++) {
+//            LOG.info(singleCse.get(j).ranges.get(0));
+//        }
+
         ArrayList<MultiCse> result = new ArrayList<>();
         for (int j = 0; j < singleCse.size(); j++) {
             MultiCse c = new MultiCse();
@@ -240,62 +228,131 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             result.add(c);
         }
         for (int i = 0; i < result.size(); i++) {
-            //   System.out.println("i=" + i);
-            MultiCse front = result.get(i);
-            //    System.out.println(front);
-            for (int j = front.last_index + 1; j < singleCse.size(); j++) {
-                SingleCse cj = singleCse.get(j);
+            MultiCse frontMC = result.get(i);
+            if (showMultiCse) {
+                LOG.info(frontMC);
+            }
+            for (int index = frontMC.last_index + 1; index < singleCse.size(); index++) {
+                SingleCse scA = singleCse.get(index);
                 boolean ok = true;
-                for (int k = 0; ok && k < front.cses.size(); k++) {
-                    SingleCse ck = front.cses.get(k);
-                    if (ck.hash == cj.hash || ck.intersect(cj)) ok = false;
+                for (int k = 0; ok && k < frontMC.cses.size(); k++) {
+                    SingleCse scB = frontMC.cses.get(k);
+                    if (scB.hash == scA.hash || scB.conflict(scA) || !scB.contain(scA)) ok = false;
                 }
-                if (ok) {
-                    MultiCse xin = new MultiCse();
-                    xin.cses = (ArrayList<SingleCse>) front.cses.clone();
-                    xin.cses.add(cj);
-                    xin.last_index = j;
-                    result.add(xin);
+                if (ok && result.size() < 5000) {
+                    MultiCse newMC = new MultiCse();
+                    newMC.cses = (ArrayList<SingleCse>) frontMC.cses.clone();
+                    newMC.cses.add(scA);
+                    newMC.last_index = index;
+                    result.add(newMC);
                 }
             }
         }
-        long end = System.currentTimeMillis();
+        long end = System.nanoTime();
         long totalTime = end - start;
-        System.out.println(">广搜所有相容坐标耗时：" + totalTime + " ms");
+        LOG.info("number of multi cse = " + result.size());
+        LOG.info("bfs search all compatible plan cost " + (totalTime / 1e6) + "ms");
         return result;
     }
 
+    private static Hop genAndSelectHop(ArrayList<MultiCse> multiCses, Hop template,Hop originalRoot) {
+        // 构造出所有的Hop
 
-    private static Pair<Hop,Double> genHop(MultiCse multiCse, boolean esti, Hop template) {
-        int n = multiCse.cses.size();
-        multiCse.hops = new ArrayList<>();
-        for (int i = 0; i < n; i++) multiCse.hops.add(null);
-        multiCse.contain = new boolean[n][n];
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j < n; j++) {
-                SingleCse ci = multiCse.cses.get(i);
-                SingleCse cj = multiCse.cses.get(j);
-                multiCse.contain[i][j] = ci.contain(cj);
-                //  System.out.print(cses.contain[i][j]+" ");
+        long constructHopTime = 0;
+        long estimateCostTime = 0;
+        long start, end;
+        Hop result = originalRoot;
+        double cost = estimate(originalRoot);
+
+        for (int i = 0; i < multiCses.size(); i++) {
+            start = System.nanoTime();
+            MultiCse c = multiCses.get(i);
+            Hop hop = createHop(c, template);
+            end = System.nanoTime();
+            constructHopTime += end - start;
+
+            if (ec != null) {
+                start = System.nanoTime();
+                double newCost = estimate(hop);
+                end = System.nanoTime();
+                estimateCostTime += end - start;
+                if (showCost)
+                    LOG.info("cost=" + newCost);
+                if (cost > newCost) {
+                    result = hop;
+                    cost = newCost;
+                }
             }
-            //  System.out.println();
         }
-        Hop copy = deepCopyHopsDag(template);
-//        copy = rGenHop(copy, null, new MutableInt(0), multiCse);
-//        System.out.println("Copy = ");
-//        System.out.println(Explain.explain(copy));
 
-        for (Range block : nodeRange) {
-            Hop block_hop = build_sub_hop(multiCse, block.left, block.right);
-            if (block_hop == null) {
-                System.out.println("NULL");
+        LOG.info("construct hop time =" + (constructHopTime / 1e6) + "ms");
+        LOG.info("estimate cost time =" + (estimateCostTime / 1e6) + "ms");
+        LOG.info("minium cost = " + cost);
+        if (showMinCostHop) {
+            LOG.info(Explain.explain(result));
+        }
+        return result;
+    }
+
+    private static double estimate(Hop hop) {
+        // 代价估计
+        double cost = 1e30;
+        try {
+            Program programBlocks = constructProgramBlocks(hop);
+            cost = CostEstimationWrapper.getTimeEstimate(programBlocks, ec);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return cost;
+    }
+
+    private static Hop createHop(MultiCse multiCse, Hop template) {
+        Hop copy = deepCopyHopsDag(template);
+        // 准备区间数组
+        ArrayList<RangeTree> list = new ArrayList<>();
+        for (int i = 0; i < leaves.size(); i++) {
+            SingleCse sc = new SingleCse(Range.of(i, i), leaves.get(i).hop);
+            sc.name = getRangeName(i, i);
+            RangeTree rangeTree = new RangeTree(i, i, sc);
+            list.add(rangeTree);
+        }
+        for (SingleCse sc : multiCse.cses) {
+            sc.prototype = null;
+            for (Range range : sc.ranges) {
+                list.add(new RangeTree(range.left, range.right, sc));
             }
+        }
+        for (Range r : blockRanges) {
+            SingleCse sc = new SingleCse(Range.of(r.left, r.right), null);
+            sc.name = getRangeName(r);
+            list.add(new RangeTree(r.left, r.right, sc));
+        }
+        // 把区间数组排序，先按右端点升序，再按左端点降序
+        list.sort((RangeTree ra, RangeTree rb) -> {
+            if (ra.right != rb.right)
+                return ra.right - rb.right;
+            return rb.left - ra.left;
+        });
+        // 用栈建起RangeTree
+        Stack<RangeTree> stack = new Stack<>();
+        for (int i = 0; i < list.size(); i++) {
+            RangeTree cur = list.get(i);
+            while (!stack.empty() && stack.peek().left >= cur.left) {
+                cur.children.add(stack.pop());
+            }
+            Collections.reverse(cur.children);
+            stack.push(cur);
+        }
+        // 递归遍历RangeTree，建起HopDag
+        for (RangeTree rt : stack) {
+            // 建起一个块的HopDag
+            Hop block_hop = rCreateHop(rt);
+            // 找到这个块的位置
             Hop cur = copy;
             Hop parent = null;
-            Leaf leaf1 = leaves.get(block.left);
-            Leaf leaf2 = leaves.get(block.right);
-
-            for ( int i=0;i<leaf1.depth && i<leaf2.depth;i++)  {
+            Leaf leaf1 = leaves.get(rt.left);
+            Leaf leaf2 = leaves.get(rt.right);
+            for (int i = 0; i < leaf1.depth && i < leaf2.depth; i++) {
                 if (leaf1.path.get(i).equals(leaf2.path.get(i))) {
                     parent = cur;
                     assert cur != null;
@@ -304,210 +361,61 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     break;
                 }
             }
-            if (parent!=null) {
-                HopRewriteUtils.replaceChildReference(parent,cur, block_hop);
+            // 替换
+            if (parent != null) {
+                HopRewriteUtils.replaceChildReference(parent, cur, block_hop);
                 HopRewriteUtils.cleanupUnreferenced(cur);
-           //     System.out.println("replace");
             } else {
                 copy = block_hop;
             }
         }
-        double cost = 0;
-        // 代价估计
-//        if (esti) {
-            long start = System.nanoTime();
-//                double cost = FakeCostEstimator.estimate(block_hop, ec);
-           try {
-               ArrayList<ProgramBlock> programBlocks = constructProgramBlocks(copy);
-               for (ProgramBlock pb : programBlocks) {
-                 cost +=  CostEstimationWrapper.getTimeEstimate(pb, ec, false);
-               }
-           }catch ( Exception e) {
-                e.printStackTrace();
-           }
-            long end = System.nanoTime();
-           time_stats += end - start;
-//                System.out.println("getTimeEstimate "+((end-start)/1000000.0)+"ms");
-            //    System.out.println("cost="+cost);
-//        }
-        return Pair.of(copy,cost);
+     //   rewriteCommonSubexpressionElimination.rewriteHopDAG(copy,new ProgramRewriteStatus());
+        return copy;
     }
 
-
-    private static Hop build_sub_hop(MultiCse multiCse, int L, int R) {
-        ArrayList<Pair<Range, SingleCse>> ranges = new ArrayList<>();
-        for (SingleCse singleCse : multiCse.cses) {
-            for (Range range : singleCse.ranges) {
-                if (range.left >= L && range.right <= R) {
-                    ranges.add(Pair.of(range, singleCse));
-                    break;
-                }
+    private static Hop rCreateHop(RangeTree rt) {
+        if (rt.singleCse.prototype != null) {
+            long hash1 = rangeHash1(rt.left, rt.right);
+            long hash2 = rangeHash1(rt.singleCse.protoRange.left, rt.singleCse.protoRange.right);
+            if (hash1 == hash2) {
+                return rt.singleCse.prototype;
+            } else {
+                return HopRewriteUtils.createTranspose(rt.singleCse.prototype);
             }
         }
-        Stack<Pair<Range, SingleCse>> stack = new Stack<>();
-        for (Pair<Range, SingleCse> p : ranges) {
-            while (!stack.empty() && stack.peek().getLeft().left >= p.getLeft().left) stack.pop();
-            stack.push(p);
-        }
-        //  System.out.println("stack "+L+ " "+R);
-        ArrayList<Hop> children = new ArrayList<>();
-        int cur = L;
-        for (Pair<Range, SingleCse> p : stack) {
-            //   System.out.println(p.getLeft());
-            int l = p.getLeft().left;
-            int r = p.getLeft().right;
-            while (cur < l) {
-                children.add(leaves.get(cur).hop);
-                cur++;
-            }
-            Hop t = build_sub_hop(multiCse, p.getRight(), p.getLeft().left, p.getLeft().right);
-            children.add(t);
-            cur = r + 1;
-        }
-        while (cur <= R) {
-            children.add(leaves.get(cur).hop);
-            cur++;
-        }
-        if (children.size() > 0) {
-            Hop ret = children.get(0);
-            for (int i = 1; i < children.size(); i++) {
-                ret = HopRewriteUtils.createMatrixMultiply(ret, children.get(i));
-            }
-            return ret;
+        if (rt.left == rt.right) {
+            return leaves.get(rt.left).hop;
         } else {
-            return null;
+            ArrayList<Hop> children = new ArrayList<>();
+            for (RangeTree son : rt.children) {
+                Hop s = rCreateHop(son);
+                children.add(s);
+            }
+            Hop ret = build_binary_tree(children);
+            rt.singleCse.prototype = ret;
+            rt.singleCse.protoRange = Range.of(rt.left, rt.right);
+            return ret;
         }
     }
 
-
-    private static Hop build_sub_hop(MultiCse multiCse, SingleCse singleCse, int L, int R) {
-        int index = multiCse.cses.indexOf(singleCse);
-        Hop ret = multiCse.hops.get(index);
-        if (ret != null) {
-            return ret;
+    private static Hop build_binary_tree(ArrayList<Hop> mmChain) {
+        assert mmChain.size() > 0;
+        if (mmChain.size() == 1) return mmChain.get(0);
+        ArrayList<Hop> mmOperators = new ArrayList<>();
+        Hop ret = mmChain.get(0);
+        for (int i = 1; i < mmChain.size(); i++) {
+            Hop tmp = HopRewriteUtils.createMatrixMultiply(ret, mmChain.get(i));
+            mmOperators.add(tmp);
+            ret = tmp;
         }
-        ArrayList<Pair<Range, SingleCse>> stack = new ArrayList<>();
-        for (int j = 0; j < multiCse.cses.size(); j++) {
-            if (multiCse.contain[index][j]) {
-                SingleCse cj = multiCse.cses.get(j);
-                int l = -1, r = -1;
-                for (Range range : cj.ranges) {
-                    if (range.left >= L && range.right <= R && (range.right - range.left < R - L)) {
-                        l = range.left;
-                        r = range.right;
-                        break;
-                    }
-                }
-                if (l != -1 && r != -1)
-                    stack.add(Pair.of(Range.of(l, r), cj));
-            }
-        }
-        // System.out.println(" cse:");
-        ArrayList<Hop> children = new ArrayList<>();
-        int cur = L;
-        for (Pair<Range, SingleCse> p : stack) {
-            //   System.out.println(" "+p.getLeft());
-            int l = p.getLeft().left;
-            int r = p.getLeft().right;
-            while (cur < l) {
-                children.add(leaves.get(cur).hop);
-                cur++;
-            }
-            Hop t = build_sub_hop(multiCse, p.getRight(), l, r);
-            children.add(t);
-            cur = r + 1;
-        }
-        while (cur <= R) {
-            children.add(leaves.get(cur).hop);
-            cur++;
-        }
-        if (children.size() > 0) {
-            ret = children.get(0);
-            for (int i = 1; i < children.size(); i++) {
-                ret = HopRewriteUtils.createMatrixMultiply(ret, children.get(i));
-            }
-        }
-        multiCse.hops.set(index, ret);
+        rewriteMatrixMultChainOptimization.optimizeMMChain(ret, mmChain, mmOperators, new ProgramRewriteStatus());
         return ret;
     }
 
-
-//    private static Hop rGenHop(Hop curNode, Hop parent, MutableInt opIndex, MultiCse multiCse) {
-//        int left = opIndex.getValue();
-//        if (isLeafMatrix(curNode)) {
-//            opIndex.increment();
-//        } else {
-//            for (int i = 0; i < curNode.getInput().size(); i++) {
-//                Hop child = curNode.getInput().get(i);
-//                Hop newChild = rGenHop(child, curNode, opIndex, multiCse);
-//                if (parent!=null) {
-//                    HopRewriteUtils.replaceChildReference(curNode, child, newChild);
-//                    HopRewriteUtils.cleanupUnreferenced(child);
-//                }
-////                curNode.getInput().set(i,newChild);
-//            }
-//        }
-//        int right = opIndex.getValue() - 1;
-//     //   System.out.println(curNode.getHopID() + " " + left + " " + right);
-//        for (Range range : nodeRange) {
-//            if (range.left == left && range.right == right) {
-//                Hop block_hop = build_sub_hop( multiCse, left,  right);
-//                return block_hop;
-//            }
-//        }
-//        return curNode;
-//    }
-
-
-    private static ArrayList<MultiCse> genCsesBaoli() {
-        long start = System.currentTimeMillis();
-        ArrayList<MultiCse> result = new ArrayList<>();
-        MultiCse multiCse = new MultiCse();
-        result.add(multiCse);
-        for (Map.Entry<HashKey, ArrayList<Range>> e : hash2Ranges.entrySet()) {
-            ArrayList<SingleCse> cses1 = genSingleCse(e.getKey(), e.getValue());
-            int size = result.size();
-            System.out.println("size=" + size + " x" + (cses1.size() + 1));
-            for (int j = 0; j < size; j++) {
-                for (SingleCse c : cses1) {
-                    MultiCse novel = new MultiCse();
-                    novel.cses = (ArrayList<SingleCse>) result.get(j).cses.clone();
-                    novel.cses.add(c);
-                    result.add(novel);
-                }
-            }
-        }
-        System.out.println("baoli size = " + result.size());
-        long end = System.currentTimeMillis();
-        long totalTime = end - start;
-        System.out.println(">构造所有坐标耗时：" + totalTime + " ms");
-        start = System.currentTimeMillis();
-        ArrayList<MultiCse> compatibleResult = new ArrayList<>();
-        for (MultiCse c : result) {
-            boolean compatible = true;
-            for (int i = 0; compatible && i < c.cses.size(); i++) {
-                for (int j = i + 1; compatible && j < c.cses.size(); j++) {
-                    if (c.cses.get(i).intersect(c.cses.get(j))) {
-                        compatible = false;
-                    }
-                }
-            }
-            if (compatible) compatibleResult.add(c);
-        }
-
-        System.out.println("compitable size = " + compatibleResult.size());
-        end = System.currentTimeMillis();
-        totalTime = end - start;
-        System.out.println(">判断相容坐标执行耗时：" + totalTime + " ms");
-
-        return result;
-    }
-
-
-    public static HashKey rangeHash(int l, int r) {
-        Long first = 0L;
+    public static long rangeHash1(int l, int r) {
+        long first = 0L;
         for (int i = 0; l + i <= r; i++) {
-            Long single;
+            long single;
             Hop h = leaves.get(l + i).hop;
             if (HopRewriteUtils.isTransposeOperation(h)) {
                 h = h.getInput().get(0);
@@ -521,9 +429,13 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             }
             first = first + single * Prime.getPrime(i);
         }
-        Long second = 0L;
+        return first;
+    }
+
+    public static long rangeHash2(int l, int r) {
+        long second = 0L;
         for (int i = 0; r - i >= l; i++) {
-            Long single;
+            long single;
             Hop h = leaves.get(r - i).hop;
             if (HopRewriteUtils.isTransposeOperation(h)) {
                 h = h.getInput().get(0);
@@ -537,14 +449,28 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             }
             second = second + single * Prime.getPrime(i);
         }
-        if (first < second) {
-            Long tmp = first;
-            first = second;
-            second = tmp;
-        }
-        return HashKey.of(first, second);
+        return second;
     }
 
+    private static String getRangeName(Range range) {
+        return getRangeName(range.left, range.right);
+    }
+
+    private static String getRangeName(int l, int r) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("{");
+        for (int i = l; i <= r; i++) {
+            sb.append(MyExplain.myExplain(leaves.get(i).hop));
+            sb.append(" ");
+        }
+        sb.append("}");
+        return sb.toString();
+    }
+
+
+    public RewriteCoordinate(ExecutionContext executionContext) {
+        ec = executionContext;
+    }
 
     @Override
     public boolean createsSplitDag() {
@@ -554,18 +480,14 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     @Override
     public List<StatementBlock> rewriteStatementBlock(StatementBlock sb, ProgramRewriteStatus state) {
         try {
+            LOG.info("Rewrite Coordinate StatementBlock");
             statementBlock = sb;
             if (sb.getHops() != null) {
-                for (int i=0;i<sb.getHops().size();i++) {
+                for (int i = 0; i < sb.getHops().size(); i++) {
                     Hop h = sb.getHops().get(i);
-                    Hop g = main(h);
-                    sb.getHops().set(i,g);
+                    Hop g = rewiteHopDag(h);
+                    sb.getHops().set(i, g);
                 }
-//                for (Hop h : sb.getHops()) {
-//                    main(h);
-//                }
-
-
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -580,12 +502,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return sbs;
     }
 
-    private static ArrayList<ProgramBlock> constructProgramBlocks(Hop hop) {
-//        ParserWrapper parser = ParserFactory.createParser();
-//        DMLProgram prog = parser.parse(DML_FILE_PATH_ANTLR_PARSER, dmlScri  ptStr, argVals);
-
+    private static Program constructProgramBlocks(Hop hop) {
         DMLProgram prog = new DMLProgram();
-
         StatementBlock sb = new StatementBlock();
         ArrayList<Hop> hops = new ArrayList<>();
         hops.add(hop);
@@ -593,23 +511,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         sb.setLiveIn(statementBlock.liveIn());
         sb.setLiveOut(statementBlock.liveOut());
         prog.addStatementBlock(sb);
-        //Step 4: construct HOP DAGs (incl LVA, validate, and setup)
         DMLTranslator dmlt = new DMLTranslator(prog);
-        //   dmlt.liveVariableAnalysis(prog);
-        //   dmlt.validateParseTree(prog);
-        //  dmlt.constructHops(prog);
-
-        //Step 5: rewrite HOP DAGs (incl IPA and memory estimates)
-//        dmlt.rewriteHopsDAG(prog);
-
-        //Step 6: construct lops (incl exec type and op selection)
         dmlt.constructLops(prog);
-
-        //Step 7: generate runtime program, incl codegen
         Program rtprog = dmlt.getRuntimeProgram(prog, ConfigurationManager.getDMLConfig());
-
-        return rtprog.getProgramBlocks();
-
+        return rtprog;
     }
 
 

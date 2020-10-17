@@ -1,6 +1,6 @@
 package org.apache.sysds.hops.rewrite.dfp.coordinate;
 
-public   class HashKey {
+public class HashKey {
     public long left;
     public long right;
 
@@ -20,5 +20,10 @@ public   class HashKey {
     @Override
     public int hashCode() {
         return (int) (left * (1e9 + 7) + right);
+    }
+
+    @Override
+    public String toString() {
+        return "HashKey[" + left + "," + right + "]";
     }
 }

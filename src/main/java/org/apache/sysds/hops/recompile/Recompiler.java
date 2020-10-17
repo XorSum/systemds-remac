@@ -23,6 +23,8 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
 import org.apache.sysds.hops.rewrite.dfp.RewriteLoopConstrant;
+
+import org.apache.sysds.hops.rewrite.dfp.RewriteTempStatementBlock;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
 import org.apache.sysds.hops.rewrite.dfp.utils.FakeCostEstimator;
 import org.apache.wink.json4j.JSONObject;
@@ -330,14 +332,17 @@ public class Recompiler
 		// todo: new & call program rewriter
 
 //		FakeCostEstimator.time = 0;
-//		ProgramRewriter rewriter = new ProgramRewriter(new RewriteCoordinate());
-//		ArrayList<StatementBlock> sbs = new ArrayList<>();
-//		sbs.add(sb);
-//		RewriteCoordinate.ec = ec;
-//		rewriter.rRewriteStatementBlocks(sbs,new ProgramRewriteStatus(),true);
-//	//	FakeCostEstimator.printTime();
-//		FakeCostEstimator.time = 0;
 
+		ProgramRewriter rewriter = new ProgramRewriter(new RewriteCoordinate(ec));
+//		ProgramRewriter rewriter = new ProgramRewriter(new RewriteTempStatementBlock());
+
+		ArrayList<StatementBlock> sbs = new ArrayList<>();
+		sbs.add(sb);
+		rewriter.rRewriteStatementBlocks(sbs,new ProgramRewriteStatus(),true);
+
+
+		//	//	FakeCostEstimator.printTime();
+//		FakeCostEstimator.time = 0;
 
 
 		// prepare hops dag for recompile

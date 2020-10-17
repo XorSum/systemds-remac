@@ -54,10 +54,10 @@ o = diag(matrix(1, rows=m, cols=1))
 
 i = 1
 end = FALSE
-while((i<10)&(!end)) {
+while((i<1000)&(!end)) {
     g = 2 * t(a) %*% (a %*% x - b)
     loss = sum(t(g)%*%g)
-    print("i="+toString(i)+"  loss="+toString(loss))
+    print("i="+toString(i)+"  lossss="+toString(loss))
     if (loss < e) {
     	end = TRUE
      }
@@ -69,8 +69,8 @@ while((i<10)&(!end)) {
     # 探测步长
     d = - h %*% g
  #   print("d="+toString(d))
-    mk = 0
-    m = 0
+    mk = 1
+    m = 1
     found = FALSE
     oldf = f(a,b,x)
     print("oldf="+toString(oldf))
