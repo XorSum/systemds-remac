@@ -7,11 +7,13 @@ import static org.apache.commons.lang3.ObjectUtils.max;
 public class Range {
     public int left;
     public int right;
+    public boolean transpose;
 
-    public static Range of(int l, int r) {
+    public static Range of(int l, int r, boolean t) {
         Range range = new Range();
         range.left = l;
         range.right = r;
+        range.transpose = t;
         return range;
     }
 
@@ -32,6 +34,6 @@ public class Range {
 
     @Override
     public String toString() {
-        return "(" + left + "," + right + ")";
+        return "(" + left + "," + right + "," + transpose + ")";
     }
 }

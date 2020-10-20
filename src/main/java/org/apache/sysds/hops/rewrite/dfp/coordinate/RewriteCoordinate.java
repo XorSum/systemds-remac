@@ -1,8 +1,5 @@
 package org.apache.sysds.hops.rewrite.dfp.coordinate;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.apache.spark.sql.execution.columnar.DOUBLE;
 import org.apache.sysds.conf.ConfigurationManager;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.cost.CostEstimationWrapper;
@@ -10,20 +7,15 @@ import org.apache.sysds.hops.rewrite.*;
 import org.apache.sysds.hops.rewrite.dfp.AnalyzeSymmetryMatrix;
 import org.apache.sysds.hops.rewrite.dfp.DisjointSet;
 import org.apache.sysds.hops.rewrite.dfp.Leaf;
-import org.apache.sysds.hops.rewrite.dfp.MySolution;
 import org.apache.sysds.hops.rewrite.dfp.utils.FakeCostEstimator;
-import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
 import org.apache.sysds.hops.rewrite.dfp.utils.MyExplain;
 import org.apache.sysds.hops.rewrite.dfp.utils.Prime;
 import org.apache.sysds.parser.*;
 import org.apache.sysds.runtime.controlprogram.Program;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
 import org.apache.sysds.utils.Explain;
-
 import java.util.*;
-
 import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
-import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.isAllOfMult;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.isLeafMatrix;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Reorder.reorder;
 
@@ -149,7 +141,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 int l = i, r = i;
                 while (l - 1 >= 0 && djs.find(l - 1) == djs.find(i)) l--;
                 while (r + 1 < leaves.size() && djs.find(r + 1) == djs.find(i)) r++;
-                blockRanges.add(Range.of(l, r));
+                blockRanges.add(Range.of(l, r,false));
                 if (showBlock)
                     System.out.println("Range " + l + " " + r + " " + getRangeName(l, r));
             }
@@ -163,15 +155,17 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     if (onlySearchConstantSubExp && isConstant(r)) break;
                     long first = rangeHash1(l, r);
                     long second = rangeHash2(l, r);
+                    boolean transpose = false;
                     if (first < second) {
                         Long tmp = first;
                         first = second;
                         second = tmp;
+                        transpose = true;
                     }
                     HashKey hash = HashKey.of(first, second);
                     if (!hash2Ranges.containsKey(hash))
                         hash2Ranges.put(hash, new ArrayList<>());
-                    hash2Ranges.get(hash).add(Range.of(l, r));
+                    hash2Ranges.get(hash).add(Range.of(l, r,transpose));
                 }
             }
         }
@@ -365,33 +359,46 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return cost;
     }
 
+    private static boolean getTrans(int l,int r) {
+        long first = rangeHash1(l, r);
+        long second = rangeHash2(l, r);
+        boolean transpose = false;
+        if (first < second) {
+            transpose = true;
+        }
+        return transpose;
+    }
+
+
     private static Hop createHop(MultiCse multiCse, Hop template) {
         try {
             Hop copy = deepCopyHopsDag(template);
             // 准备区间数组
             ArrayList<RangeTree> list = new ArrayList<>();
             for (int i = 0; i < leaves.size(); i++) {
-                SingleCse sc = new SingleCse(Range.of(i, i), leaves.get(i).hop);
+                SingleCse sc = new SingleCse(Range.of(i, i,false), leaves.get(i).hop);
                 sc.name = getRangeName(i, i);
-                RangeTree rangeTree = new RangeTree(i, i, sc);
+                RangeTree rangeTree = new RangeTree(i, i, sc, false);
                 list.add(rangeTree);
             }
             for (SingleCse sc : multiCse.cses) {
                 sc.prototype = null;
+                sc.protoRange = null;
                 for (Range range : sc.ranges) {
-                    list.add(new RangeTree(range.left, range.right, sc));
+                    list.add(new RangeTree(range.left, range.right, sc, range.transpose));
                 }
             }
             for (Range r : blockRanges) {
-                SingleCse sc = new SingleCse(Range.of(r.left, r.right), null);
+                SingleCse sc = new SingleCse(Range.of(r.left, r.right,false), null);
                 sc.name = getRangeName(r);
-                list.add(new RangeTree(r.left, r.right, sc));
+                list.add(new RangeTree(r.left, r.right, sc,getTrans(r.left,r.right)));
             }
             // 把区间数组排序，先按右端点升序，再按左端点降序
             list.sort((RangeTree ra, RangeTree rb) -> {
                 if (ra.right != rb.right)
                     return ra.right - rb.right;
-                return rb.left - ra.left;
+//                if (rb.left - ra.left!=0)
+                    return rb.left - ra.left;
             });
             // 用栈建起RangeTree
             Stack<RangeTree> stack = new Stack<>();
@@ -443,10 +450,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     private static Hop rCreateHop(RangeTree rt) {
         if (rt.singleCse.prototype != null) {
-            // long hash1 = rangeHash1(rt.left, rt.right);
-            // long hash2 = rangeHash1(rt.singleCse.protoRange.left, rt.singleCse.protoRange.right);
-            //  if (hash1 == hash2) {
-            if (isSame(rt.left, rt.right, rt.singleCse.protoRange.left, rt.singleCse.protoRange.right)) {
+            if (rt.transpose == rt.singleCse.protoRange.transpose) {
                 return rt.singleCse.prototype;
             } else {
                 return HopRewriteUtils.createTranspose(rt.singleCse.prototype);
@@ -459,11 +463,13 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             for (RangeTree son : rt.children) {
                 Hop s = rCreateHop(son);
                 if (s==null) return null;
+//                if ( ! isSame(son.left,son.right,son.singleCse.protoRange.left,son.singleCse.protoRange.right) )
+//                    if (son.transpose!=son.singleCse.protoRange.transpose)
+//                    s = HopRewriteUtils.createTranspose(s);
                 children.add(s);
-                //   children.add(deepCopyHopsDag(s));
             }
             Hop ret = build_binary_tree_mmc(children);
-//            Hop ret2 = build_binary_tree_naive(children);
+ //           Hop ret = build_binary_tree_naive(children);
 //            if (!Judge.isSame(ret1,ret2)) {
 //                System.out.println(MyExplain.myExplain(ret2));
 //                System.out.println("naive");
@@ -476,7 +482,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //            }
 //            Hop ret = ret1;
             rt.singleCse.prototype = ret;
-            rt.singleCse.protoRange = Range.of(rt.left, rt.right);
+            rt.singleCse.protoRange = Range.of(rt.left, rt.right,rt.transpose);
             return ret;
         }
     }
