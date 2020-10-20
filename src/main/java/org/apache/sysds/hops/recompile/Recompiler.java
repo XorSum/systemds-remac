@@ -336,7 +336,7 @@ public class Recompiler
 
 		ArrayList<StatementBlock> sbs = new ArrayList<>();
 		sbs.add(sb);
-	//	rewriter.rRewriteStatementBlocks(sbs,new ProgramRewriteStatus(),true);
+		rewriter.rRewriteStatementBlocks(sbs,new ProgramRewriteStatus(),true);
 
 
 		// prepare hops dag for recompile

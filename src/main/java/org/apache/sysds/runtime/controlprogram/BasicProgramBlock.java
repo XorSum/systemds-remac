@@ -87,10 +87,11 @@ public class BasicProgramBlock extends ProgramBlock
 		try
 		{
 			long t0 = DMLScript.STATISTICS ? System.nanoTime() : 0;
-			if( ConfigurationManager.isDynamicRecompilation()
-				&& _sb != null
-				&& _sb.requiresRecompilation() )
-			{
+//			if( ConfigurationManager.isDynamicRecompilation()
+//				&& _sb != null
+//				&& _sb.requiresRecompilation() )
+			if (_sb!=null)
+            {
 				tmp = Recompiler.recompileHopsDag(
 					_sb, _sb.getHops(), ec, null, false, true, _tid);
 			}
@@ -121,9 +122,14 @@ public class BasicProgramBlock extends ProgramBlock
 			t0 = System.nanoTime();
 		}
 
+
+		long start = System.nanoTime();
 		//actual instruction execution
 		executeInstructions(tmp, ec);
-		
+		long end = System.nanoTime();
+        System.out.println("basic program execution time = "+((end-start)/1e6)+" s");
+
+
 		//statement-block-level, lineage-based caching
 		if (_sb != null && liInputs != null && !_sb.isNondeterministic())
 			LineageCache.putValue(_sb.getOutputsofSB(),
