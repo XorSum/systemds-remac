@@ -331,18 +331,12 @@ public class Recompiler
 			&& SpoofCompiler.RECOMPILE_CODEGEN;
 		// todo: new & call program rewriter
 
-//		FakeCostEstimator.time = 0;
-
-		ProgramRewriter rewriter = new ProgramRewriter(new RewriteCoordinate(ec));
 //		ProgramRewriter rewriter = new ProgramRewriter(new RewriteTempStatementBlock());
+		ProgramRewriter rewriter = new ProgramRewriter(new RewriteCoordinate(ec));
 
 		ArrayList<StatementBlock> sbs = new ArrayList<>();
 		sbs.add(sb);
-		rewriter.rRewriteStatementBlocks(sbs,new ProgramRewriteStatus(),true);
-
-
-		//	//	FakeCostEstimator.printTime();
-//		FakeCostEstimator.time = 0;
+	//	rewriter.rRewriteStatementBlocks(sbs,new ProgramRewriteStatus(),true);
 
 
 		// prepare hops dag for recompile

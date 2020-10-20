@@ -294,10 +294,13 @@ public class DMLTranslator
         stbrr.rewriteStatementBlocks(dmlp.getStatementBlocks(),new ProgramRewriteStatus());
         resetHopsDAGVisitStatus(dmlp);
 
+		ProgramRewriter rewriter4 = new ProgramRewriter(new RewriteCoordinate(null));
+		rewriter4.rewriteProgramHopDAGs(dmlp);
+		resetHopsDAGVisitStatus(dmlp);
 
-        ProgramRewriter rewriter4 = new ProgramRewriter(new RewriteCoordinate(null));
-        rewriter4.rewriteProgramHopDAGs(dmlp);
-        resetHopsDAGVisitStatus(dmlp);
+//		ProgramRewriter rewriter5 = new ProgramRewriter(new RewriteLoopConstrant(null));
+//		rewriter5.rewriteProgramHopDAGs(dmlp);
+//		resetHopsDAGVisitStatus(dmlp);
 
 		// apply common sub expression rewrites
 //        ProgramRewriter rewriter3 = new ProgramRewriter(new RewriteDFP());
@@ -317,6 +320,7 @@ public class DMLTranslator
         //apply hop rewrites (static rewrites)
 		ProgramRewriter rewriter = new ProgramRewriter(true, false);
 		rewriter.rewriteProgramHopDAGs(dmlp, false); //rewrite and merge
+//		System.out.println("xxx");
 		resetHopsDAGVisitStatus(dmlp);
 		rewriter.rewriteProgramHopDAGs(dmlp, true); //rewrite and split
 		resetHopsDAGVisitStatus(dmlp);
@@ -335,9 +339,9 @@ public class DMLTranslator
 
 //		System.out.println(Explain.explain(dmlp));
 
-		ProgramRewriter rewriter3 = new ProgramRewriter(new RewriteTempStatementBlock());
-		rewriter3.rewriteProgramHopDAGs(dmlp);
-		resetHopsDAGVisitStatus(dmlp);
+//		ProgramRewriter rewriter3 = new ProgramRewriter(new RewriteTempStatementBlock());
+//		rewriter3.rewriteProgramHopDAGs(dmlp);
+//		resetHopsDAGVisitStatus(dmlp);
 //		System.out.println("after reorder");
 //		System.out.println(Explain.explain(dmlp));
 

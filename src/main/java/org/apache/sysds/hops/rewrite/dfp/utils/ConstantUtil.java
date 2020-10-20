@@ -22,7 +22,7 @@ public class ConstantUtil {
 
    public static void  init(VariableSet variablesUpdat) {
        variablesUpdated  = variablesUpdat;
-        constantTable = new HashMap<>();
+       constantTable = new HashMap<>();
    }
 
     public static MySolution liftLoopConstant(Hop hop) {

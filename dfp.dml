@@ -16,7 +16,7 @@ b = read("../data/b2.csv",format="csv")
 e = 0.1  # 误差
 #rho = 0.02
 #sigma = 0.1
-rho = 0.1
+rho = 0.2
 sigma = 0.1
 
 m = ncol(a)
@@ -58,7 +58,7 @@ while((i<1000)&(!end)) {
     g = 2 * t(a) %*% (a %*% x - b)
     loss = sum(t(g)%*%g)
     print("i="+toString(i)+"  lossss="+toString(loss))
-    if (loss < e) {
+    if (loss < e ) {
     	end = TRUE
      }
   #  print("g=")

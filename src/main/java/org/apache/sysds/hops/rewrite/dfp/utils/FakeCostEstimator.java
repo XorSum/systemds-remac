@@ -14,6 +14,8 @@ import org.apache.sysds.runtime.matrix.data.MatrixBlock;
 
 import javax.xml.bind.SchemaOutputResolver;
 
+import java.util.HashSet;
+
 import static org.apache.sysds.hops.estim.SparsityEstimator.OpCode;
 
 public class FakeCostEstimator {
@@ -24,36 +26,21 @@ public class FakeCostEstimator {
      //   System.out.println("fake estimator time = " + (time/1000000.0) + "ms" );
     }
 
-    public static double estimate(Hop hop, ExecutionContext ec) {
-//        try {
-//            Thread.sleep(1);
-//        }catch (Exception e) {
-//
-//        }
-        long start = System.nanoTime();
-        double cost = 0;
-        if (ec == null) {
+    public static double estimate(Hop hop) {
+        double cost;
+        try {
+            hop.resetVisitStatusForced(new HashSet<>());
             hop.refreshSizeInformation();
-             cost = preEstimate(hop);
-//            System.out.println("cost="+cost);
-        } else {
-            if (!Judge.isLeafMatrix(hop)) {
-                EstimatorMatrixHistogram estim = new EstimatorMatrixHistogram(true);
-                try {
-                    MMNode mmNode = rCreateMMNode(hop, estim, ec);
-                    //  System.out.println("mmNode="+mmNode);
-                    estim.estim(mmNode);
-                } catch (Exception e) {
-                    //  System.out.println("error");
-                }
-            }
+            hop.resetVisitStatus();
+            cost = preEstimate(hop);
+        } catch (Exception e) {
+            cost =  Double.MAX_VALUE;
         }
-        long end = System.nanoTime();
-        time += end - start;
         return cost;
     }
 
     private static double preEstimate(Hop hop) {
+        if (hop.isVisited()) return 0;
         double sum = 0;
 //        System.out.println("dims: "+ hop.getDim1()+" "+hop.getDim2()+" dc="+hop.getDataCharacteristics());
         if (!hop.isMatrix()) return 0;
@@ -84,6 +71,7 @@ public class FakeCostEstimator {
                     sum += left.getDim1() * left.getDim2();
             }
         }
+        hop.setVisited();
         return sum;
     }
 

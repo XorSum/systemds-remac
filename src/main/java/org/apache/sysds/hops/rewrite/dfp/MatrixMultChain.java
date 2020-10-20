@@ -11,9 +11,7 @@ import org.apache.sysds.parser.VariableSet;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
 
-import static org.apache.sysds.hops.rewrite.dfp.utils.ConstantUtil.rFindConstant;
 import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Hash.hashHopDag;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.*;

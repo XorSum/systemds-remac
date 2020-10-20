@@ -14,9 +14,15 @@ public class RangeTree {
         singleCse = sc;
     }
 
-
     @Override
     public String toString() {
-        return "(" + left + "," + right + ")";
+         StringBuilder sb = new StringBuilder();
+         sb.append("{" + left + "," + right + ","  );
+         for (RangeTree son: children){
+             sb.append(son.toString());
+         }
+         sb.append("}");
+         return sb.toString();
     }
+
 }

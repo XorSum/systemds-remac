@@ -47,12 +47,12 @@ public  class SingleCse {
 
     public boolean contain(SingleCse innner) {
         HashSet<ArrayList<Integer>> mask = new HashSet<>();
-        for (Range p: ranges) {
+        for (Range or: ranges) {
             ArrayList<Integer> tmp = new ArrayList<>();
-            for (Range q: innner.ranges) {
-                if (p.conflict(q)) return false;
-                if (p.contain(q)) {
-                    tmp.add(q.left - p.left);
+            for (Range ir: innner.ranges) {
+                if (or.conflict(ir)) return false;
+                if (or.contain(ir)) {
+                    tmp.add(ir.left - or.left);
                 }
             }
             mask.add(tmp);

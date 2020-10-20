@@ -7,10 +7,7 @@ import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
 import org.apache.sysds.hops.rewrite.dfp.utils.ConstantUtil;
 import org.apache.sysds.hops.rewrite.dfp.utils.FakeCostEstimator;
 import org.apache.sysds.hops.rewrite.dfp.utils.MyExplain;
-import org.apache.sysds.parser.StatementBlock;
-import org.apache.sysds.parser.VariableSet;
-import org.apache.sysds.parser.WhileStatement;
-import org.apache.sysds.parser.WhileStatementBlock;
+import org.apache.sysds.parser.*;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
 
 import java.util.*;
@@ -42,37 +39,45 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
         if (sb == null) return res;
         if (sb instanceof WhileStatementBlock) {
             System.out.println("While Statement");
+
             WhileStatementBlock wsb = (WhileStatementBlock) sb;
-
-            VariableSet variablesUpdated = wsb.variablesUpdated();
-            ConstantUtil.init(variablesUpdated);
-
             WhileStatement ws = (WhileStatement) wsb.getStatement(0);
+            VariableSet variablesUpdated = wsb.variablesUpdated();
 
-            ArrayList<StatementBlock> body = ws.getBody();
-            for (int j = 0; j < body.size(); j++) {
-                StatementBlock s = body.get(j);
+            ConstantUtil.init(variablesUpdated);
+            RewriteCoordinate.variablesUpdated = variablesUpdated;
+            RewriteCoordinate.onlySearchConstantSubExp = true;
+
+            ArrayList<Hop> twriteHops = new ArrayList<>();
+
+            for (int j = 0; j < ws.getBody().size(); j++) {
+                StatementBlock s = ws.getBody().get(j);
                 if (s == null || s.getHops() == null) continue;
                 for (int k = 0; k < s.getHops().size(); k++) {
-
                     Hop hop = s.getHops().get(k);
                     Hop copy = deepCopyHopsDag(hop);
                     System.out.println(" Exp =" + MyExplain.myExplain(copy));
-                    double cost =  FakeCostEstimator.estimate(hop,null);
+                    copy = RewriteCoordinate.rewiteHopDag(copy);
+                    MySolution mySolution = ConstantUtil.liftLoopConstant(copy);
+
+                    s.getHops().set(k,mySolution.body);
+                 //   System.out.println(preStatmentBlock.getHops());
+                    ArrayList<Hop> preHop = mySolution.preLoopConstants;
+                    twriteHops.addAll(preHop);
+                 //   System.out.println(preHop);
+
+
+                  //  ArrayList<Hop> preSBhops = preStatmentBlock.getHops();
+//                    System.out.println(preSBhops);
+//                    System.out.println("x");
+
+//                    double cost =  FakeCostEstimator.estimate(hop,null);
 //                    System.out.println("cost="+cost);
 //                   RewriteDFP.rewriteDFP(copy);
-                    FakeCostEstimator.time = 0;
-
-                    RewriteCoordinate.statementBlock = sb;
-
-                    RewriteCoordinate.rewiteHopDag(copy);
-
+//                    RewriteCoordinate.statementBlock = sb;
+//                    RewriteCoordinate.rewiteHopDag(copy);
                     //  FakeCostEstimator.printTime();
-                    FakeCostEstimator.time = 0;
-
 //                    ArrayList<Hop> trees = BaoLi.generateAllTrees(copy);
-
-
 //                    ArrayList<MySolution> solutions = new ArrayList<>();
 //                    for (Hop h : trees) {
 //                        MySolution solution = liftLoopConstant(h);
@@ -81,8 +86,18 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
 //                    }
                 }
             }
-        }
-        else {
+            RewriteCoordinate.variablesUpdated = null;
+            RewriteCoordinate.onlySearchConstantSubExp = false;
+
+            StatementBlock preStatmentBlock = new StatementBlock();
+
+            preStatmentBlock.setLiveIn(wsb.liveIn());
+            preStatmentBlock.setLiveOut(wsb.liveOut());
+            preStatmentBlock.setHops(twriteHops);
+            res.add(preStatmentBlock);
+            res.add(wsb);
+        } else {
+            res.add(sb);
 //            if (sb.getHops() != null) {
 //                for (int k = 0; k < sb.getHops().size(); k++) {
 //                    Hop hop = sb.getHops().get(k);
@@ -92,7 +107,7 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
 //                }
 //            }
         }
-        res.add(sb);
+
         return res;
     }
 
@@ -100,7 +115,6 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
     public List<StatementBlock> rewriteStatementBlocks(List<StatementBlock> sbs, ProgramRewriteStatus state) {
         return sbs;
     }
-
 
 
 }
