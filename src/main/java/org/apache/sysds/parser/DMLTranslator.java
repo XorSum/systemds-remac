@@ -61,10 +61,7 @@ import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
 import org.apache.sysds.hops.rewrite.ProgramRewriter;
 import org.apache.sysds.hops.rewrite.StatementBlockRewriteRule;
-import org.apache.sysds.hops.rewrite.dfp.AnalyzeSymmetryMatrix;
-import org.apache.sysds.hops.rewrite.dfp.RewriteDFP;
-import org.apache.sysds.hops.rewrite.dfp.RewriteLoopConstrant;
-import org.apache.sysds.hops.rewrite.dfp.RewriteTempStatementBlock;
+import org.apache.sysds.hops.rewrite.dfp.*;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
 import org.apache.sysds.lops.Lop;
 import org.apache.sysds.lops.LopsException;
@@ -284,10 +281,10 @@ public class DMLTranslator
 
         long startTime = System.currentTimeMillis();
 //
-//        ProgramRewriter rewriter5 = new ProgramRewriter(new RewriteScratch());
+//        ProgramRewriter rewriter5 = new ProgramRewriter(new RewriteTempHopsDag());
 //        rewriter5.rewriteProgramHopDAGs(dmlp);
 //        resetHopsDAGVisitStatus(dmlp);
-	//	System.out.println(Explain.explain(dmlp));
+//		System.out.println(Explain.explain(dmlp));
 
         // 分析矩阵是否是对称阵
         StatementBlockRewriteRule stbrr = new AnalyzeSymmetryMatrix();

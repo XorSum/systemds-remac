@@ -99,6 +99,10 @@
 				<directory>src/main/cpp/lib</directory>
 				<targetPath>lib</targetPath>
 			</resource>
+			<resource>
+				<directory>src/main/resources</directory>
+				<targetPath>./</targetPath>
+			</resource>
 		</resources>
 
 		<plugins>

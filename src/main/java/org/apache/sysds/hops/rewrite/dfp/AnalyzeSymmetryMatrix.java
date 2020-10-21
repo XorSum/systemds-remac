@@ -1,6 +1,8 @@
 package org.apache.sysds.hops.rewrite.dfp;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.sysds.common.Types;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
@@ -19,6 +21,7 @@ import static org.apache.sysds.hops.rewrite.dfp.utils.Reorder.reorder;
 
 public class AnalyzeSymmetryMatrix extends StatementBlockRewriteRule {
 
+    protected static final Log LOG = LogFactory.getLog(AnalyzeSymmetryMatrix.class.getName());
 
     public static boolean querySymmetry(String name) {
         if (symmetryMatrixNames.containsKey(name)) {
@@ -44,11 +47,11 @@ public class AnalyzeSymmetryMatrix extends StatementBlockRewriteRule {
     public List<StatementBlock> rewriteStatementBlocks(List<StatementBlock> sbs, ProgramRewriteStatus state) {
         //    System.out.println("ppp");
         sbs_iter(sbs);
-        System.out.println("Symmetry Matrix:<<<");
+        LOG.info("Symmetry Matrix{");
         for (Map.Entry<String, Boolean> entry : symmetryMatrixNames.entrySet()) {
-            System.out.println(entry.getKey() + ":" + entry.getValue());
+            LOG.info(entry.getKey() + ":" + entry.getValue());
         }
-        System.out.println(">>>");
+        LOG.info("}");
         return sbs;
     }
 

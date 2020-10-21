@@ -22,6 +22,8 @@ package org.apache.sysds.runtime.controlprogram;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.sysds.api.DMLScript;
 import org.apache.sysds.conf.ConfigurationManager;
 import org.apache.sysds.hops.recompile.Recompiler;
@@ -37,6 +39,9 @@ import org.apache.sysds.utils.Statistics;
 
 public class BasicProgramBlock extends ProgramBlock 
 {
+
+	protected static final Log LOG = LogFactory.getLog(BasicProgramBlock.class.getName());
+
 	protected ArrayList<Instruction> _inst;
 
 	public BasicProgramBlock(Program prog) {
@@ -127,7 +132,7 @@ public class BasicProgramBlock extends ProgramBlock
 		//actual instruction execution
 		executeInstructions(tmp, ec);
 		long end = System.nanoTime();
-        System.out.println("basic program execution time = "+((end-start)/1e6)+" s");
+        LOG.info("basic program execution time = "+((end-start)/1e6)+" s");
 
 
 		//statement-block-level, lineage-based caching

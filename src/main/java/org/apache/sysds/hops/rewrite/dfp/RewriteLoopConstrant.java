@@ -1,5 +1,7 @@
 package org.apache.sysds.hops.rewrite.dfp;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
 import org.apache.sysds.hops.rewrite.StatementBlockRewriteRule;
@@ -16,6 +18,9 @@ import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHo
 
 
 public class RewriteLoopConstrant extends StatementBlockRewriteRule {
+
+    protected static final Log LOG = LogFactory.getLog(RewriteLoopConstrant.class.getName());
+
     private ExecutionContext ec;
 
     public RewriteLoopConstrant(ExecutionContext ec) {
@@ -25,7 +30,6 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
     public RewriteLoopConstrant() {
         this.ec = null;
     }
-
 
     @Override
     public boolean createsSplitDag() {
@@ -38,15 +42,16 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
 //        System.out.println("rewriteStatementBlock  " + sb.toString());
         if (sb == null) return res;
         if (sb instanceof WhileStatementBlock) {
-            System.out.println("While Statement");
+            LOG.trace("While Statement");
 
             WhileStatementBlock wsb = (WhileStatementBlock) sb;
             WhileStatement ws = (WhileStatement) wsb.getStatement(0);
             VariableSet variablesUpdated = wsb.variablesUpdated();
 
             ConstantUtil.init(variablesUpdated);
-            RewriteCoordinate.variablesUpdated = variablesUpdated;
-            RewriteCoordinate.onlySearchConstantSubExp = true;
+            RewriteCoordinate rewriteCoordinate = new RewriteCoordinate(ec);
+            rewriteCoordinate.variablesUpdated = variablesUpdated;
+            rewriteCoordinate.onlySearchConstantSubExp = true;
 
             ArrayList<Hop> twriteHops = new ArrayList<>();
 
@@ -56,8 +61,8 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
                 for (int k = 0; k < s.getHops().size(); k++) {
                     Hop hop = s.getHops().get(k);
                     Hop copy = deepCopyHopsDag(hop);
-                    System.out.println(" Exp =" + MyExplain.myExplain(copy));
-                    copy = RewriteCoordinate.rewiteHopDag(copy);
+                    LOG.debug(" Exp =" + MyExplain.myExplain(copy));
+                    copy = rewriteCoordinate.rewiteHopDag(copy);
                     MySolution mySolution = ConstantUtil.liftLoopConstant(copy);
 
                     s.getHops().set(k,mySolution.body);
@@ -86,8 +91,6 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
 //                    }
                 }
             }
-            RewriteCoordinate.variablesUpdated = null;
-            RewriteCoordinate.onlySearchConstantSubExp = false;
 
             StatementBlock preStatmentBlock = new StatementBlock();
 

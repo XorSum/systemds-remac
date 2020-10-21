@@ -331,11 +331,10 @@ public class Recompiler
 			&& SpoofCompiler.RECOMPILE_CODEGEN;
 		// todo: new & call program rewriter
 
-//		ProgramRewriter rewriter = new ProgramRewriter(new RewriteTempStatementBlock());
-		ProgramRewriter rewriter = new ProgramRewriter(new RewriteCoordinate(ec));
-
 		ArrayList<StatementBlock> sbs = new ArrayList<>();
 		sbs.add(sb);
+
+		ProgramRewriter rewriter = new ProgramRewriter(new RewriteCoordinate(ec));
 		rewriter.rRewriteStatementBlocks(sbs,new ProgramRewriteStatus(),true);
 
 
