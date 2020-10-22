@@ -1,6 +1,8 @@
 package org.apache.sysds.hops.rewrite.dfp.utils;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.MySolution;
@@ -16,21 +18,24 @@ import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.isSampleHop;
 
 public class ConstantUtil {
 
-   public static VariableSet variablesUpdated;
+    protected static final Log LOG = LogFactory.getLog(ConstantUtil.class.getName());
 
-   static Map<Long, Boolean> constantTable;
+    VariableSet variablesUpdated;
 
-   public static void  init(VariableSet variablesUpdat) {
-       variablesUpdated  = variablesUpdat;
+    Map<Long, Boolean> constantTable;
+
+    public ConstantUtil(VariableSet variablesUpdate) {
+       variablesUpdated  = variablesUpdate;
        constantTable = new HashMap<>();
    }
 
-    public static MySolution liftLoopConstant(Hop hop) {
+    public  MySolution liftLoopConstant(Hop hop) {
         Map<Long, Pair<Hop, Hop>> topConstantHops = new HashMap<>(); //   <id,<tread,twrite>        Map<Long, Boolean> constantTable = new HashMap<>();
-        Map<Long, Boolean> constantTable = new HashMap<>();
+        constantTable = new HashMap<>();
         // step 1. 判断子节点是否是常量
         rFindConstant(hop);
         // step 2. 把top常量替换为tread，把twrite放入哈希表
+        hop.resetVisitStatusForced(new HashSet<>());
         collectConstantHops(hop, topConstantHops);
         hop.resetVisitStatusForced(new HashSet<>());
         // step 3. 创建solution
@@ -46,7 +51,7 @@ public class ConstantUtil {
         return mySolution;
     }
 
-    public static boolean rFindConstant(Hop hop) {
+    public  boolean rFindConstant(Hop hop) {
         if (constantTable.containsKey(hop.getHopID())) { // 记忆化搜索
             return constantTable.get(hop.getHopID());
         }
@@ -62,12 +67,12 @@ public class ConstantUtil {
                 }
             }
         }
-        //  System.out.println("cons(" + hop.getHopID() + ") " + hop.getName()+" " + isConstant);
+        LOG.debug("cons(" + hop.getHopID() + ") " + hop.getName()+" " + isConstant);
         constantTable.put(hop.getHopID(), isConstant);
         return isConstant;
     }
 
-    private static void collectConstantHops(Hop hop,
+    private void collectConstantHops(Hop hop,
                                             Map<Long, Pair<Hop, Hop>> topConstantHops) {
         if (hop.isVisited()) return;
         if (constantTable.get(hop.getHopID())) return;
@@ -76,6 +81,7 @@ public class ConstantUtil {
             Long id = child.getHopID();
             if ( constantTable.get(child.getHopID())) {// 非常量父节点指向常量子节点,说明子节点是个top常量
                 if (!isSampleHop(child) && !hop.isScalar()) {
+                    LOG.debug("found top constant "+child.getHopID());
                     if (!topConstantHops.containsKey(id)) {
                         String name = "constant" + id;
                         Hop twrite = HopRewriteUtils.createTransientWrite(name, child);

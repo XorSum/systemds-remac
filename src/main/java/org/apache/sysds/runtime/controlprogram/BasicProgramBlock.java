@@ -128,11 +128,19 @@ public class BasicProgramBlock extends ProgramBlock
 		}
 
 
-		long start = System.nanoTime();
-		//actual instruction execution
-		executeInstructions(tmp, ec);
-		long end = System.nanoTime();
-        LOG.info("basic program execution time = "+((end-start)/1e6)+" s");
+
+		try {
+			long start = System.nanoTime();
+			//actual instruction execution
+			executeInstructions(tmp, ec);
+			long end = System.nanoTime();
+			LOG.info("basic program execution time = "+((end-start)/1e6)+" s");
+		} catch (Exception e) {
+			LOG.error("basic program execution error");
+			e.printStackTrace();
+			throw e;
+		}
+
 
 
 		//statement-block-level, lineage-based caching

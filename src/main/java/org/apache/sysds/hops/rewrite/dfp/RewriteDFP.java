@@ -80,6 +80,7 @@ public class RewriteDFP extends HopRewriteRule {
         return solutions;
     }
 
+    static ConstantUtil constantUtil = new ConstantUtil(null);
 
     private static void func(Hop root,
                              boolean onlySearchConstantSubExp) {
@@ -121,7 +122,7 @@ public class RewriteDFP extends HopRewriteRule {
 
 
                 if (onlySearchConstantSubExp) {
-                    solution = ConstantUtil.liftLoopConstant(hop);
+                    solution = constantUtil.liftLoopConstant(hop);
                     System.out.println(solution);
                 } else {
                     solution = new MySolution();

@@ -291,13 +291,17 @@ public class DMLTranslator
         stbrr.rewriteStatementBlocks(dmlp.getStatementBlocks(),new ProgramRewriteStatus());
         resetHopsDAGVisitStatus(dmlp);
 
-		ProgramRewriter rewriter4 = new ProgramRewriter(new RewriteCoordinate(null));
-		rewriter4.rewriteProgramHopDAGs(dmlp);
+//		ProgramRewriter rewriter4 = new ProgramRewriter(new RewriteCoordinate(null));
+//		rewriter4.rewriteProgramHopDAGs(dmlp);
+//		resetHopsDAGVisitStatus(dmlp);
+
+		ProgramRewriter rewriter5 = new ProgramRewriter(new RewriteLoopConstrant(null));
+		rewriter5.rewriteProgramHopDAGs(dmlp);
 		resetHopsDAGVisitStatus(dmlp);
 
-//		ProgramRewriter rewriter5 = new ProgramRewriter(new RewriteLoopConstrant(null));
-//		rewriter5.rewriteProgramHopDAGs(dmlp);
+//		System.out.println(Explain.explain(dmlp));
 //		resetHopsDAGVisitStatus(dmlp);
+
 
 		// apply common sub expression rewrites
 //        ProgramRewriter rewriter3 = new ProgramRewriter(new RewriteDFP());
