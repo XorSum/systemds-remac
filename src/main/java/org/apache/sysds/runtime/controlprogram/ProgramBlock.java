@@ -36,12 +36,8 @@ import org.apache.sysds.runtime.controlprogram.caching.MatrixObject;
 import org.apache.sysds.runtime.controlprogram.caching.MatrixObject.UpdateType;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
 import org.apache.sysds.runtime.instructions.Instruction;
-import org.apache.sysds.runtime.instructions.cp.BooleanObject;
-import org.apache.sysds.runtime.instructions.cp.Data;
-import org.apache.sysds.runtime.instructions.cp.DoubleObject;
-import org.apache.sysds.runtime.instructions.cp.IntObject;
-import org.apache.sysds.runtime.instructions.cp.ScalarObject;
-import org.apache.sysds.runtime.instructions.cp.StringObject;
+import org.apache.sysds.runtime.instructions.cp.*;
+import org.apache.sysds.runtime.instructions.spark.BinarySPInstruction;
 import org.apache.sysds.runtime.lineage.LineageCache;
 import org.apache.sysds.runtime.lineage.LineageCacheConfig.ReuseCacheType;
 import org.apache.sysds.runtime.matrix.data.MatrixBlock;
@@ -197,12 +193,38 @@ public abstract class ProgramBlock implements ParseInfo
 	}
 	
 	protected void executeInstructions(ArrayList<Instruction> inst, ExecutionContext ec) {
+		//  find name to set persist
+		for (int i=0;i<inst.size();i++) {
+			Instruction currInst = inst.get(i);
+			if (currInst instanceof VariableCPInstruction) {
+				VariableCPInstruction variableCPInstruction = (VariableCPInstruction) currInst;
+				if (variableCPInstruction.getVariableOpcode()==VariableCPInstruction.VariableOperationCode.CopyVariable) {
+					CPOperand in1 = variableCPInstruction.getInput1();
+					CPOperand in2 = variableCPInstruction.getInput2();
+					if ("h".equals(in2.getName())) {
+						System.out.println("Persist " + in1.getName());
+						TempPersist.rddName = in1.getName();
+					}
+				}
+			}
+		}
+
+
 		for (int i = 0; i < inst.size(); i++) {
 			//indexed access required due to dynamic add
 			Instruction currInst = inst.get(i);
 			//execute instruction
 			executeSingleInstruction(currInst, ec);
 		}
+
+		//  unpersist
+
+		while (TempPersist.rdds.size()>3) {
+			TempPersist.rdds.get(0).unpersist();
+			TempPersist.rdds.remove(0);
+		}
+
+
 	}
 
 	protected ScalarObject executePredicateInstructions(ArrayList<Instruction> inst, ValueType retType, ExecutionContext ec) {

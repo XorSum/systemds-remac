@@ -244,6 +244,9 @@ public class SparkExecutionContext extends ExecutionContext
 	public static SparkConf createSystemDSSparkConf() {
 		SparkConf conf = new SparkConf();
 
+//		conf.setAppName("systemds");
+//		conf.setMaster("local");
+
 		//always set unlimited result size (required for cp collect)
 		conf.set("spark.driver.maxResultSize", "0");
 
