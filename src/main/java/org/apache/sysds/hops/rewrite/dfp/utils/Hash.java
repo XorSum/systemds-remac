@@ -2,6 +2,7 @@ package org.apache.sysds.hops.rewrite.dfp.utils;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.sysds.hops.Hop;
+import org.apache.sysds.hops.LiteralOp;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 
 import static org.apache.sysds.hops.rewrite.dfp.AnalyzeSymmetryMatrix.querySymmetry;

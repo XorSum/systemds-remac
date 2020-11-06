@@ -24,6 +24,7 @@ public class AnalyzeSymmetryMatrix extends StatementBlockRewriteRule {
     protected static final Log LOG = LogFactory.getLog(AnalyzeSymmetryMatrix.class.getName());
 
     public static boolean querySymmetry(String name) {
+        if ("h".equals(name)) return true;
         if (symmetryMatrixNames.containsKey(name)) {
             return symmetryMatrixNames.get(name);
         }

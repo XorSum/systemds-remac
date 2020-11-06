@@ -37,9 +37,11 @@ public class MyExplain {
             sb.append(hop.getName());
         } else if (HopRewriteUtils.isMatrixMultiply(hop)) {
             // 矩阵乘法
+            sb.append("(");
             sb.append(explain_iter(hop.getInput().get(0)));
-            sb.append("%*%");
+            sb.append(" %*% ");
             sb.append(explain_iter(hop.getInput().get(1)));
+            sb.append(")");
         } else if (HopRewriteUtils.isTransposeOperation(hop)) {
             // 转置
             sb.append("t(");
@@ -48,9 +50,11 @@ public class MyExplain {
         } else if (hop instanceof BinaryOp) {
             String op = ((BinaryOp) hop).getOp().toString();
             //System.out.println(op);
+            sb.append("(");
             sb.append(explain_iter(hop.getInput().get(0)));
-            sb.append(op);
+            sb.append(" "+op+" ");
             sb.append(explain_iter(hop.getInput().get(1)));
+            sb.append(")");
         } else {
             sb.append("{");
             sb.append(hop.getOpString());

@@ -42,7 +42,6 @@ public class Reorder {
             hash1 = hash2;
             hash2 = hashHopDag(hop);
         } while (hash2.compareTo(hash1) != 0);
-
         return hop;
     }
 }
