@@ -291,13 +291,13 @@ public class DMLTranslator
         stbrr.rewriteStatementBlocks(dmlp.getStatementBlocks(),new ProgramRewriteStatus());
         resetHopsDAGVisitStatus(dmlp);
 
-//		ProgramRewriter rewriter4 = new ProgramRewriter(new RewriteCoordinate(null));
-//		rewriter4.rewriteProgramHopDAGs(dmlp);
-//		resetHopsDAGVisitStatus(dmlp);
-
-		ProgramRewriter rewriter5 = new ProgramRewriter(new RewriteLoopConstrant(null));
-		rewriter5.rewriteProgramHopDAGs(dmlp);
+		ProgramRewriter rewriter4 = new ProgramRewriter(new RewriteCoordinate(null));
+		rewriter4.rewriteProgramHopDAGs(dmlp);
 		resetHopsDAGVisitStatus(dmlp);
+
+//		ProgramRewriter rewriter5 = new ProgramRewriter(new RewriteLoopConstrant(null));
+//		rewriter5.rewriteProgramHopDAGs(dmlp);
+//		resetHopsDAGVisitStatus(dmlp);
 
 //		System.out.println(Explain.explain(dmlp));
 //		resetHopsDAGVisitStatus(dmlp);
@@ -316,7 +316,7 @@ public class DMLTranslator
 
         long endTime = System.currentTimeMillis();
         long totalTime = endTime -startTime;
-        System.out.println("该段代码执行耗时：" + totalTime + " ms");
+        System.out.println("pre compile rewrite cost time = " + totalTime + " ms");
 
         //apply hop rewrites (static rewrites)
 		ProgramRewriter rewriter = new ProgramRewriter(true, false);

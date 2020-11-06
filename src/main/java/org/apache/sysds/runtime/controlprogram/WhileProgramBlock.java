@@ -105,6 +105,7 @@ public class WhileProgramBlock extends ProgramBlock
 			
 			//run loop body until predicate becomes false
 			while( executePredicate(ec).getBooleanValue() ) {
+				long start = System.nanoTime();
 				if (DMLScript.LINEAGE_DEDUP)
 					ec.getLineage().resetDedupPath();
 
@@ -122,6 +123,8 @@ public class WhileProgramBlock extends ProgramBlock
 					// hook the dedup map to the main lineage trace
 					ec.getLineage().traceCurrentDedupPath(this, ec);
 				}
+				long end = System.nanoTime();
+				System.out.println("WhileExecTime = "+((end-start)/1e9)+"s");
 			}
 			
 			// clear current LineageDedupBlock

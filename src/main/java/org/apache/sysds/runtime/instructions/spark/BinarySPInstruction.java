@@ -20,11 +20,13 @@
 package org.apache.sysds.runtime.instructions.spark;
 
 import org.apache.spark.api.java.JavaPairRDD;
+import org.apache.spark.storage.StorageLevel;
 import org.apache.sysds.common.Types.DataType;
 import org.apache.sysds.common.Types.ValueType;
 import org.apache.sysds.lops.BinaryM.VectorType;
 import org.apache.sysds.lops.Lop;
 import org.apache.sysds.runtime.DMLRuntimeException;
+import org.apache.sysds.runtime.controlprogram.TempPersist;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
 import org.apache.sysds.runtime.controlprogram.context.SparkExecutionContext;
 import org.apache.sysds.runtime.data.TensorBlock;
@@ -158,7 +160,9 @@ public abstract class BinarySPInstruction extends ComputationSPInstruction {
 		DataCharacteristics mc1 = sec.getDataCharacteristics(input1.getName());
 		DataCharacteristics mc2 = sec.getDataCharacteristics(input2.getName());
 		DataCharacteristics mcOut = sec.getDataCharacteristics(output.getName());
-		
+
+		System.out.println("processMatrixMatrixBinaryInstruction  "+ input1.getName()+" "+input2.getName()+" "+output.getName() );
+
 		BinaryOperator bop = (BinaryOperator) _optr;
 	
 		//vector replication if required (mv or outer operations)
@@ -178,7 +182,13 @@ public abstract class BinarySPInstruction extends ComputationSPInstruction {
 		JavaPairRDD<MatrixIndexes,MatrixBlock> out = in1
 			.join(in2, numPrefPart)
 			.mapValues(new MatrixMatrixBinaryOpFunction(bop));
-		
+
+		if ( TempPersist.rddName!=null && TempPersist.rddName.equals(output.getName())) {
+			System.out.println("Persist "+output.getName());
+			out = out.persist(StorageLevel.MEMORY_AND_DISK());
+			TempPersist.rdds.add(out);
+		}
+
 		//set output RDD
 		sec.setRDDHandleForVariable(output.getName(), out);
 		sec.addLineageRDD(output.getName(), input1.getName());
