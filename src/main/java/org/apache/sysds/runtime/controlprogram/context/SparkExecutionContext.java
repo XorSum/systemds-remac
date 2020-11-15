@@ -244,7 +244,7 @@ public class SparkExecutionContext extends ExecutionContext
 	public static SparkConf createSystemDSSparkConf() {
 		SparkConf conf = new SparkConf();
 
-//		conf.setMaster("local");
+//		conf.setMaster("local[6]");
 //		conf.setAppName("SystemDS");
 
 		//always set unlimited result size (required for cp collect)
@@ -1039,7 +1039,7 @@ public class SparkExecutionContext extends ExecutionContext
 			
 			//kickoff asynchronous allocation
 			Future<MatrixBlock> fout = out.allocateBlockAsync();
-			
+
 			//trigger pending RDD operations and collect blocks
 			List<Tuple2<MatrixIndexes,MatrixBlock>> list = rdd.collect();
 			out = IOUtilFunctions.get(fout); //wait for allocation

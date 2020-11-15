@@ -25,11 +25,13 @@ import org.apache.sysds.runtime.matrix.data.MatrixBlock;
 import org.apache.sysds.runtime.meta.DataCharacteristics;
 import org.apache.sysds.runtime.meta.MatrixCharacteristics;
 
+import java.util.Arrays;
+
 /**
  * Helper class to represent matrix multiply operators in a DAG
  * along with references to its abstract data handles.
  */
-public class MMNode 
+public class MMNode
 {
 	private final MMNode _m1;
 	private final MMNode _m2;
@@ -38,7 +40,9 @@ public class MMNode
 	private Object _synops = null;
 	private final OpCode _op;
 	private final long[] _misc;
-	
+
+	public boolean estimated = false;
+
 	public MMNode(MatrixBlock in) {
 		_m1 = null;
 		_m2 = null;
@@ -47,7 +51,16 @@ public class MMNode
 		_op = null;
 		_misc = null;
 	}
-	
+
+	public MMNode(DataCharacteristics dataCharacteristics) {
+		_m1 = null;
+		_m2 = null;
+		_data = new MatrixBlock();
+		_mc = dataCharacteristics;
+		_op = null;
+		_misc = null;
+	}
+
 	public MMNode(MMNode left, MMNode right, OpCode op, long[] misc) {
 		_m1 = left;
 		_m2 = right;
@@ -56,19 +69,19 @@ public class MMNode
 		_op = op;
 		_misc = misc;
 	}
-	
+
 	public MMNode(MMNode left, MMNode right, OpCode op) {
 		this(left, right, op, null);
 	}
-	
+
 	public MMNode(MMNode left, OpCode op) {
 		this(left, null, op);
 	}
-	
+
 	public MMNode(MMNode left, OpCode op, long[] misc) {
 		this(left, null, op, misc);
 	}
-	
+
 	public void reset() {
 		if( _m1 != null )
 			_m1.reset();
@@ -76,58 +89,71 @@ public class MMNode
 			_m2.reset();
 		_synops = null;
 	}
-	
+
 	public int getRows() {
 		return (int)_mc.getRows();
 	}
-	
+
 	public int getCols() {
 		return (int)_mc.getCols();
 	}
-	
+
 	public long[] getMisc() {
 		return _misc;
 	}
-	
+
 	public long getMisc(int pos) {
 		if( _misc == null )
 			throw new DMLRuntimeException("Extra meta data not available.");
 		return _misc[pos];
 	}
-	
+
 	public DataCharacteristics getDataCharacteristics() {
 		return _mc;
 	}
-	
+
 	public DataCharacteristics setDataCharacteristics(DataCharacteristics mc) {
 		return _mc.set(mc); //implicit copy
 	}
-	
+
 	public MMNode getLeft() {
 		return _m1;
 	}
-	
+
 	public MMNode getRight() {
 		return _m2;
 	}
-	
+
 	public boolean isLeaf() {
 		return _data != null;
 	}
-	
+
 	public MatrixBlock getData() {
 		return _data;
 	}
-	
+
 	public void setSynopsis(Object obj) {
 		_synops = obj;
 	}
-	
+
 	public Object getSynopsis() {
 		return _synops;
 	}
-	
+
 	public OpCode getOp() {
 		return _op;
+	}
+
+	@Override
+	public String toString() {
+		return "MMNode{" +
+//				(_m1 != null ? "_m1=" + _m1 : "") +
+//				(_m2 != null ? ", _m2=" + _m2 : "") +
+			//	(_data != null ? ", _data=" + _data : "") +
+				(_mc != null ? ", _mc=" + _mc : "") +
+				//	", _synops=" + _synops +
+				(_op != null ? ", _op=" + _op : "") +
+				//	", _misc=" + Arrays.toString(_misc) +
+				'}';
 	}
 }

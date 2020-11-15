@@ -441,4 +441,8 @@ public class MapmmSPInstruction extends BinarySPInstruction {
 			}
 		}
 	}
+
+	public CacheType getCacheType() {
+		return _type;
+	}
 }

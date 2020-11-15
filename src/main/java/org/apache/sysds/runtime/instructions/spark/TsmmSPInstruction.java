@@ -90,5 +90,8 @@ public class TsmmSPInstruction extends UnarySPInstruction {
 			return arg0._2().transposeSelfMatrixMultOperations(new MatrixBlock(), _type);
 		}
 	}
-	
+
+	public MMTSJType getMMTSJType() {
+		return _type;
+	}
 }

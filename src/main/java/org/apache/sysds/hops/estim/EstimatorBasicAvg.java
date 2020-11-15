@@ -33,13 +33,18 @@ public class EstimatorBasicAvg extends SparsityEstimator
 {
 	@Override
 	public DataCharacteristics estim(MMNode root) {
+		if (root.isLeaf()) return root.getDataCharacteristics();
+	//	System.out.println("estim "+ root);
+	//	if (root.estimated) return root.getDataCharacteristics();
 		DataCharacteristics dc1 = !root.getLeft().isLeaf() ?
 			estim(root.getLeft()) : root.getLeft().getDataCharacteristics();
 		DataCharacteristics dc2 = root.getRight()==null ? null :
 			!root.getRight().isLeaf() ? estim(root.getRight()) : 
 			root.getRight().getDataCharacteristics();
-		return root.setDataCharacteristics(
-				estimIntern(dc1, dc2, root.getOp()));
+		DataCharacteristics dc = estimIntern(dc1, dc2, root.getOp());
+		root.setDataCharacteristics(dc);
+	//	root.estimated = true;
+		return dc;
 	}
 
 	@Override

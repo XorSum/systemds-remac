@@ -172,4 +172,24 @@ public class MapmmChainSPInstruction extends SPInstruction {
 					_pmW.getBlock(rowIx,1), new MatrixBlock(), _chainType);
 		}
 	}
+
+	public CPOperand get_input1() {
+		return _input1;
+	}
+
+	public CPOperand get_input2() {
+		return _input2;
+	}
+
+	public CPOperand get_input3() {
+		return _input3;
+	}
+
+	public CPOperand get_output() {
+		return _output;
+	}
+
+	public ChainType get_chainType() {
+		return _chainType;
+	}
 }

@@ -2537,7 +2537,7 @@ public class MatrixBlock extends MatrixValue implements CacheBlock, Externalizab
 		long estnnz = 0;
 		if( atype == BinaryAccessType.OUTER_VECTOR_VECTOR )
 		{
-			estnnz = OptimizerUtils.getOuterNonZeros(
+			estnnz = (long) OptimizerUtils.getOuterNonZeros(
 				m, n, nz1, nz2, op.getBinaryOperatorOpOp2());
 		}
 		else //DEFAULT CASE

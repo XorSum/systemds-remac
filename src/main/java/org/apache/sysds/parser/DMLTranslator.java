@@ -287,13 +287,13 @@ public class DMLTranslator
 //		System.out.println(Explain.explain(dmlp));
 
         // 分析矩阵是否是对称阵
-        StatementBlockRewriteRule stbrr = new AnalyzeSymmetryMatrix();
-        stbrr.rewriteStatementBlocks(dmlp.getStatementBlocks(),new ProgramRewriteStatus());
-        resetHopsDAGVisitStatus(dmlp);
+//        StatementBlockRewriteRule stbrr = new AnalyzeSymmetryMatrix();
+//        stbrr.rewriteStatementBlocks(dmlp.getStatementBlocks(),new ProgramRewriteStatus());
+//        resetHopsDAGVisitStatus(dmlp);
 
-		ProgramRewriter rewriter4 = new ProgramRewriter(new RewriteCoordinate(null));
-		rewriter4.rewriteProgramHopDAGs(dmlp);
-		resetHopsDAGVisitStatus(dmlp);
+//		ProgramRewriter rewriter4 = new ProgramRewriter(new RewriteCoordinate(null));
+//		rewriter4.rewriteProgramHopDAGs(dmlp);
+//		resetHopsDAGVisitStatus(dmlp);
 
 //		ProgramRewriter rewriter5 = new ProgramRewriter(new RewriteLoopConstrant(null));
 //		rewriter5.rewriteProgramHopDAGs(dmlp);

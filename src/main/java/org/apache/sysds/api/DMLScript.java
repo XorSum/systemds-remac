@@ -45,6 +45,8 @@ import org.apache.sysds.conf.CompilerConfig;
 import org.apache.sysds.conf.ConfigurationManager;
 import org.apache.sysds.conf.DMLConfig;
 import org.apache.sysds.hops.OptimizerUtils;
+import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
+import org.apache.sysds.hops.rewrite.dfp.utils.FakeCostEstimator;
 import org.apache.sysds.lops.Lop;
 import org.apache.sysds.parser.DMLProgram;
 import org.apache.sysds.parser.DMLTranslator;
@@ -387,7 +389,10 @@ public class DMLScript
 		
 		//Step 7: generate runtime program, incl codegen
 		Program rtprog = dmlt.getRuntimeProgram(prog, ConfigurationManager.getDMLConfig());
-		
+
+//		FakeCostEstimator2.printInstructions(rtprog);
+//		FakeCostEstimator2.estimate(rtprog);
+
 		//Step 9: prepare statistics [and optional explain output]
 		//count number compiled MR jobs / SP instructions	
 		ExplainCounts counts = Explain.countDistributedOperations(rtprog);

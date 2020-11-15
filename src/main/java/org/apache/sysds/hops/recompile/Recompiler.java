@@ -22,10 +22,12 @@ package org.apache.sysds.hops.recompile;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
+import org.apache.sysds.hops.rewrite.RewriteMatrixMultChainOptimizationSparse;
 import org.apache.sysds.hops.rewrite.dfp.RewriteLoopConstrant;
 
 import org.apache.sysds.hops.rewrite.dfp.RewriteTempStatementBlock;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
+import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
 import org.apache.sysds.hops.rewrite.dfp.utils.FakeCostEstimator;
 import org.apache.wink.json4j.JSONObject;
 import org.apache.sysds.api.DMLScript;
@@ -158,8 +160,10 @@ public class Recompiler
 		//however, we create deep copies for most dags to allow for concurrent recompile
 		synchronized( hops ) {
 			newInst = recompile(sb, hops, ec, status, inplace, replaceLit, true, false, false, null, tid);
+//			FakeCostEstimator2.ec = ec;
+//			FakeCostEstimator2.rEstimate(newInst);
 		}
-		
+
 		// replace thread ids in new instructions
 		if( ProgramBlock.isThreadID(tid) ) //only in parfor context
 			newInst = ProgramConverter.createDeepCopyInstructionSet(newInst, tid, -1, null, null, null, false, false);
@@ -171,7 +175,7 @@ public class Recompiler
 		// explain recompiled hops / instructions
 		if( DMLScript.EXPLAIN == ExplainType.RECOMPILE_RUNTIME )
 			logExplainDAG(sb, hops, newInst);
-	
+
 		return newInst;
 	}
 
@@ -331,9 +335,9 @@ public class Recompiler
 			&& SpoofCompiler.RECOMPILE_CODEGEN;
 		// todo: new & call program rewriter
 
+		FakeCostEstimator2.ec = ec;
 		ArrayList<StatementBlock> sbs = new ArrayList<>();
 		sbs.add(sb);
-
 		ProgramRewriter rewriter = new ProgramRewriter(new RewriteCoordinate(ec));
 		rewriter.rRewriteStatementBlocks(sbs,new ProgramRewriteStatus(),true);
 

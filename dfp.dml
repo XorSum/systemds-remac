@@ -54,7 +54,7 @@ o = diag(matrix(1, rows=m, cols=1))
 
 i = 1
 end = FALSE
-while((i<1000)&(!end)) {
+while((i<10)&(!end)) {
     g = 2 * t(a) %*% (a %*% x - b)
     loss = sum(t(g)%*%g)
     print("i="+toString(i)+"  lossss="+toString(loss))
@@ -69,13 +69,13 @@ while((i<1000)&(!end)) {
     # 探测步长
     d = - h %*% g
  #   print("d="+toString(d))
-    mk = 1
-    m = 1
+    mk = 0
+    m = 0
     found = FALSE
     oldf = f(a,b,x)
     print("oldf="+toString(oldf))
     xishu = sigma * sum(t(g)%*%d)
-    while((m<30)&(!found)) {
+    while((m<5)&(!found)) {
          print("m="+toString(m))
          newf = f(a,b,pow(rho,m)*d + x)
          tmpf = oldf + xishu * pow(rho,m)
@@ -98,6 +98,12 @@ while((i<1000)&(!end)) {
   #  h = hy%*%t(hy)
 
     i = i + 1
+
+
+    #    print(toString(h))
+
+
+
 }
 
 print("i="+toString(i))
@@ -108,3 +114,6 @@ print("i="+toString(i))
 
 #write(x,"hdfs://10.11.1.209:9000/data/avazu/app-tr-x1.bin",format="binary")
 #write(h,"hdfs://10.11.1.209:9000/data/avazu/app-tr-h.bin",format="binary")
+
+#write(h,"../data/h.csv",format="csv")
+

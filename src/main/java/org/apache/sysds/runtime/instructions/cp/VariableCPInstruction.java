@@ -1322,4 +1322,8 @@ public class VariableCPInstruction extends CPInstruction implements LineageTrace
 	public static String getUniqueFileName(String fname) {
 		return InstructionUtils.concatStrings(fname, "_", String.valueOf(_uniqueVarID.getNextID()));
 	}
+
+	public MetaData getMetadata() {
+		return metadata;
+	}
 }
