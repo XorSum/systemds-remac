@@ -54,11 +54,11 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     private boolean skipEstimateStage = false;
     //    private int hSingleCseNumber = 546;
-    private int hSingleCseNumber = 1386;
+    private int hSingleCseNumber = 355;
 
     // private int hMultiCseId = 6392;
 
-    private int maxMultiCseNumber = 5000; // 设为-1,则生成所有的；设为正数，则最多生成那么多个
+    private int maxMultiCseNumber = 30000; // 设为-1,则生成所有的；设为正数，则最多生成那么多个
 
 
     // </configuration>
@@ -89,8 +89,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             }
 
             ArrayList<SingleCse> singleCses = genSingleCse();
-            if (singleCses.size() == 0) {
-                LOG.debug("ss=0 return original hop");
+            if (singleCses.size() <= 13) {
+                LOG.debug("ss<=13 return original hop");
                 return root;
             }
 
@@ -100,7 +100,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
             if (skipEstimateStage) {
                 if (singleCses.size() != hSingleCseNumber) {
-                    LOG.debug("ne return original hop");
+                    LOG.debug("not target, return original hop");
                     return root;
                 } else {
 //                    MultiCse multiCse = createBestMultiCse546(singleCses);
@@ -199,7 +199,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             for (int l = block.left; l <= block.right; l++) {
                 //    LOG.debug("i=" + l + " name=" + leaves.get(l).hop.getName() + " updated=" + variablesUpdated.containsVariable(leaves.get(l).hop.getName()));
                 if (onlySearchConstantSubExp && isConstant(l)) continue;
-                for (int r = l + 1; r <= block.right; r++) {
+                for (int r = l + 2; r <= block.right; r++) {
                     if (onlySearchConstantSubExp && isConstant(r)) break;
                     long first = rangeHash1(l, r);
                     long second = rangeHash2(l, r);
@@ -448,6 +448,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         LOG.info("construct hop time =" + (constructHopTime / 1e6) + "ms");
         LOG.info("estimate cost time =" + (estimateCostTime / 1e6) + "ms");
         LOG.info("minium cost = " + cost);
+        LOG.info("original cost = " + newCost);
         if (id != -1) {
             LOG.info("use rewrited hop, multicse id = " + id);
             if (multiCse != null) {

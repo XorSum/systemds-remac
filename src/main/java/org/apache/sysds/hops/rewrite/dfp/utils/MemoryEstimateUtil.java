@@ -18,12 +18,12 @@ public class MemoryEstimateUtil {
 //        long dim2 = 58355534;
 //        long nnz = 96855;
 
-        long dim1 =   4077266;
-        long dim2 = 115;
-        long nnz = dim1 * dim2;
+        long dim1 = 45840617 ;
+        long dim2 =  13;
+        long nnz =(long)(dim1 * dim2);
 //        long nnz = 383010135;
 //        System.out.println(nnz);
-        System.out.println(dim1*dim2);
+        System.out.println(nnz);
 
 
         DataOp dataOp = new DataOp( "", Types.DataType.MATRIX, Types.ValueType.FP64,
@@ -43,22 +43,22 @@ public class MemoryEstimateUtil {
 
 //        System.out.println("exec type of a*b :" + ab.optFindExecType());
 
-        DataOp  h = new DataOp("h", Types.DataType.MATRIX, Types.ValueType.FP64, Types.OpOpData.TRANSIENTREAD,"f",100,100,100,100 );
-
-        //   DataOp minus1 = new DataOp("-1",Types.DataType.SCALAR, Types.ValueType.FP64, Types.OpOpData.TRANSIENTREAD,new HashMap<>());
-
-        LiteralOp minus1 = new LiteralOp(-1);
-
-        DataOp  g = new DataOp("g", Types.DataType.MATRIX, Types.ValueType.FP64, Types.OpOpData.TRANSIENTREAD,"f",100,1,100,100 );
-
-        Hop a = HopRewriteUtils.createBinary(h,minus1, Types.OpOp2.MULT);
-        Hop b = HopRewriteUtils.createMatrixMultiply(a,g);
-
-        System.out.println(MyExplain.myExplain(b));
-
-        Hop c = reorder(b);
-
-        System.out.println(MyExplain.myExplain(c));
+//        DataOp  h = new DataOp("h", Types.DataType.MATRIX, Types.ValueType.FP64, Types.OpOpData.TRANSIENTREAD,"f",100,100,100,100 );
+//
+//        //   DataOp minus1 = new DataOp("-1",Types.DataType.SCALAR, Types.ValueType.FP64, Types.OpOpData.TRANSIENTREAD,new HashMap<>());
+//
+//        LiteralOp minus1 = new LiteralOp(-1);
+//
+//        DataOp  g = new DataOp("g", Types.DataType.MATRIX, Types.ValueType.FP64, Types.OpOpData.TRANSIENTREAD,"f",100,1,100,100 );
+//
+//        Hop a = HopRewriteUtils.createBinary(h,minus1, Types.OpOp2.MULT);
+//        Hop b = HopRewriteUtils.createMatrixMultiply(a,g);
+//
+//        System.out.println(MyExplain.myExplain(b));
+//
+//        Hop c = reorder(b);
+//
+//        System.out.println(MyExplain.myExplain(c));
 
 
     }

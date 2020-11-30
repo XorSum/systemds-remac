@@ -29,6 +29,8 @@ import org.apache.sysds.hops.rewrite.dfp.RewriteTempStatementBlock;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
 import org.apache.sysds.hops.rewrite.dfp.utils.FakeCostEstimator;
+import org.apache.sysds.parser.*;
+import org.apache.sysds.runtime.controlprogram.*;
 import org.apache.wink.json4j.JSONObject;
 import org.apache.sysds.api.DMLScript;
 import org.apache.sysds.api.jmlc.JMLCUtils;
@@ -59,23 +61,7 @@ import org.apache.sysds.hops.rewrite.ProgramRewriter;
 import org.apache.sysds.lops.Lop;
 import org.apache.sysds.lops.LopProperties.ExecType;
 import org.apache.sysds.lops.compile.Dag;
-import org.apache.sysds.parser.DMLProgram;
-import org.apache.sysds.parser.DataExpression;
-import org.apache.sysds.parser.ForStatementBlock;
-import org.apache.sysds.parser.IfStatementBlock;
-import org.apache.sysds.parser.ParseInfo;
-import org.apache.sysds.parser.Statement;
-import org.apache.sysds.parser.StatementBlock;
-import org.apache.sysds.parser.WhileStatementBlock;
 import org.apache.sysds.runtime.DMLRuntimeException;
-import org.apache.sysds.runtime.controlprogram.BasicProgramBlock;
-import org.apache.sysds.runtime.controlprogram.ForProgramBlock;
-import org.apache.sysds.runtime.controlprogram.FunctionProgramBlock;
-import org.apache.sysds.runtime.controlprogram.IfProgramBlock;
-import org.apache.sysds.runtime.controlprogram.LocalVariableMap;
-import org.apache.sysds.runtime.controlprogram.ParForProgramBlock;
-import org.apache.sysds.runtime.controlprogram.ProgramBlock;
-import org.apache.sysds.runtime.controlprogram.WhileProgramBlock;
 import org.apache.sysds.runtime.controlprogram.caching.CacheableData;
 import org.apache.sysds.runtime.controlprogram.caching.FrameObject;
 import org.apache.sysds.runtime.controlprogram.caching.MatrixObject;
@@ -108,6 +94,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+
+import static org.apache.sysds.api.DMLScript.DML_FILE_PATH_ANTLR_PARSER;
 
 /**
  * Dynamic recompilation of hop dags to runtime instructions, which includes the 
@@ -163,7 +151,10 @@ public class Recompiler
 //			FakeCostEstimator2.ec = ec;
 //			FakeCostEstimator2.rEstimate(newInst);
 		}
-
+	//	if (FakeCostEstimator2.recompileFlag) {
+	//		FakeCostEstimator2.ec = ec;
+	//		FakeCostEstimator2.testScratch();
+	//	}
 		// replace thread ids in new instructions
 		if( ProgramBlock.isThreadID(tid) ) //only in parfor context
 			newInst = ProgramConverter.createDeepCopyInstructionSet(newInst, tid, -1, null, null, null, false, false);

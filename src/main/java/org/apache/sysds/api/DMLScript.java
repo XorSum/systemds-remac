@@ -40,6 +40,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.util.GenericOptionsParser;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 import org.apache.sysds.common.Types.ExecMode;
 import org.apache.sysds.conf.CompilerConfig;
 import org.apache.sysds.conf.ConfigurationManager;
@@ -390,7 +392,8 @@ public class DMLScript
 		//Step 7: generate runtime program, incl codegen
 		Program rtprog = dmlt.getRuntimeProgram(prog, ConfigurationManager.getDMLConfig());
 
-//		FakeCostEstimator2.printInstructions(rtprog);
+		FakeCostEstimator2.printInstructions(rtprog);
+//		System.out.println("x");
 //		FakeCostEstimator2.estimate(rtprog);
 
 		//Step 9: prepare statistics [and optional explain output]
