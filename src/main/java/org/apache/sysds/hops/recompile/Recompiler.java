@@ -21,14 +21,10 @@ package org.apache.sysds.hops.recompile;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
-import org.apache.sysds.hops.rewrite.RewriteMatrixMultChainOptimizationSparse;
-import org.apache.sysds.hops.rewrite.dfp.RewriteLoopConstrant;
 
-import org.apache.sysds.hops.rewrite.dfp.RewriteTempStatementBlock;
+import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
-import org.apache.sysds.hops.rewrite.dfp.utils.FakeCostEstimator;
 import org.apache.sysds.parser.*;
 import org.apache.sysds.runtime.controlprogram.*;
 import org.apache.wink.json4j.JSONObject;
@@ -95,8 +91,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
-import static org.apache.sysds.api.DMLScript.DML_FILE_PATH_ANTLR_PARSER;
-
 /**
  * Dynamic recompilation of hop dags to runtime instructions, which includes the 
  * following substeps:
@@ -150,11 +144,11 @@ public class Recompiler
 			newInst = recompile(sb, hops, ec, status, inplace, replaceLit, true, false, false, null, tid);
 //			FakeCostEstimator2.ec = ec;
 //			FakeCostEstimator2.rEstimate(newInst);
+//			if (FakeCostEstimator2.recompileFlag) {
+//				FakeCostEstimator2.ec = ec;
+//				FakeCostEstimator2.getMatrixHistogram("a");
+//			}
 		}
-	//	if (FakeCostEstimator2.recompileFlag) {
-	//		FakeCostEstimator2.ec = ec;
-	//		FakeCostEstimator2.testScratch();
-	//	}
 		// replace thread ids in new instructions
 		if( ProgramBlock.isThreadID(tid) ) //only in parfor context
 			newInst = ProgramConverter.createDeepCopyInstructionSet(newInst, tid, -1, null, null, null, false, false);
@@ -326,11 +320,11 @@ public class Recompiler
 			&& SpoofCompiler.RECOMPILE_CODEGEN;
 		// todo: new & call program rewriter
 
-		FakeCostEstimator2.ec = ec;
-		ArrayList<StatementBlock> sbs = new ArrayList<>();
-		sbs.add(sb);
-		ProgramRewriter rewriter = new ProgramRewriter(new RewriteCoordinate(ec));
-		rewriter.rRewriteStatementBlocks(sbs,new ProgramRewriteStatus(),true);
+
+//		ArrayList<StatementBlock> sbs = new ArrayList<>();
+//		sbs.add(sb);
+//		ProgramRewriter rewriter = new ProgramRewriter(new RewriteCoordinate(ec,sb));
+//		rewriter.rRewriteStatementBlocks(sbs,new ProgramRewriteStatus(),false);
 
 
 		// prepare hops dag for recompile

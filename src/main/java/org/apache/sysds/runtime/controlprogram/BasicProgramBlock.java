@@ -92,10 +92,10 @@ public class BasicProgramBlock extends ProgramBlock
 		try
 		{
 			long t0 = DMLScript.STATISTICS ? System.nanoTime() : 0;
-//			if( ConfigurationManager.isDynamicRecompilation()
-//				&& _sb != null
-//				&& _sb.requiresRecompilation() )
-			if (_sb!=null)
+			if( ConfigurationManager.isDynamicRecompilation()
+				&& _sb != null
+				&& _sb.requiresRecompilation() )
+//			if (_sb!=null)
             {
 				tmp = Recompiler.recompileHopsDag(
 					_sb, _sb.getHops(), ec, null, false, true, _tid);

@@ -62,6 +62,9 @@ public class EstimatorMatrixHistogram extends SparsityEstimator
 	
 	public DataCharacteristics estim(MMNode root, boolean topLevel) {
 		//NOTE: not estimateInputs due to handling of topLevel
+		if (root.getSynopsis()!=null) {
+			return root.getDataCharacteristics();
+		}
 		MatrixHistogram h1 = getCachedSynopsis(root.getLeft());
 		MatrixHistogram h2 = getCachedSynopsis(root.getRight());
 		

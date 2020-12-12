@@ -6,10 +6,10 @@ import org.apache.sysds.common.Types;
 import org.apache.sysds.conf.ConfigurationManager;
 import org.apache.sysds.hops.*;
 import org.apache.sysds.hops.estim.EstimatorBasicAvg;
+import org.apache.sysds.hops.estim.EstimatorMatrixHistogram;
 import org.apache.sysds.hops.estim.MMNode;
 import org.apache.sysds.hops.estim.SparsityEstimator;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
-import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
 import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
 import org.apache.sysds.lops.MMTSJ;
 import org.apache.sysds.lops.MapMult;
@@ -23,11 +23,15 @@ import org.apache.sysds.runtime.instructions.cp.*;
 import org.apache.sysds.runtime.instructions.spark.*;
 import org.apache.sysds.runtime.matrix.data.MatrixBlock;
 import org.apache.sysds.runtime.meta.DataCharacteristics;
+import org.apache.sysds.utils.Explain;
 
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+
+import static org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch.getMatrixHistogram;
 
 public class FakeCostEstimator2 {
     protected static final Log LOG = LogFactory.getLog(FakeCostEstimator2.class.getName());
@@ -39,67 +43,34 @@ public class FakeCostEstimator2 {
     private static long defaultBlockSize = 1000;
     public static ExecutionContext ec = null;
 
-    public static double estimate(Hop root) {
-        root.resetVisitStatusForced(new HashSet<>());
-        double cost = rEatimate(root);
-        root.resetVisitStatus();
-        return cost;
-    }
-
-    private static double rEatimate(Hop hop) {
-        double cost = 0;
-        if (Judge.isLeafMatrix(hop)) {
-            long nnz = hop.getNnz();
-            cost = CpuSpeed * nnz;
-        } else if (HopRewriteUtils.isTransposeOperation(hop)) {
-            cost = CpuSpeed * hop.getNnz();
-        } else if (HopRewriteUtils.isMatrixMultiply(hop)) {
-            AggBinaryOp aggBinaryOp = (AggBinaryOp) hop;
-            aggBinaryOp.constructLops();
-            AggBinaryOp.MMultMethod mMultMethod = aggBinaryOp.getMMultMethod();
-            Hop input1 = aggBinaryOp.getInput().get(0);
-            Hop input2 = aggBinaryOp.getInput().get(1);
-            if (mMultMethod == AggBinaryOp.MMultMethod.MM) {
-
-            } else if (mMultMethod == AggBinaryOp.MMultMethod.CPMM) {
-
-            } else if (mMultMethod == AggBinaryOp.MMultMethod.MAPMM_L) {
-
-            } else if (mMultMethod == AggBinaryOp.MMultMethod.MAPMM_R) {
-
-            } else {
-
-            }
-        } else if (HopRewriteUtils.isBinaryMatrixMatrixOperation(hop)) {
-            if (HopRewriteUtils.isBinary(hop, Types.OpOp2.MULT)) {
-
-            } else if (HopRewriteUtils.isBinary(hop, Types.OpOp2.PLUS)) {
-
-            } else if (HopRewriteUtils.isBinary(hop, Types.OpOp2.MINUS)) {
-
-            } else if (HopRewriteUtils.isBinary(hop, Types.OpOp2.DIV)) {
-
-            }
-        } else if (HopRewriteUtils.isBinaryMatrixScalarOperation(hop)) {
-            long nnz = hop.getNnz();
-            cost = CpuSpeed * nnz;
-        }
-        return cost;
-    }
-
 
     public static double estimate(Program rtprog) {
+      //  System.out.println(name2MMNode.keySet());
         double cost = 0;
+      //  LOG.debug(Explain.explain(rtprog));
         for (ProgramBlock pb : rtprog.getProgramBlocks()) {
             try {
                 double delta = rEstimate(pb);
-                if (delta < 0 || delta >= Double.MAX_VALUE) return Double.MAX_VALUE;
+             //   LOG.debug("pb cost = "+delta);
+                if (delta < 0 || delta >= Double.MAX_VALUE) {
+              //      LOG.error("delta error");
+                    cost = Double.MAX_VALUE;
+                    break;
+                }
                 cost += delta;
             } catch (Exception e) {
-                //    e.printStackTrace();
-                return Double.MAX_VALUE;
+              //  LOG.error("delta error");
+                e.printStackTrace();
+                cost = Double.MAX_VALUE;
+                break;
             }
         }
+      //  LOG.error("for end");
+        name2MMNode.entrySet().removeIf( e-> e.getKey().startsWith("_Var")||e.getKey().startsWith("_mVar"));
+
+     //   LOG.info("Name Size = "+name2MMNode.size());
+   //     LOG.info("Names = "+name2MMNode.keySet());
+      //  LOG.debug("rtprog cost = "+cost);
         return cost;
     }
 
@@ -140,7 +111,7 @@ public class FakeCostEstimator2 {
         return cost;
     }
 
-    public static double rEstimate(ArrayList<Instruction> instructions) throws Exception {
+    private static double rEstimate(ArrayList<Instruction> instructions) throws Exception {
 //        System.out.println("<<<explain instructions");
 //        printInstruction(instructions, 0);
 //        System.out.println("explain instructions>>>");
@@ -175,7 +146,9 @@ public class FakeCostEstimator2 {
         }
     }
 
-    private static EstimatorBasicAvg estimator = new EstimatorBasicAvg();
+//    private static SparsityEstimator estimator = new EstimatorBasicAvg();
+    private static SparsityEstimator estimator = new EstimatorMatrixHistogram();
+
     private static HashMap<String, Node> name2MMNode = new HashMap<>();
     private static ArrayList<String> names = new ArrayList<>();
     private static HashMap<String, DataCharacteristics> name2DataCharacteristics = new HashMap<>();
@@ -186,6 +159,7 @@ public class FakeCostEstimator2 {
     }
 
     private static MMNode getMMNode(String name) {
+     //   LOG.trace("get mmnode " + name);
         // 先不获取matrix block, 直接用data characristic
         if (ec != null && ec.containsVariable(name)) {
             try {
@@ -194,10 +168,15 @@ public class FakeCostEstimator2 {
                     //     System.out.println("metadata " + name + " " + data.getMetaData());
                     DataCharacteristics characteristics = data.getMetaData().getDataCharacteristics();
                     MMNode mmNode = new MMNode(characteristics);
+                    if (estimator instanceof EstimatorMatrixHistogram) {
+                        DistributedScratch.ec = ec;
+                        EstimatorMatrixHistogram.MatrixHistogram histogram = getMatrixHistogram(name);
+                        mmNode.setSynopsis(histogram);
+                    }
                     return mmNode;
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+//                e.printStackTrace();
             }
         } else if (name2MMNode.containsKey(name)) {
             return name2MMNode.get(name).mmNode;
@@ -215,14 +194,16 @@ public class FakeCostEstimator2 {
 //                e.printStackTrace();
 //            }
 //        }
-        //   LOG.error("get mmnode failed " + name);
+        if (!name.startsWith("_Var"))
+            LOG.error("get mmnode failed " + name);
         return null;
     }
 
     private static void setMMNode(String name, MMNode mmNode, Types.ExecType execType) {
-//        if ("x".equals(name)) {
-//            System.out.println("x");
-//        }
+      //  LOG.trace("set mmnode " + name);
+        if ("g".equals(name)) {
+            LOG.debug("set g = "+mmNode.getDataCharacteristics()+" "+execType);
+        }
         // if (execType== Types.ExecType.SPARK)
         //    LOG.info("set mmnode " + name + " -> " + mmNode);
         name2MMNode.put(name, new Node(mmNode, execType));
@@ -238,26 +219,28 @@ public class FakeCostEstimator2 {
     private static double processInstructions(ArrayList<Instruction> instructions) throws Exception {
         double cost = 0;
         for (Instruction inst : instructions) {
+          //  System.out.println(inst);
+          //  LOG.trace(inst);
             double delta = 0;
             try {
                 if (inst instanceof CPInstruction) {
                     delta = eCPInstruction((CPInstruction) inst);
                 } else if (inst instanceof SPInstruction) {
                     delta = eSPInstruction((SPInstruction) inst);
-                } else {
-                    throw new UnhandledOperatorException(inst);
                 }
-            } catch (UnhandledOperatorException e) {
+            } catch (Exception e) {
                 System.out.println(e);
                 e.printStackTrace();
+                delta = Double.MAX_VALUE;
             }
-            if (delta < 0) {
-                //  LOG.error("ERROR NEGATIVE COST " + inst.toString());
-                //  LOG.error(inst.getClass().getName());
+            if (delta < 0|| delta>=Double.MAX_VALUE) {
+                LOG.error("error instruction: "+inst.toString());
                 return Double.MAX_VALUE;
             }
+         //   LOG.trace(inst+" |||| delta = "+ delta);
             cost += delta;
         }
+     //   LOG.debug("process cost " + cost);
         return cost;
     }
 
@@ -564,16 +547,21 @@ public class FakeCostEstimator2 {
         } else if (inst.getVariableOpcode() == VariableCPInstruction.VariableOperationCode.CastAsScalarVariable) {
             //   System.out.println("castdts " + input1.getName() + " -> " + output.getName());
             //    map.put(output.getName(), null);
-            names.add(output.getName());
+            //  names.add(output.getName());
         } else if (inst.getVariableOpcode() == VariableCPInstruction.VariableOperationCode.CopyVariable) {
-            //   System.out.println("cpvar " + input1.getName() + " -> " + input2.getName());
-            MMNode mmNode = getMMNode(input1.getName());
-            setMMNode(input2.getName(), mmNode, Types.ExecType.CP);
+         //   LOG.debug("cpvar " + input1.getName() + " -> " + input2.getName());
+            if (!input1.getName().startsWith("_Var")) {
+                MMNode mmNode = getMMNode(input1.getName());
+                if (mmNode != null)
+                    setMMNode(input2.getName(), mmNode, Types.ExecType.CP);
+            }
         } else if (inst.getVariableOpcode() == VariableCPInstruction.VariableOperationCode.MoveVariable) {
             //  System.out.println("mvvar " + input1.getName() + " -> " + input2.getName());
-            MMNode mmNode = getMMNode(input1.getName());
-            setMMNode(input2.getName(), mmNode, Types.ExecType.CP);
-            name2MMNode.remove(input1.getName());
+            if (!input1.getName().startsWith("_Var")) {
+                MMNode mmNode = getMMNode(input1.getName());
+                setMMNode(input2.getName(), mmNode, Types.ExecType.CP);
+                name2MMNode.remove(input1.getName());
+            }
         } else {
             throw new UnhandledOperatorException(inst);
         }
@@ -979,7 +967,7 @@ public class FakeCostEstimator2 {
                 DataCharacteristics dc = getDC(mmNode);
                 double cost = ShuffleSpeed * MatrixBlock.estimateSizeInMemory(dc.getRows(), dc.getCols(), dc.getSparsity());
                 cost = Math.max(cost, 0);
-             //   LOG.info(name + " collect cost = " + cost);
+                //   LOG.info(name + " collect cost = " + cost);
                 return cost;
             }
         }
@@ -990,116 +978,6 @@ public class FakeCostEstimator2 {
 ////////////////////////////////////////////////////////////////////
 //                   print instructions                           //
 ////////////////////////////////////////////////////////////////////
-
-    public static void testScratch() {
-        String name = "a";
-        if (ec == null || !ec.containsVariable(name)) return;
-
-        recompileFlag = false;
-
-        try {
-            if (ec != null) {
-                Program rtprog = getRtProg(name);
-                rtprog.execute(ec);
-                System.out.println("execute succ");
-                ArrayList<MatrixBlock> list = getScrtchMatrixes(name);
-                for (MatrixBlock m : list) {
-                    System.out.println(m);
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            System.out.println("fail");
-        }
-        recompileFlag = true;
-    }
-
-    public static boolean recompileFlag = true;
-
-    private static MatrixBlock getMatrixBlock(String name) {
-        MatrixObject matrixObj = ec.getMatrixObject(name);
-//        System.out.println("obj" + matrixObj);
-        MatrixBlock matrixBlock = matrixObj.acquireReadAndRelease();
-//        System.out.println("blk=" + matrixBlock);
-        return matrixBlock;
-    }
-
-    private static ArrayList<MatrixBlock> getScrtchMatrixes(String name) {
-        ArrayList<MatrixBlock> list = new ArrayList<>();
-        String name_hr = "_sVar" + name + "hr";
-        list.add(getMatrixBlock(name_hr));
-        String name_hc = "_sVar" + name + "hc";
-        list.add(getMatrixBlock(name_hc));
-        String name_her = "_sVar" + name + "her";
-        list.add(getMatrixBlock(name_her));
-        String name_hec = "_sVar" + name + "hec";
-        list.add(getMatrixBlock(name_hec));
-        return list;
-    }
-
-    private static Program getRtProg(String name) {
-        Data data = ec.getVariable(name);
-        System.out.println(data);
-        DataCharacteristics dc = data.getMetaData().getDataCharacteristics();
-        Hop a = HopRewriteUtils.createTransientRead(name, new DataOp("l", Types.DataType.MATRIX, Types.ValueType.FP64,
-                Types.OpOpData.TRANSIENTREAD, "", dc.getRows(), dc.getCols(), dc.getNonZeros(), dc.getBlocksize()));
-        Hop zero = new LiteralOp(0);
-        Hop one = new LiteralOp(1);
-        Hop a_ne_0 = HopRewriteUtils.createBinary(a, zero, Types.OpOp2.NOTEQUAL);
-        Hop hr = HopRewriteUtils.createAggUnaryOp(a_ne_0, Types.AggOp.SUM, Types.Direction.Row);
-        Hop hc = HopRewriteUtils.createAggUnaryOp(a_ne_0, Types.AggOp.SUM, Types.Direction.Col);
-        Hop hr_eq_1 = HopRewriteUtils.createBinary(hr, one, Types.OpOp2.EQUAL);
-        Hop hc_eq_1 = HopRewriteUtils.createBinary(hc, one, Types.OpOp2.EQUAL);
-        Hop t_hr_eq_1 = HopRewriteUtils.createTranspose(hr_eq_1);
-        Hop t_hc_eq_1 = HopRewriteUtils.createTranspose(hc_eq_1);
-        Hop hec = HopRewriteUtils.createMatrixMultiply(t_hr_eq_1, a_ne_0);
-        Hop her = HopRewriteUtils.createMatrixMultiply(a_ne_0, t_hc_eq_1);
-
-        DMLProgram prog = new DMLProgram();
-        StatementBlock sb = new StatementBlock();
-        ArrayList<Hop> hops = new ArrayList<>();
-        VariableSet livein = new VariableSet();
-        VariableSet liveout = new VariableSet();
-
-        livein.addVariable(name, new DataIdentifier(name, Types.DataType.MATRIX, Types.ValueType.FP64));
-        liveout.addVariable(name, new DataIdentifier(name, Types.DataType.MATRIX, Types.ValueType.FP64));
-
-        String name_hr = "_sVar" + name + "hr";
-        Hop tw_hr = HopRewriteUtils.createTransientWrite(name_hr, hr);
-        hops.add(tw_hr);
-        liveout.addVariable(name_hr, new DataIdentifier(name_hr, Types.DataType.MATRIX, Types.ValueType.FP64));
-
-        String name_hc = "_sVar" + name + "hc";
-        Hop tw_hc = HopRewriteUtils.createTransientWrite(name_hc, hc);
-        hops.add(tw_hc);
-        liveout.addVariable(name_hc, new DataIdentifier(name_hc, Types.DataType.MATRIX, Types.ValueType.FP64));
-
-        String name_her = "_sVar" + name + "her";
-        liveout.addVariable(name_her, new DataIdentifier(name_her, Types.DataType.MATRIX, Types.ValueType.FP64));
-        Hop tw_her = HopRewriteUtils.createTransientWrite(name_her, her);
-        hops.add(tw_her);
-
-        String name_hec = "_sVar" + name + "hec";
-        liveout.addVariable(name_hec, new DataIdentifier(name_hec, Types.DataType.MATRIX, Types.ValueType.FP64));
-        Hop tw_hec = HopRewriteUtils.createTransientWrite(name_hec, hec);
-        hops.add(tw_hec);
-
-        sb.setHops(hops);
-        sb.setLiveIn(livein);
-        sb.setLiveOut(liveout);
-        prog.addStatementBlock(sb);
-
-        try {
-            DMLTranslator dmlt = new DMLTranslator(prog);
-            dmlt.constructLops(prog);
-            Program rtprog = dmlt.getRuntimeProgram(prog, ConfigurationManager.getDMLConfig());
-            return rtprog;
-        } catch (Exception e) {
-            e.printStackTrace();
-         //   System.out.println("x");
-        }
-        return null;
-    }
 
 
     public static void printInstructions(Program rtprog) {

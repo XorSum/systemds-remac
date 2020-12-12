@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * 
+ *
  *   http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -20,8 +20,18 @@
 package org.apache.sysds.runtime.controlprogram;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 
+import org.apache.sysds.conf.ConfigurationManager;
 import org.apache.sysds.hops.Hop;
+import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
+import org.apache.sysds.hops.rewrite.ProgramRewriter;
+import org.apache.sysds.hops.rewrite.dfp.RewriteLoopConstrant;
+import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
+import org.apache.sysds.hops.rewrite.dfp.utils.MyExplain;
+import org.apache.sysds.parser.DMLProgram;
+import org.apache.sysds.parser.DMLTranslator;
+import org.apache.sysds.parser.StatementBlock;
 import org.apache.sysds.parser.WhileStatementBlock;
 import org.apache.sysds.api.DMLScript;
 import org.apache.sysds.common.Types.ValueType;
@@ -34,7 +44,7 @@ import org.apache.sysds.runtime.instructions.cp.BooleanObject;
 import org.apache.sysds.runtime.lineage.LineageDedupUtils;
 
 
-public class WhileProgramBlock extends ProgramBlock 
+public class WhileProgramBlock extends ProgramBlock
 {
 	private ArrayList<Instruction> _predicate;
 	private ArrayList<ProgramBlock> _childBlocks;
@@ -42,32 +52,32 @@ public class WhileProgramBlock extends ProgramBlock
 	public WhileProgramBlock(Program prog, ArrayList<Instruction> predicate) {
 		super(prog);
 		_predicate = predicate;
-		_childBlocks = new ArrayList<>(); 
+		_childBlocks = new ArrayList<>();
 	}
-	
+
 	public void addProgramBlock(ProgramBlock childBlock) {
 		_childBlocks.add(childBlock);
 	}
 
-	public ArrayList<Instruction> getPredicate() { 
-		return _predicate; 
+	public ArrayList<Instruction> getPredicate() {
+		return _predicate;
 	}
-	
-	public void setPredicate( ArrayList<Instruction> predicate ) { 
+
+	public void setPredicate( ArrayList<Instruction> predicate ) {
 		_predicate = predicate;
 	}
-	
+
 	@Override
 	public ArrayList<ProgramBlock> getChildBlocks() {
 		return _childBlocks;
 	}
-	
+
 	@Override
 	public boolean isNested() {
 		return true;
 	}
-	
-	private BooleanObject executePredicate(ExecutionContext ec) 
+
+	private BooleanObject executePredicate(ExecutionContext ec)
 	{
 		BooleanObject result = null;
 		try
@@ -85,24 +95,50 @@ public class WhileProgramBlock extends ProgramBlock
 		catch(Exception ex) {
 			throw new DMLRuntimeException(this.printBlockErrorLocation() + "Failed to evaluate the while predicate.", ex);
 		}
-		
+
 		//(guaranteed to be non-null, see executePredicate/getScalarInput)
 		return result;
 	}
-	
+
 	@Override
 	public void execute(ExecutionContext ec)
 	{
 		//execute while loop
-		try 
+		try
 		{
+//			System.out.println( "StatementBlock = " +  _sb);
+			try {
+				ProgramRewriter rewriter = new ProgramRewriter(new RewriteLoopConstrant(ec));
+				ArrayList<StatementBlock> sbs = new ArrayList<>();
+				sbs.add(_sb);
+				sbs = rewriter.rRewriteStatementBlocks(sbs, new ProgramRewriteStatus(), false);
+
+				if (sbs.size()>1) {
+					for (int i = 0; i + 1 < sbs.size(); i++) {
+						System.out.println("execute pre loop statement block");
+						DMLProgram dmlProg = new DMLProgram();
+						StatementBlock preLoop = sbs.get(0);
+						dmlProg.addStatementBlock(preLoop);
+						DMLTranslator dmlt = new DMLTranslator(dmlProg);
+						dmlt.constructLops(dmlProg);
+						Program rtProg = dmlt.getRuntimeProgram(dmlProg, ConfigurationManager.getDMLConfig());
+						rtProg.execute(ec);
+					}
+				}
+			}catch (Exception e) {
+				System.out.println("e");
+				e.printStackTrace();
+				System.out.println("e");
+			}
+
+
 			// prepare update in-place variables
 			UpdateType[] flags = prepareUpdateInPlaceVariables(ec, _tid);
-			
+
 			// compute and store the number of distinct paths
 			if (DMLScript.LINEAGE_DEDUP)
 				ec.getLineage().initializeDedupBlock(this, ec);
-			
+
 			//run loop body until predicate becomes false
 			while( executePredicate(ec).getBooleanValue() ) {
 				long start = System.nanoTime();
@@ -112,12 +148,12 @@ public class WhileProgramBlock extends ProgramBlock
 				if (DMLScript.LINEAGE_DEDUP)
 					// create a new dedup map, if needed, to trace this iteration
 					ec.getLineage().createDedupPatch(this, ec);
-				
+
 				//execute all child blocks
 				for (int i=0 ; i < _childBlocks.size() ; i++) {
 					_childBlocks.get(i).execute(ec);
 				}
-				
+
 				if (DMLScript.LINEAGE_DEDUP) {
 					LineageDedupUtils.replaceLineage(ec);
 					// hook the dedup map to the main lineage trace
@@ -126,11 +162,11 @@ public class WhileProgramBlock extends ProgramBlock
 				long end = System.nanoTime();
 				System.out.println("WhileExecTime = "+((end-start)/1e9)+"s");
 			}
-			
+
 			// clear current LineageDedupBlock
 			if (DMLScript.LINEAGE_DEDUP)
 				ec.getLineage().clearDedupBlock();
-			
+
 			// reset update-in-place variables
 			resetUpdateInPlaceVariableFlags(ec, flags);
 		}
@@ -141,15 +177,15 @@ public class WhileProgramBlock extends ProgramBlock
 		catch (Exception e) {
 			throw new DMLRuntimeException(printBlockErrorLocation() + "Error evaluating while program block", e);
 		}
-		
+
 		//execute exit instructions
 		executeExitInstructions(_exitInstruction, "while", ec);
 	}
-	
+
 	public void setChildBlocks(ArrayList<ProgramBlock> childs) {
 		_childBlocks = childs;
 	}
-	
+
 	@Override
 	public String printBlockErrorLocation(){
 		return "ERROR: Runtime error in while program block generated from while statement block between lines " + _beginLine + " and " + _endLine + " -- ";

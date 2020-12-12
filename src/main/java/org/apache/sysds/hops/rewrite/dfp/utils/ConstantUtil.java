@@ -67,7 +67,7 @@ public class ConstantUtil {
                 }
             }
         }
-        LOG.debug("cons(" + hop.getHopID() + ") " + hop.getName()+" " + isConstant);
+//        LOG.debug("cons(" + hop.getHopID() + ") " + hop.getName()+" " + isConstant);
         constantTable.put(hop.getHopID(), isConstant);
         return isConstant;
     }
@@ -81,7 +81,7 @@ public class ConstantUtil {
             Long id = child.getHopID();
             if ( constantTable.get(child.getHopID())) {// 非常量父节点指向常量子节点,说明子节点是个top常量
                 if (!isSampleHop(child) && !hop.isScalar()) {
-                    LOG.debug("found top constant "+child.getHopID());
+//                    LOG.debug("found top constant "+child.getHopID());
                     if (!topConstantHops.containsKey(id)) {
                         String name = "constant" + id;
                         Hop twrite = HopRewriteUtils.createTransientWrite(name, child);

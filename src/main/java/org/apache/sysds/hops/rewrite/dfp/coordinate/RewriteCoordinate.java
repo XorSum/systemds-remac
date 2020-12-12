@@ -2,15 +2,16 @@ package org.apache.sysds.hops.rewrite.dfp.coordinate;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.spark.sql.execution.columnar.DOUBLE;
 import org.apache.sysds.conf.ConfigurationManager;
 import org.apache.sysds.hops.Hop;
-import org.apache.sysds.hops.cost.CostEstimationWrapper;
 import org.apache.sysds.hops.rewrite.*;
 import org.apache.sysds.hops.rewrite.dfp.AnalyzeSymmetryMatrix;
 import org.apache.sysds.hops.rewrite.dfp.DisjointSet;
 import org.apache.sysds.hops.rewrite.dfp.Leaf;
+import org.apache.sysds.hops.rewrite.dfp.MySolution;
+import org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
+import org.apache.sysds.hops.rewrite.dfp.utils.ConstantUtil;
 import org.apache.sysds.hops.rewrite.dfp.utils.FakeCostEstimator;
 import org.apache.sysds.hops.rewrite.dfp.utils.MyExplain;
 import org.apache.sysds.hops.rewrite.dfp.utils.Prime;
@@ -43,6 +44,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     public boolean onlySearchConstantSubExp = false;
     public VariableSet variablesUpdated = null;
+    public ConstantUtil constantUtil = null; // new ConstantUtil(variablesUpdated);
 
     // <configuration>
     private boolean showBlock = false;
@@ -60,10 +62,13 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     private int maxMultiCseNumber = 30000; // 设为-1,则生成所有的；设为正数，则最多生成那么多个
 
+    private static long epoch = 300;
 
     // </configuration>
 
-    public Hop rewiteHopDag(Hop root) {
+    public MySolution rewiteHopDag(Hop root) {
+        MySolution originalSolution = new MySolution(root);
+
         try {
 
             // 1. 深拷贝，格式化
@@ -72,15 +77,21 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
             hop.resetVisitStatusForced(new HashSet<>());
             LOG.debug("start coordinate " + MyExplain.myExplain(root));
+            originalSolution.cost = estimate(originalSolution,true);
+
+            LOG.info("origin cost=" + originalSolution.cost);
+            System.out.println(ec.getVariables().keySet());
             LOG.debug("after reorder    " + MyExplain.myExplain(hop));
 
             prepare();
 
+            // 找到所有的叶子节点
             findAllLeaf(hop, new ArrayList<>(), 0);
 
+            // 划分 块
             genBlocks();
 
-            if (leaves.size() < 4) return root;
+            if (leaves.size() < 4) return originalSolution;
 
             if (showOriginHop) {
                 root.resetVisitStatusForced(new HashSet<>());
@@ -88,11 +99,13 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 LOG.debug(Explain.explain(root));
             }
 
+            // 生成singleCes
             ArrayList<SingleCse> singleCses = genSingleCse();
-            if (singleCses.size() <= 13) {
-                LOG.debug("ss<=13 return original hop");
-                return root;
-            }
+
+//            if (!onlySearchConstantSubExp && singleCses.size() <= 13) {
+//                LOG.debug("ss<=13 return original hop");
+//                return originalSolution;
+//            }
 
 //            System.out.println("xxx");
 //
@@ -101,7 +114,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             if (skipEstimateStage) {
                 if (singleCses.size() != hSingleCseNumber) {
                     LOG.debug("not target, return original hop");
-                    return root;
+                    return originalSolution;
                 } else {
 //                    MultiCse multiCse = createBestMultiCse546(singleCses);
                     MultiCse multiCse = createBestMultiCse1386(singleCses);
@@ -111,34 +124,54 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
                     LOG.debug("return best hop");
                     LOG.debug(Explain.explain(result));
-                    return result;
+                    MySolution solution = new MySolution(result);
+
+                    return solution;
                 }
             } else {
                 // 构造出所有的MultiCse
                 ArrayList<MultiCse> multiCses = genMultiCse(singleCses);
-                if (multiCses.size() == 0) return root;
+
+//                try {
+//                    originalSolution.cost = estimate(originalSolution);
+//                    System.out.println("cost="+originalSolution.cost);
+//                }catch (Exception e) {
+//                    e.printStackTrace();
+//                    System.out.println("xxx");
+//                }
+
+                if (multiCses.size() == 0) return originalSolution;
                 //    if (multiCses.size()>5000 || multiCses.size()==2769 ) return root;
 
-                Hop result = genAndSelectHop(singleCses, multiCses, hop, root);
-                if (result != null) {
-                    if (showMinCostHop) {
-                        result.resetVisitStatusForced(new HashSet<>());
-                        LOG.debug("after coordinate");
-                        LOG.debug(Explain.explain(result));
 
-                        LOG.info("before coordinate runtime plan");
-                        FakeCostEstimator2.printInstructions(constructProgramBlocks(root));
-                        LOG.info("after coordinate runtime plan");
-                        FakeCostEstimator2.printInstructions(constructProgramBlocks(result));
+                // 构造计划
+                ArrayList<MySolution> solutions = genSolutions(multiCses, hop);
+
+
+                // 估代价并返回代价最小的计划
+                MySolution solution = selectSolution(solutions, originalSolution);
+//                Hop result = genAndSelectHop(singleCses, multiCses, hop, root);
+                if (solution.body != null) {
+                    if (showMinCostHop) {
+                        solution.body.resetVisitStatusForced(new HashSet<>());
+                        LOG.debug("after coordinate");
+                        LOG.debug(Explain.explain(solution.body));
+
+//                        LOG.info("before coordinate runtime plan");
+//                        FakeCostEstimator2.printInstructions(constructProgramBlocks(root));
+//                        LOG.info("after coordinate runtime plan");
+//                        FakeCostEstimator2.printInstructions(constructProgramBlocks(solution.body));
                     }
-                    return result;
+                    return solution;
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
         LOG.debug("final return original hop");
-        return root;
+
+        return originalSolution;
+
     }
 
     private int findAllLeaf(Hop hop, ArrayList<Integer> path, int depth) {
@@ -198,9 +231,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         for (Range block : blockRanges) {
             for (int l = block.left; l <= block.right; l++) {
                 //    LOG.debug("i=" + l + " name=" + leaves.get(l).hop.getName() + " updated=" + variablesUpdated.containsVariable(leaves.get(l).hop.getName()));
-                if (onlySearchConstantSubExp && isConstant(l)) continue;
-                for (int r = l + 2; r <= block.right; r++) {
-                    if (onlySearchConstantSubExp && isConstant(r)) break;
+                if (onlySearchConstantSubExp && notConstant(l)) continue;
+                int r = onlySearchConstantSubExp ? l + 1 : l + 2;
+                for (; r <= block.right; r++) {
+                    if (onlySearchConstantSubExp && notConstant(r)) break;
                     long first = rangeHash1(l, r);
                     long second = rangeHash2(l, r);
                     boolean transpose = false;
@@ -225,9 +259,11 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 it.remove();
             }
         }
+        LOG.info("number of commom exp = " + hash2Ranges.size());
+
     }
 
-    private boolean isConstant(int index) {
+    private boolean notConstant(int index) {
         Hop hop = leaves.get(index).hop;
         if (HopRewriteUtils.isTransposeOperation(hop)) hop = hop.getInput().get(0);
         return variablesUpdated.containsVariable(hop.getName());
@@ -391,96 +427,204 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     }
 
 
-    private Hop genAndSelectHop(ArrayList<SingleCse> singleCses, ArrayList<MultiCse> multiCses, Hop template, Hop originalRoot) {
-        // 构造出所有的Hop
-
+    private ArrayList<MySolution> genSolutions(ArrayList<MultiCse> multiCses, Hop template) {
         long constructHopTime = 0;
-        long estimateCostTime = 0;
-        long start, end;
-
-        MultiCse multiCse = null;
-        Hop result = null;
-        int id = -1;
-        double cost = Double.MAX_VALUE;  //estimate(originalRoot);
-
+        long start = System.nanoTime();
+        ArrayList<MySolution> solutions = new ArrayList<>();
         for (int i = 0; i < multiCses.size(); i++) {
             try {
-                start = System.nanoTime();
                 MultiCse c = multiCses.get(i);
                 Hop hop = createHop(c, template);
-                end = System.nanoTime();
-                constructHopTime += end - start;
-
-                if (hop == null) continue;
-
-                start = System.nanoTime();
-                double newCost = 0;
-                //   if (multiCses.size()==4643 && i == 4552) {
-                newCost = estimate(hop);
-                //        System.out.println("x");
-                //       }
-                end = System.nanoTime();
-                estimateCostTime += end - start;
-
-                if (showCost)
-                    LOG.debug("cost=" + newCost);
-
-                if (cost > newCost || result == null) {
-                    result = hop;
-                    cost = newCost;
-                    multiCse = c;
-                    id = i;
+                if (hop != null) {
+                    if (onlySearchConstantSubExp) {
+                        Hop copy = deepCopyHopsDag(hop);
+                        MySolution mySolution = constantUtil.liftLoopConstant(copy);
+                        solutions.add(mySolution);
+                    } else {
+                        MySolution solution = new MySolution(c, hop);
+                        solutions.add(solution);
+                    }
                 }
-
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
+        long end = System.nanoTime();
+        constructHopTime += end - start;
+        LOG.info("construct hop time =" + (constructHopTime / 1e6) + "ms");
+        return solutions;
+    }
 
-        double newCost = estimate(originalRoot);
-        if (cost >= newCost || result == null) {
-            result = originalRoot;
-            cost = newCost;
-            multiCse = null;
+    private MySolution selectSolution(ArrayList<MySolution> solutions, MySolution originSolution) {
+        long estimateCostTime = 0;
+        long start, end;
+        int id = -1;
+        start = System.nanoTime();
+        MySolution bestSolution = new MySolution();
+
+        for (int i = 0; i < solutions.size(); i++) {
+            try {
+                MySolution solution = solutions.get(i);
+                solution.cost = estimate(solution,false);
+                if (showCost)
+                    LOG.debug("cost=" + solution.cost);
+                if (bestSolution.body == null || bestSolution.cost >= solution.cost) {
+                    bestSolution = solution;
+                    id = i;
+                }
+            } catch (Exception e) {
+                System.out.println("x");
+                //   e.printStackTrace();
+            }
+        }
+        LOG.info("minium cost = " + bestSolution.cost);
+        if (bestSolution.body!=null){
+            estimate(bestSolution,true);
+        }
+        if (bestSolution.body == null || bestSolution.cost >= originSolution.cost) {
+            bestSolution = originSolution;
             id = -1;
         }
 
-        LOG.info("construct hop time =" + (constructHopTime / 1e6) + "ms");
+        end = System.nanoTime();
+        estimateCostTime += end - start;
         LOG.info("estimate cost time =" + (estimateCostTime / 1e6) + "ms");
-        LOG.info("minium cost = " + cost);
-        LOG.info("original cost = " + newCost);
+
+        LOG.info("original cost = " + originSolution.cost);
         if (id != -1) {
             LOG.info("use rewrited hop, multicse id = " + id);
-            if (multiCse != null) {
-                LOG.info(multiCse);
+            if (bestSolution.multiCse != null) {
+                LOG.info(bestSolution.multiCse);
             }
             // deep copy 是为了清除无用的父节点,返回一个干净的hop
-            result = deepCopyHopsDag(result);
-            rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
+            bestSolution.body = deepCopyHopsDag(bestSolution.body);
+            rewriteCommonSubexpressionElimination.rewriteHopDAG(bestSolution.body, new ProgramRewriteStatus());
         } else {
             LOG.info("use original hop");
         }
-
-        return result;
+        return bestSolution;
     }
 
-    private double estimate(Hop hop) {
+//    private Hop genAndSelectHop(ArrayList<SingleCse> singleCses, ArrayList<MultiCse> multiCses, Hop template, Hop originalRoot) {
+//        // 构造出所有的Hop
+//
+//        long constructHopTime = 0;
+//        long estimateCostTime = 0;
+//        long start, end;
+//
+//        MultiCse multiCse = null;
+//        Hop result = null;
+//        int id = -1;
+//        double cost = Double.MAX_VALUE;  //estimate(originalRoot);
+//
+//        for (int i = 0; i < multiCses.size(); i++) {
+//            try {
+//                start = System.nanoTime();
+//                MultiCse c = multiCses.get(i);
+//                Hop hop = createHop(c, template);
+//                end = System.nanoTime();
+//                constructHopTime += end - start;
+//
+//                if (hop == null) continue;
+//
+//                start = System.nanoTime();
+//                double newCost = 0;
+//                //   if (multiCses.size()==4643 && i == 4552) {
+//                newCost = estimate(hop);
+//                //        System.out.println("x");
+//                //       }
+//                end = System.nanoTime();
+//                estimateCostTime += end - start;
+//
+//                if (showCost)
+//                    LOG.debug("cost=" + newCost);
+//
+//                if (cost > newCost || result == null) {
+//                    result = hop;
+//                    cost = newCost;
+//                    multiCse = c;
+//                    id = i;
+//                }
+//
+//            } catch (Exception e) {
+//                e.printStackTrace();
+//            }
+//        }
+//
+//        double newCost = estimate(originalRoot);
+//        if (cost >= newCost || result == null) {
+//            result = originalRoot;
+//            cost = newCost;
+//            multiCse = null;
+//            id = -1;
+//        }
+//
+//        LOG.info("construct hop time =" + (constructHopTime / 1e6) + "ms");
+//        LOG.info("estimate cost time =" + (estimateCostTime / 1e6) + "ms");
+//        LOG.info("minium cost = " + cost);
+//        LOG.info("original cost = " + newCost);
+//        if (id != -1) {
+//            LOG.info("use rewrited hop, multicse id = " + id);
+//            if (multiCse != null) {
+//                LOG.info(multiCse);
+//            }
+//            // deep copy 是为了清除无用的父节点,返回一个干净的hop
+//            result = deepCopyHopsDag(result);
+//            rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
+//        } else {
+//            LOG.info("use original hop");
+//        }
+//
+//        return result;
+//    }
+
+
+
+    private double estimate(MySolution solution,boolean showDetails ) {
         // 代价估计
-        double cost;
+        double cost = 0;
+        if (showDetails) {
+           LOG.debug("runtime program<<<");
+        }
         try {
-            if (ec == null) {
-                cost = FakeCostEstimator.estimate(hop);
-            } else {
-                Program programBlocks = constructProgramBlocks(hop);
+            if (ec != null) {
+                FakeCostEstimator2.ec = ec;
+                double preCost = 0;
+                for (Hop h : solution.preLoopConstants) {
+                    Program program = constructProgramBlocks(h);
+                    if (showDetails)
+                      LOG.debug(Explain.explain(program));
+                    preCost += FakeCostEstimator2.estimate(program);
+                }
+                Program programBlocks = constructProgramBlocks(solution.body);
+                if (showDetails)
+                    LOG.debug(Explain.explain(programBlocks));
                 //cost = CostEstimationWrapper.getTimeEstimate(programBlocks, ec);
-                cost = FakeCostEstimator2.estimate(programBlocks);
+                double bodyCost = FakeCostEstimator2.estimate(programBlocks);
+                if (showDetails)
+                   LOG.debug("preCOst=" + preCost + " bodyCost=" + bodyCost);
+                cost = preCost + bodyCost * epoch;
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            //  e.printStackTrace();
             cost = Double.MAX_VALUE;
+        }
+        if (showDetails) {
+            LOG.debug("runtime program>>>");
         }
         return cost;
     }
+
+//    private void showRtprog(MySolution solution) {
+//        LOG.debug("runtime program<<<");
+//        for (Hop h : solution.preLoopConstants) {
+//            Program program = constructProgramBlocks(h);
+//           LOG.debug(Explain.explain(program));
+//        }
+//        Program programBlocks = constructProgramBlocks(solution.body);
+//        LOG.debug(Explain.explain(programBlocks));
+//        LOG.debug(">>runtime program");
+//    }
 
     private boolean isTranspose(int l, int r) {
         long first = rangeHash1(l, r);
@@ -752,9 +896,24 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return second;
     }
 
-    public RewriteCoordinate(ExecutionContext executionContext) {
+    public RewriteCoordinate(ExecutionContext executionContext, StatementBlock statementBlock) {
         ec = executionContext;
+        this.statementBlock = statementBlock;
+        FakeCostEstimator2.ec = executionContext;
+        DistributedScratch.ec = executionContext;
+        onlySearchConstantSubExp = false;
     }
+
+    public RewriteCoordinate(ExecutionContext executionContext, StatementBlock statementBlock, VariableSet variablesUpdated) {
+        ec = executionContext;
+        this.statementBlock = statementBlock;
+        this.variablesUpdated = variablesUpdated;
+        FakeCostEstimator2.ec = executionContext;
+        DistributedScratch.ec = executionContext;
+        onlySearchConstantSubExp = true;
+        constantUtil = new ConstantUtil(variablesUpdated);
+    }
+
 
     @Override
     public boolean createsSplitDag() {
@@ -768,8 +927,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             statementBlock = sb;
             if (sb.getHops() != null) {
                 for (int i = 0; i < sb.getHops().size(); i++) {
-                    Hop h = sb.getHops().get(i);
-                    Hop g = rewiteHopDag(h);
+                    MySolution solution = rewiteHopDag(sb.getHops().get(i));
+                    Hop g = solution.body;
                     sb.getHops().set(i, g);
                 }
             }
@@ -799,9 +958,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         try {
             dmlt.constructLops(prog);
         } catch (Exception e) {
+            System.out.println("Construct Program Blocks Error");
             hop.resetVisitStatusForced(new HashSet<>());
-            //  System.out.println(Explain.explain(hop));
-            System.out.println("x");
             System.out.println(MyExplain.myExplain(hop));
             System.out.println("y");
         }
