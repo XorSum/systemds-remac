@@ -83,7 +83,7 @@ public class ConstantUtil {
                 if (!isSampleHop(child) && !hop.isScalar()) {
 //                    LOG.debug("found top constant "+child.getHopID());
                     if (!topConstantHops.containsKey(id)) {
-                        String name = "constant" + id;
+                        String name = "_conVar" + id;
                         Hop twrite = HopRewriteUtils.createTransientWrite(name, child);
                         Hop tread = HopRewriteUtils.createTransientRead(name, child);
                         topConstantHops.put(id, Pair.of(tread, twrite));

@@ -37,11 +37,14 @@ public class FakeCostEstimator2 {
     protected static final Log LOG = LogFactory.getLog(FakeCostEstimator2.class.getName());
 
     private static double CpuSpeed = 1.0;
-    private static double ShuffleSpeed = 10.0;
+    private static double ShuffleSpeed = 5.0;
     private static double BroadCaseSpeed = 3.0;
 
     private static long defaultBlockSize = 1000;
     public static ExecutionContext ec = null;
+
+        private static SparsityEstimator estimator = new EstimatorBasicAvg();
+//    private static SparsityEstimator estimator = new EstimatorMatrixHistogram();
 
 
     public static double estimate(Program rtprog) {
@@ -72,6 +75,14 @@ public class FakeCostEstimator2 {
    //     LOG.info("Names = "+name2MMNode.keySet());
       //  LOG.debug("rtprog cost = "+cost);
         return cost;
+    }
+
+    public static void cleanUnusedMMNode() {
+        name2MMNode.entrySet().removeIf( e-> e.getKey().startsWith("_Var")||e.getKey().startsWith("_mVar")||e.getKey().startsWith("_conVar"));
+    }
+
+    public static void cleanUnusedScratchMMNode() {
+        name2MMNode.entrySet().removeIf( e-> e.getKey().startsWith("_Var")||e.getKey().startsWith("_mVar")||e.getKey().startsWith("_conVar")||e.getKey().startsWith("_sVar"));
     }
 
     private static double rEstimate(ProgramBlock pb) throws Exception {
@@ -146,8 +157,6 @@ public class FakeCostEstimator2 {
         }
     }
 
-//    private static SparsityEstimator estimator = new EstimatorBasicAvg();
-    private static SparsityEstimator estimator = new EstimatorMatrixHistogram();
 
     private static HashMap<String, Node> name2MMNode = new HashMap<>();
     private static ArrayList<String> names = new ArrayList<>();
@@ -641,7 +650,8 @@ public class FakeCostEstimator2 {
         double cost = 0;
         if (inst.getMMTSJType() == MMTSJ.MMTSJType.LEFT) {
             out = new MMNode(tmp, in, SparsityEstimator.OpCode.MM);
-            long r = Math.max((long) Math.ceil((double) d1m / blen), 1);
+         //   long r = Math.max((long) Math.ceil((double) d1m / blen), 1);
+            long r = reducerNumber(d1n,d1n,blen);
             if (sparse) {
                 cost += CpuSpeed * d1m * d1n * d1s * d1n / 2;
                 cost += sumTableCost(d1n, d1n, blen, r, dcin.getSparsity());
@@ -651,13 +661,14 @@ public class FakeCostEstimator2 {
             }
         } else if (inst.getMMTSJType() == MMTSJ.MMTSJType.RIGHT) {
             out = new MMNode(in, tmp, SparsityEstimator.OpCode.MM);
-            long r = Math.max((long) Math.ceil((double) d1m / blen), 1);
+         //   long r = Math.max((long) Math.ceil((double) d1m / blen), 1);
+            long r = reducerNumber(d1m,d1m,blen);
             if (sparse) {
                 cost += CpuSpeed * ((double) d1m * d1n * d1s + d1m * d1n * d1s * d1n * d1s / 2);
-                cost += sumTableCost(d1n, d1n, blen, r, dcin.getSparsity());
+                cost += sumTableCost(d1m, d1m, blen, r, dcin.getSparsity());
             } else {
                 cost += CpuSpeed * d1m * d1n * d1m / 2;
-                cost += sumTableCost(d1n, d1n, blen, 1, 1.0);
+                cost += sumTableCost(d1m, d1m, blen, 1, 1.0);
             }
         }
         setMMNode(inst.output.getName(), out, Types.ExecType.SPARK);

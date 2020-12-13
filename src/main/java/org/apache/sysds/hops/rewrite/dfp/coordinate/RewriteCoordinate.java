@@ -612,6 +612,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         if (showDetails) {
             LOG.debug("runtime program>>>");
         }
+        FakeCostEstimator2.cleanUnusedMMNode();
         return cost;
     }
 

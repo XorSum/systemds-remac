@@ -2,17 +2,14 @@ package org.apache.sysds.hops.rewrite.dfp;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.yarn.webapp.hamlet.Hamlet;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
 import org.apache.sysds.hops.rewrite.StatementBlockRewriteRule;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
-import org.apache.sysds.hops.rewrite.dfp.utils.ConstantUtil;
+import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
 import org.apache.sysds.hops.rewrite.dfp.utils.MyExplain;
 import org.apache.sysds.parser.*;
-import org.apache.sysds.runtime.controlprogram.BasicProgramBlock;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
-import org.apache.sysds.runtime.matrix.data.Pair;
 
 
 import java.util.*;
@@ -61,6 +58,7 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
             LOG.info("use normal result");
             func1((WhileStatementBlock) sb, res, false, true);
         }
+        FakeCostEstimator2.cleanUnusedScratchMMNode();
         return res;
     }
 
