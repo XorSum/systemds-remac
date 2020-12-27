@@ -20,15 +20,12 @@
 package org.apache.sysds.runtime.controlprogram;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 
 import org.apache.sysds.conf.ConfigurationManager;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
 import org.apache.sysds.hops.rewrite.ProgramRewriter;
-import org.apache.sysds.hops.rewrite.dfp.RewriteLoopConstrant;
-import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
-import org.apache.sysds.hops.rewrite.dfp.utils.MyExplain;
+import org.apache.sysds.hops.rewrite.dfp.RewriteLoopConstant;
 import org.apache.sysds.parser.DMLProgram;
 import org.apache.sysds.parser.DMLTranslator;
 import org.apache.sysds.parser.StatementBlock;
@@ -108,7 +105,8 @@ public class WhileProgramBlock extends ProgramBlock
 		{
 //			System.out.println( "StatementBlock = " +  _sb);
 			try {
-				ProgramRewriter rewriter = new ProgramRewriter(new RewriteLoopConstrant(ec));
+			//	System.out.println("Reducer Number: "+ OptimizerUtils.getNumReducers(false));
+				ProgramRewriter rewriter = new ProgramRewriter(new RewriteLoopConstant(ec));
 				ArrayList<StatementBlock> sbs = new ArrayList<>();
 				sbs.add(_sb);
 				sbs = rewriter.rRewriteStatementBlocks(sbs, new ProgramRewriteStatus(), false);

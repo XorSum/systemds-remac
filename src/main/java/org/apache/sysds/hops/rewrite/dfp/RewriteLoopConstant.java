@@ -7,7 +7,6 @@ import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
 import org.apache.sysds.hops.rewrite.StatementBlockRewriteRule;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
-import org.apache.sysds.hops.rewrite.dfp.utils.MyExplain;
 import org.apache.sysds.parser.*;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
 
@@ -17,13 +16,13 @@ import java.util.*;
 import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
 
 
-public class RewriteLoopConstrant extends StatementBlockRewriteRule {
+public class RewriteLoopConstant extends StatementBlockRewriteRule {
 
-    protected final static Log LOG = LogFactory.getLog(RewriteLoopConstrant.class.getName());
+    protected final static Log LOG = LogFactory.getLog(RewriteLoopConstant.class.getName());
 
     private ExecutionContext ec;
 
-    public RewriteLoopConstrant(ExecutionContext ec) {
+    public RewriteLoopConstant(ExecutionContext ec) {
         this.ec = ec;
     }
 
@@ -47,10 +46,16 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
         LOG.trace("While Statement");
         LOG.info("begin constant search");
         double cost1 = func1((WhileStatementBlock) sb, res, true, false);
+        LOG.info("constant cost = "+cost1);
         LOG.info("end constant search");
+//        Thread.interrupted();
+        System.exit(0);
+        LOG.info("=================================");
         LOG.info("begin normal search");
         double cost2 = func1((WhileStatementBlock) sb, res, false, false);
         LOG.info("end normal search");
+        LOG.info("constant cost = "+cost1);
+        LOG.info("normal cost = "+cost2);
         if (cost1 < cost2) {
             LOG.info("use constat result");
             func1((WhileStatementBlock) sb, res, true, true);
@@ -58,6 +63,8 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
             LOG.info("use normal result");
             func1((WhileStatementBlock) sb, res, false, true);
         }
+        LOG.info("=================================");
+//        System.exit(0);
         FakeCostEstimator2.cleanUnusedScratchMMNode();
         return res;
     }
@@ -77,7 +84,7 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
             for (int k = 0; k < s.getHops().size(); k++) {
                 Hop hop = s.getHops().get(k);
                 Hop copy = deepCopyHopsDag(hop);
-                LOG.debug(" Exp =" + MyExplain.myExplain(copy));
+             //   LOG.debug(" Exp =" + MyExplain.myExplain(copy));
                 MySolution mySolution;
                 if (!modify) {
                     if (constant) {
@@ -88,7 +95,7 @@ public class RewriteLoopConstrant extends StatementBlockRewriteRule {
                         map2.put(hop, mySolution);
                     }
                     cost += mySolution.cost;
-                    LOG.debug(mySolution);
+                  //  LOG.debug(mySolution);
                 } else {
                     if (constant) mySolution = map1.get(hop);
                     else mySolution = map2.get(hop);

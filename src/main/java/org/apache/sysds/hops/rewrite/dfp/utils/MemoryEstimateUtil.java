@@ -15,20 +15,31 @@ public class MemoryEstimateUtil {
 
     public static void main(String[] args) {
 
-        long prod = 12480000000l;
-        long id = 1;
-        double sparsity = 0.00074;
-        for (long dim2 = 1000;dim2 <=20000;dim2 +=3000) {
-            long dim1 = 1000;
-            while (MatrixBlock.estimateSizeInMemory(dim1,dim2,sparsity)<=3e10) {
-                dim1 += 1000;
-            }
+      //  long prod = 12480000000l;
+      //  double sparsity = 0.00074;
+//        double sparsity = 0.2;
+        double sparsity = 0.1;
+        int aaa = 0;
+        while (aaa<=3) {
+            long id = 1;
+            for (long dim2 = 1000; dim2 <= 20000; dim2 += 1000) {
+                long dim1 = 1000;
+                while (MatrixBlock.estimateSizeInMemory(dim1, dim2, sparsity) <= 3e10) {
+                    dim1 += 1000;
+                }
 //            long dim1 = prod/dim2;
 //            System.out.printf("%d %d %d %d\n",dim1,dim2,dim1*dim2,MatrixBlock.estimateSizeInMemory(dim1,dim2,sparsity));
-            System.out.printf("run %d %d %f %d\n",dim1,dim2,sparsity,id);
-            id ++;
+               // System.out.printf("run %d %d %f %d \"/data/mem30g/sp0.", dim1, dim2, sparsity, id);
+                System.out.printf("run %d \"/data/mem30g/sp0.",  id);
+                for (int j=0;j<aaa;j++) System.out.print("0");
+                System.out.print("1/\" \"./log-0.");
+                for (int j=0;j<aaa;j++) System.out.print("0");
+                System.out.print("1/\" \n");
+                id++;
+            }
+            aaa++;
+            sparsity = sparsity*0.1;
         }
-
 //        long dim1 = 2275857466l;
 //        long dim2 = 58355534;
 //        long nnz = 96855;

@@ -12,7 +12,6 @@ import org.apache.sysds.hops.rewrite.dfp.MySolution;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
 import org.apache.sysds.hops.rewrite.dfp.utils.ConstantUtil;
-import org.apache.sysds.hops.rewrite.dfp.utils.FakeCostEstimator;
 import org.apache.sysds.hops.rewrite.dfp.utils.MyExplain;
 import org.apache.sysds.hops.rewrite.dfp.utils.Prime;
 import org.apache.sysds.parser.*;
@@ -62,14 +61,20 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     private int maxMultiCseNumber = 30000; // 设为-1,则生成所有的；设为正数，则最多生成那么多个
 
-    private static long epoch = 300;
+    private static long epoch = 100;
 
     // </configuration>
 
     public MySolution rewiteHopDag(Hop root) {
+//        System.out.println("rootname"+root.getName());
+//        System.out.println("xx");
+
         MySolution originalSolution = new MySolution(root);
 
         try {
+            originalSolution.cost = estimate(originalSolution,true);
+            if (!"h".equals(root.getName()))
+                return originalSolution;
 
             // 1. 深拷贝，格式化
             Hop hop = deepCopyHopsDag(root);
@@ -77,7 +82,6 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
             hop.resetVisitStatusForced(new HashSet<>());
             LOG.debug("start coordinate " + MyExplain.myExplain(root));
-            originalSolution.cost = estimate(originalSolution,true);
 
             LOG.info("origin cost=" + originalSolution.cost);
             System.out.println(ec.getVariables().keySet());
@@ -153,9 +157,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //                Hop result = genAndSelectHop(singleCses, multiCses, hop, root);
                 if (solution.body != null) {
                     if (showMinCostHop) {
-                        solution.body.resetVisitStatusForced(new HashSet<>());
+                            solution.body.resetVisitStatusForced(new HashSet<>());
                         LOG.debug("after coordinate");
-                        LOG.debug(Explain.explain(solution.body));
+                        LOG.debug(solution);
 
 //                        LOG.info("before coordinate runtime plan");
 //                        FakeCostEstimator2.printInstructions(constructProgramBlocks(root));
@@ -473,7 +477,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     id = i;
                 }
             } catch (Exception e) {
-                System.out.println("x");
+                LOG.error("estimate error");
                 //   e.printStackTrace();
             }
         }
@@ -579,12 +583,12 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //    }
 
 
-
     private double estimate(MySolution solution,boolean showDetails ) {
         // 代价估计
         double cost = 0;
         if (showDetails) {
            LOG.debug("runtime program<<<");
+           FakeCostEstimator2.MMShowCostFlag = true;
         }
         try {
             if (ec != null) {
@@ -611,6 +615,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         }
         if (showDetails) {
             LOG.debug("runtime program>>>");
+            FakeCostEstimator2.MMShowCostFlag = false;
         }
         FakeCostEstimator2.cleanUnusedMMNode();
         return cost;
