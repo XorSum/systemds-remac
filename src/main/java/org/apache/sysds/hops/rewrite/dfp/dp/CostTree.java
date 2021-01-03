@@ -2,27 +2,17 @@ package org.apache.sysds.hops.rewrite.dfp.dp;
 
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.spark.sql.catalyst.expressions.Sin;
 import org.apache.sysds.common.Types;
-import org.apache.sysds.hops.BinaryOp;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.LiteralOp;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
-import org.apache.sysds.hops.rewrite.dfp.MySolution;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.Range;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.SingleCse;
 import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
-import org.apache.sysds.runtime.matrix.operators.Operator;
-import org.apache.sysds.utils.Explain;
-import org.mortbay.io.nio.SelectorManager;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.OptionalInt;
+import java.util.*;
 
 public class CostTree {
-
 
     public void testCostTree(ArrayList<Pair<Hop, SingleCse>> pairs) {
         for (Pair<Hop, SingleCse> p : pairs) {
@@ -34,18 +24,48 @@ public class CostTree {
 //            OptionalInt max = range2Node.keySet().stream().mapToInt(p->p.getRight()).max();
 //            System.out.println(min+"  "+max);
         }
-        for (HashMap.Entry<Pair<Integer, Integer>, RangeNode> entry : range2Node.entrySet()) {
-            System.out.println("range: " + entry.getKey().getLeft() + " " + entry.getKey().getRight());
-            System.out.println(entry.getValue().options);
-        }
+        filterOperatorNode();
+
+
+
+//        for (HashMap.Entry<Pair<Integer, Integer>, ArrayList<OperatorNode>> entry : range2OperatoeNode.entrySet()) {
+//            System.out.println("range: " + entry.getKey().getLeft() + " " + entry.getKey().getRight() + " " + entry.getValue().size());
+//            for (OperatorNode node: entry.getValue()) {
+//                System.out.println(node.thisCost);
+//            }
+//            //  System.out.println(entry.getValue());
+//        }
+
+
+//        System.exit(0);
+
+
+        selectBest();
+        final double[] minCost = {Double.MAX_VALUE};
+        dp.get(Pair.of(0, 29)).forEach((key, value) -> {
+                    System.out.println(value);
+                    minCost[0] = Math.min(minCost[0], value.accCost);
+                }
+        );
+        System.out.println("min cost = " + minCost[0]);
+        dp.get(Pair.of(0, 29)).forEach((key, value) -> {
+                    if (minCost[0] == value.accCost) System.out.println(value);
+//                    minCost[0] = Math.min(minCost[0], value.accCost);
+                }
+        );
+
+
         System.out.println("done");
     }
 
-    public static class RangeNode {
-        Pair<Integer, Integer> range;
-        ArrayList<OperatorNode> options = new ArrayList<>();
-        ArrayList<OperatorNode> bestOptions = new ArrayList<>();
-    }
+//    public static class RangeNode {
+//        Pair<Integer, Integer> range;
+//        ArrayList<OperatorNode> options = new ArrayList<>();
+//        ArrayList<OperatorNode> bestOptions = new ArrayList<>();
+//    }
+
+
+    HashMap<Pair<Integer, Integer>, ArrayList<OperatorNode>> range2OperatoeNode = new HashMap<>();
 
     public static class OperatorNode {
         //        ArrayList<RangeNode> operands = new ArrayList<>();
@@ -57,6 +77,20 @@ public class CostTree {
         ArrayList<OperatorNode> inputs = new ArrayList<>();
 
         @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            OperatorNode that = (OperatorNode) o;
+            return Double.compare(that.thisCost, thisCost) == 0 &&
+                    Double.compare(that.accCost, accCost) == 0 &&
+                    range.equals(that.range) &&
+                    Objects.equals(dependencies, that.dependencies);// &&
+                    //  Objects.equals(hop, that.hop) &&
+                 //   Objects.equals(inputs, that.inputs);
+        }
+
+
+        @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();
             sb.append("ON{");
@@ -66,8 +100,10 @@ public class CostTree {
             sb.append(",");
             sb.append(accCost);
             sb.append(",[");
-            for (SingleCse singleCse:dependencies){
+            for (SingleCse singleCse : dependencies) {
                 sb.append(singleCse.name);
+                sb.append(",");
+                sb.append(singleCse.ranges);
             }
             sb.append("],");
 //            sb.append(dependencies);
@@ -82,7 +118,7 @@ public class CostTree {
         }
     }
 
-    public HashMap<Pair<Integer, Integer>, RangeNode> range2Node = new HashMap<>();
+//    public HashMap<Pair<Integer, Integer>, RangeNode> range2Node = new HashMap<>();
 
     public CostTree() {
     }
@@ -153,16 +189,16 @@ public class CostTree {
         Pair<Integer, Integer> range = Pair.of(begin, end);
         // System.out.println(hop.getHopID()+" "+range);
         operatorNode.range = range;
-        if (range2Node.containsKey(range)) {
-            RangeNode rangeNode = range2Node.get(range);
-            if (operatorNode != null) rangeNode.options.add(operatorNode);
-        } else {
-            RangeNode rangeNode = new RangeNode();
-            rangeNode.range = range;
-            if (operatorNode != null) rangeNode.options.add(operatorNode);
-            range2Node.put(range, rangeNode);
+        if (operatorNode != null) {
+            ArrayList<OperatorNode> nodes;
+            if (range2OperatoeNode.containsKey(range)) {
+                nodes = range2OperatoeNode.get(range);
+            } else {
+                nodes = new ArrayList<>();
+            }
+            nodes.add(operatorNode);
+            range2OperatoeNode.put(range, nodes);
         }
-
         if (!hop2index.containsKey(hop)) {
             hop2index.put(hop, new ArrayList<>());
         }
@@ -193,8 +229,175 @@ public class CostTree {
         return isCse;
     }
 
-    void selectBest() {
+    void filterOperatorNode() {
+        for (Pair<Integer, Integer> range : range2OperatoeNode.keySet()) {
+            ArrayList<OperatorNode> a1 = range2OperatoeNode.get(range);
+            ArrayList<OperatorNode> a2 = new ArrayList<>();
+            for (OperatorNode node : a1) {
+                boolean ok = true;
+                for (OperatorNode node1 : a2) {
+                    if (node1.equals(node)) {
+                        ok = false;
+                        break;
+                    }
+                }
+                if (ok) a2.add(node);
+            }
+            range2OperatoeNode.put(range, a2);
+        }
+    }
 
+    HashSet<Pair<Integer, Integer>> visited;
+
+    HashMap<Pair<Integer, Integer>, HashMap<HashSet<SingleCse>, OperatorNode>> dp;
+
+    void selectBest() {
+        dp = new HashMap<>();
+        visited = new HashSet<>();
+        ArrayList<Pair<Integer, Integer>> ranges = new ArrayList<>();
+        ranges.addAll(range2OperatoeNode.keySet());
+        ranges.sort(Comparator.comparingInt(a -> (a.getRight() - a.getLeft())));
+        System.out.println(ranges);
+        for (Pair<Integer, Integer> range : ranges) {
+            ArrayList<OperatorNode> operatorNodes = range2OperatoeNode.get(range);
+            for (OperatorNode operatorNode : operatorNodes) {
+//                if (operatorNode.range.equals(Pair.of(0, 19))) {
+//                    System.out.println("x");
+//                }
+                System.out.println("Operator Node " + operatorNode.range);
+                if (Judge.isLeafMatrix(operatorNode.hop)) {
+                    insert(operatorNode);
+                } else if (operatorNode.inputs.size() == 2) {
+                    Pair<Integer, Integer> lRange = operatorNode.inputs.get(0).range;
+                    Pair<Integer, Integer> rRange = operatorNode.inputs.get(1).range;
+                    dp.get(lRange).forEach((singleCse, operatorNode1) -> {
+                        //    System.out.println("lrange: "+lRange);
+                        dp.get(rRange).forEach((singleCse2, operatorNode2) -> {
+//                        for (OperatorNode operatorNode2 : range2OperatoeNode.get(rRange)) {
+                            //    System.out.println("rrange: "+range);
+                            if (check(lRange, operatorNode1.dependencies, rRange, operatorNode2.dependencies,operatorNode.dependencies)) {
+                                update(operatorNode1, operatorNode2, operatorNode);
+                            }
+                        });
+                    });
+                    update(operatorNode.inputs.get(0), operatorNode.inputs.get(1), operatorNode);
+                }
+//                if (dp.containsKey(operatorNode.range)) {
+//                    System.out.println(operatorNode.range+" "+  dp.get(operatorNode.range));
+//                }
+                //     break;
+            }
+            if (!dp.containsKey(range)) {
+                dp.put(range, new HashMap<>());
+            } else {
+                System.out.println(dp.get(range).size());
+            }
+        }
+
+//        dp.forEach((key, value) -> {
+////            System.out.println(key);
+//            value.forEach((key2, value2) -> {
+//                if (key2.size() > 2) {
+////                System.out.println("---"+key2);
+//                    System.out.println(key2.size());
+//                }
+//            });
+//        });
+
+    }
+
+    boolean check(Pair<Integer, Integer> lRange, HashSet<SingleCse> lcses, Pair<Integer, Integer> rRange, HashSet<SingleCse> rcses,HashSet<SingleCse> midcses) {
+        for (SingleCse m:midcses) {
+            for (SingleCse l:lcses) {
+                if (l.hash == m.hash ) return false;
+                if (l.conflict(m)||m.conflict(l)) return false;
+            }
+            for (SingleCse r:rcses) {
+                if (r.hash == m.hash ) return false;
+                if (m.conflict(r)||r.conflict(m)) return false;
+            }
+        }
+        for (SingleCse lcse : lcses) {
+            for (SingleCse rcse : rcses) {
+                if (lcse.hash == rcse.hash && lcse != rcse) return false;
+                if (lcse.conflict(rcse)) return false;
+            }
+        }
+        for (SingleCse lcse : lcses) {
+            if (!rcses.contains(lcse)) {
+                for (Range range : lcse.ranges) {
+                    if (Math.max(range.left, rRange.getLeft()) <= Math.min(range.right, rRange.getRight())) {
+                        return false;
+                    }
+                }
+            }
+        }
+        for (SingleCse rcse : rcses) {
+            if (!lcses.contains(rcse)) {
+                for (Range range : rcse.ranges) {
+                    if (Math.max(range.left, lRange.getLeft()) <= Math.min(range.right, lRange.getRight())) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    void update(OperatorNode lNode, OperatorNode rNode, OperatorNode originNode) {
+        if (lNode.range.equals(originNode.range) ||rNode.range.equals(originNode.range) ) {
+            System.out.println("chong fu ");
+            System.out.println(lNode);
+            System.out.println(rNode);
+            System.out.println(originNode);
+            System.exit(0);
+        }
+        OperatorNode node = new OperatorNode();
+        node.range = originNode.range; //Pair.of(lNode.range.getLeft(), rNode.range.getRight());
+        //  System.out.println(lNode.range + " " + rNode.range + " " + node.range);
+        node.inputs.add(lNode);
+        node.inputs.add(rNode);
+        node.dependencies.addAll(originNode.dependencies);
+        node.dependencies.addAll(lNode.dependencies);
+        node.dependencies.addAll(rNode.dependencies);
+
+        node.thisCost = originNode.thisCost;
+        node.hop = originNode.hop;
+        node.accCost = lNode.accCost + rNode.accCost + node.thisCost;
+        insert(node);
+    }
+
+    void insert(OperatorNode node) {
+        if (!dp.containsKey(node.range)) {
+            HashMap<HashSet<SingleCse>, OperatorNode> tmp = new HashMap<>();
+            tmp.put(node.dependencies, node);
+            dp.put(node.range, tmp);
+        } else {
+            HashMap<HashSet<SingleCse>, OperatorNode> tmp = dp.get(node.range);
+            if (tmp.containsKey(node.dependencies)) {
+                OperatorNode node1 = tmp.get(node.dependencies);
+                if (node1.accCost > node.accCost) {
+                    tmp.put(node.dependencies, node);
+                }
+            } else {
+                if (tmp.size()<100) {
+                    tmp.put(node.dependencies, node);
+                } else {
+                    double maxCost = 0;
+                    HashSet<SingleCse> key = null;
+                    for (HashMap.Entry<HashSet<SingleCse>,OperatorNode> e: tmp.entrySet()) {
+                        if (maxCost<e.getValue().accCost) {
+                            maxCost = e.getValue().accCost;
+                            key = e.getKey();
+                        }
+                    }
+                    if (key!=null) {
+                        tmp.remove(key);
+                    }
+                    tmp.put(node.dependencies,node);
+                }
+            }
+        }
     }
 
 

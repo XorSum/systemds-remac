@@ -1,5 +1,6 @@
 package org.apache.sysds.hops.rewrite.dfp.coordinate;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.sysds.conf.ConfigurationManager;
@@ -11,9 +12,8 @@ import org.apache.sysds.hops.rewrite.dfp.Leaf;
 import org.apache.sysds.hops.rewrite.dfp.MySolution;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
-import org.apache.sysds.hops.rewrite.dfp.utils.ConstantUtil;
-import org.apache.sysds.hops.rewrite.dfp.utils.MyExplain;
-import org.apache.sysds.hops.rewrite.dfp.utils.Prime;
+import org.apache.sysds.hops.rewrite.dfp.dp.CostTree;
+import org.apache.sysds.hops.rewrite.dfp.utils.*;
 import org.apache.sysds.parser.*;
 import org.apache.sysds.runtime.controlprogram.Program;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
@@ -105,6 +105,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
             // 生成singleCes
             ArrayList<SingleCse> singleCses = genSingleCse();
+            testCostTree(singleCses,hop);
 
 //            if (!onlySearchConstantSubExp && singleCses.size() <= 13) {
 //                LOG.debug("ss<=13 return original hop");
@@ -151,7 +152,6 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 // 构造计划
                 ArrayList<MySolution> solutions = genSolutions(multiCses, hop);
 
-
                 // 估代价并返回代价最小的计划
                 MySolution solution = selectSolution(solutions, originalSolution);
 //                Hop result = genAndSelectHop(singleCses, multiCses, hop, root);
@@ -177,6 +177,20 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return originalSolution;
 
     }
+
+    void testCostTree(ArrayList<SingleCse> singleCses,Hop template) {
+        ArrayList<Pair<Hop,SingleCse>> pairs = new ArrayList<>();
+        for (SingleCse singleCse:singleCses) {
+            MultiCse multiCse = new MultiCse();
+            multiCse.cses.add(singleCse);
+            Hop hop = createHop(multiCse,template);
+            pairs.add(Pair.of(hop,singleCse));
+        }
+        CostTree costTree = new CostTree();
+        costTree.testCostTree(pairs);
+        System.exit(0);
+    }
+
 
     private int findAllLeaf(Hop hop, ArrayList<Integer> path, int depth) {
         if (isLeafMatrix(hop) ||
@@ -323,6 +337,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return result;
     }
 
+   static boolean searchCombinedCandidates = false;
+
     private ArrayList<MultiCse> genMultiCse(ArrayList<SingleCse> singleCse) {
         long start = System.nanoTime();
         // 按长度，降序
@@ -344,25 +360,27 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             c.last_index = j;
             result.add(c);
         }
-        for (int i = 0; i < result.size(); i++) {
-            if (maxMultiCseNumber >= 0 && result.size() >= maxMultiCseNumber) break;
-            MultiCse frontMC = result.get(i);
-            if (showMultiCse) {
-                LOG.debug(frontMC);
-            }
-            for (int index = frontMC.last_index + 1; index < singleCse.size(); index++) {
-                SingleCse scA = singleCse.get(index);
-                boolean ok = true;
-                for (int k = 0; ok && k < frontMC.cses.size(); k++) {
-                    SingleCse scB = frontMC.cses.get(k);
-                    if (scB.hash == scA.hash || scB.conflict(scA) || !scB.contain(scA)) ok = false;
+        if (searchCombinedCandidates) {
+            for (int i = 0; i < result.size(); i++) {
+                if (maxMultiCseNumber >= 0 && result.size() >= maxMultiCseNumber) break;
+                MultiCse frontMC = result.get(i);
+                if (showMultiCse) {
+                    LOG.debug(frontMC);
                 }
-                if (ok) {
-                    MultiCse newMC = new MultiCse();
-                    newMC.cses = (ArrayList<SingleCse>) frontMC.cses.clone();
-                    newMC.cses.add(scA);
-                    newMC.last_index = index;
-                    result.add(newMC);
+                for (int index = frontMC.last_index + 1; index < singleCse.size(); index++) {
+                    SingleCse scA = singleCse.get(index);
+                    boolean ok = true;
+                    for (int k = 0; ok && k < frontMC.cses.size(); k++) {
+                        SingleCse scB = frontMC.cses.get(k);
+                        if (scB.hash == scA.hash || scB.conflict(scA) || !scB.contain(scA)) ok = false;
+                    }
+                    if (ok) {
+                        MultiCse newMC = new MultiCse();
+                        newMC.cses = (ArrayList<SingleCse>) frontMC.cses.clone();
+                        newMC.cses.add(scA);
+                        newMC.last_index = index;
+                        result.add(newMC);
+                    }
                 }
             }
         }
@@ -435,10 +453,26 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         long constructHopTime = 0;
         long start = System.nanoTime();
         ArrayList<MySolution> solutions = new ArrayList<>();
+        HashMap<Pair<Long,Long>,ArrayList<Hop>> filter = new HashMap<>();
         for (int i = 0; i < multiCses.size(); i++) {
             try {
                 MultiCse c = multiCses.get(i);
                 Hop hop = createHop(c, template);
+                Pair<Long,Long> key = Hash.hashHopDag(hop);
+                if (filter.containsKey(key)) {
+                    for(Hop another : filter.get(key)) {
+                        if (Judge.isSame(hop, another)) {
+                            hop = null;
+                        }
+                    }
+                    if (hop!=null) {
+                        filter.get(key).add(hop);
+                    }
+                } else {
+                    ArrayList<Hop> arrayList = new ArrayList<>();
+                    arrayList.add(hop);
+                    filter.put(key,arrayList);
+                }
                 if (hop != null) {
                     if (onlySearchConstantSubExp) {
                         Hop copy = deepCopyHopsDag(hop);
@@ -455,6 +489,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         }
         long end = System.nanoTime();
         constructHopTime += end - start;
+        LOG.info("solution size = "+solutions.size());
         LOG.info("construct hop time =" + (constructHopTime / 1e6) + "ms");
         return solutions;
     }
