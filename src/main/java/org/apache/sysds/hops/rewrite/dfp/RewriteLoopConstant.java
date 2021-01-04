@@ -43,28 +43,28 @@ public class RewriteLoopConstant extends StatementBlockRewriteRule {
         }
         map1 = new HashMap<>();
         map2 = new HashMap<>();
-        LOG.trace("While Statement");
-        LOG.info("begin constant search");
-        double cost1 = func1((WhileStatementBlock) sb, res, true, false);
-        LOG.info("constant cost = "+cost1);
-        LOG.info("end constant search");
+//        LOG.trace("While Statement");
+//        LOG.info("begin constant search");
+//        double cost1 = func1((WhileStatementBlock) sb, res, true, false);
+//        LOG.info("constant cost = "+cost1);
+//        LOG.info("end constant search");
 //        Thread.interrupted();
-        System.exit(0);
+//        System.exit(0);
         LOG.info("=================================");
         LOG.info("begin normal search");
         double cost2 = func1((WhileStatementBlock) sb, res, false, false);
         LOG.info("end normal search");
-        LOG.info("constant cost = "+cost1);
+//        LOG.info("constant cost = "+cost1);
         LOG.info("normal cost = "+cost2);
-        if (cost1 < cost2) {
-            LOG.info("use constat result");
-            func1((WhileStatementBlock) sb, res, true, true);
-        } else {
+//        if (cost1 < cost2) {
+//            LOG.info("use constat result");
+//            func1((WhileStatementBlock) sb, res, true, true);
+//        } else {
             LOG.info("use normal result");
             func1((WhileStatementBlock) sb, res, false, true);
-        }
+//        }
         LOG.info("=================================");
-//        System.exit(0);
+        System.exit(0);
         FakeCostEstimator2.cleanUnusedScratchMMNode();
         return res;
     }

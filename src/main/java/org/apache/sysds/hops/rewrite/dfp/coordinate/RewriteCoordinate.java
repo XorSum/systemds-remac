@@ -72,7 +72,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         MySolution originalSolution = new MySolution(root);
 
         try {
-            originalSolution.cost = estimate(originalSolution,true);
+            originalSolution.cost = estimate(originalSolution, true);
             if (!"h".equals(root.getName()))
                 return originalSolution;
 
@@ -105,7 +105,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
             // 生成singleCes
             ArrayList<SingleCse> singleCses = genSingleCse();
-            testCostTree(singleCses,hop);
+
+            testCostTree(singleCses, hop);
 
 //            if (!onlySearchConstantSubExp && singleCses.size() <= 13) {
 //                LOG.debug("ss<=13 return original hop");
@@ -157,7 +158,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //                Hop result = genAndSelectHop(singleCses, multiCses, hop, root);
                 if (solution.body != null) {
                     if (showMinCostHop) {
-                            solution.body.resetVisitStatusForced(new HashSet<>());
+                        solution.body.resetVisitStatusForced(new HashSet<>());
                         LOG.debug("after coordinate");
                         LOG.debug(solution);
 
@@ -178,16 +179,18 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     }
 
-    void testCostTree(ArrayList<SingleCse> singleCses,Hop template) {
-        ArrayList<Pair<Hop,SingleCse>> pairs = new ArrayList<>();
-        for (SingleCse singleCse:singleCses) {
-            MultiCse multiCse = new MultiCse();
-            multiCse.cses.add(singleCse);
-            Hop hop = createHop(multiCse,template);
-            pairs.add(Pair.of(hop,singleCse));
-        }
+    void testCostTree(ArrayList<SingleCse> singleCses, Hop template) {
+//        ArrayList<Pair<Hop, SingleCse>> pairs = new ArrayList<>();
+//        for (SingleCse singleCse : singleCses) {
+//            MultiCse multiCse = new MultiCse();
+//            multiCse.cses.add(singleCse);
+//            Hop hop = createHop(multiCse, template);
+//            pairs.add(Pair.of(hop, singleCse));
+//        }
+        ArrayList<Pair<SingleCse,Hop>> list = genHopFromSingleCses(singleCses,template);
+
         CostTree costTree = new CostTree();
-        costTree.testCostTree(pairs);
+        costTree.testCostTree(list);
         System.exit(0);
     }
 
@@ -337,7 +340,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return result;
     }
 
-   static boolean searchCombinedCandidates = false;
+    static boolean searchCombinedCandidates = false;
 
     private ArrayList<MultiCse> genMultiCse(ArrayList<SingleCse> singleCse) {
         long start = System.nanoTime();
@@ -453,25 +456,25 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         long constructHopTime = 0;
         long start = System.nanoTime();
         ArrayList<MySolution> solutions = new ArrayList<>();
-        HashMap<Pair<Long,Long>,ArrayList<Hop>> filter = new HashMap<>();
+        HashMap<Pair<Long, Long>, ArrayList<Hop>> filter = new HashMap<>();
         for (int i = 0; i < multiCses.size(); i++) {
             try {
                 MultiCse c = multiCses.get(i);
                 Hop hop = createHop(c, template);
-                Pair<Long,Long> key = Hash.hashHopDag(hop);
+                Pair<Long, Long> key = Hash.hashHopDag(hop);
                 if (filter.containsKey(key)) {
-                    for(Hop another : filter.get(key)) {
+                    for (Hop another : filter.get(key)) {
                         if (Judge.isSame(hop, another)) {
                             hop = null;
                         }
                     }
-                    if (hop!=null) {
+                    if (hop != null) {
                         filter.get(key).add(hop);
                     }
                 } else {
                     ArrayList<Hop> arrayList = new ArrayList<>();
                     arrayList.add(hop);
-                    filter.put(key,arrayList);
+                    filter.put(key, arrayList);
                 }
                 if (hop != null) {
                     if (onlySearchConstantSubExp) {
@@ -489,7 +492,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         }
         long end = System.nanoTime();
         constructHopTime += end - start;
-        LOG.info("solution size = "+solutions.size());
+        LOG.info("solution size = " + solutions.size());
         LOG.info("construct hop time =" + (constructHopTime / 1e6) + "ms");
         return solutions;
     }
@@ -504,7 +507,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         for (int i = 0; i < solutions.size(); i++) {
             try {
                 MySolution solution = solutions.get(i);
-                solution.cost = estimate(solution,false);
+                solution.cost = estimate(solution, false);
                 if (showCost)
                     LOG.debug("cost=" + solution.cost);
                 if (bestSolution.body == null || bestSolution.cost >= solution.cost) {
@@ -517,8 +520,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             }
         }
         LOG.info("minium cost = " + bestSolution.cost);
-        if (bestSolution.body!=null){
-            estimate(bestSolution,true);
+        if (bestSolution.body != null) {
+            estimate(bestSolution, true);
         }
         if (bestSolution.body == null || bestSolution.cost >= originSolution.cost) {
             bestSolution = originSolution;
@@ -618,12 +621,12 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //    }
 
 
-    private double estimate(MySolution solution,boolean showDetails ) {
+    private double estimate(MySolution solution, boolean showDetails) {
         // 代价估计
         double cost = 0;
         if (showDetails) {
-           LOG.debug("runtime program<<<");
-           FakeCostEstimator2.MMShowCostFlag = true;
+            LOG.debug("runtime program<<<");
+            FakeCostEstimator2.MMShowCostFlag = true;
         }
         try {
             if (ec != null) {
@@ -632,7 +635,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 for (Hop h : solution.preLoopConstants) {
                     Program program = constructProgramBlocks(h);
                     if (showDetails)
-                      LOG.debug(Explain.explain(program));
+                        LOG.debug(Explain.explain(program));
                     preCost += FakeCostEstimator2.estimate(program);
                 }
                 Program programBlocks = constructProgramBlocks(solution.body);
@@ -641,7 +644,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 //cost = CostEstimationWrapper.getTimeEstimate(programBlocks, ec);
                 double bodyCost = FakeCostEstimator2.estimate(programBlocks);
                 if (showDetails)
-                   LOG.debug("preCOst=" + preCost + " bodyCost=" + bodyCost);
+                    LOG.debug("preCOst=" + preCost + " bodyCost=" + bodyCost);
                 cost = preCost + bodyCost * epoch;
             }
         } catch (Exception e) {
@@ -677,24 +680,63 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return transpose;
     }
 
+    private ArrayList<Pair<SingleCse, Hop>> genHopFromSingleCses(ArrayList<SingleCse> singleCses, Hop template) {
+        HashMap<Pair<Long, Long>, Pair<SingleCse, Hop>> filter = new HashMap<>();
+        for (SingleCse sc : singleCses) {
+            Hop h = createHop(sc, template);
+            Pair<Long, Long> hash = Hash.hashHopDag(h);
+            if (filter.containsKey(hash)) {
+                if (filter.get(hash).getLeft().ranges.size() < sc.ranges.size()) {
+                    filter.put(hash, Pair.of(sc, h));
+                }
+            } else {
+                filter.put(hash, Pair.of(sc, h));
+            }
+        }
+        ArrayList<Pair<SingleCse, Hop>> list = new ArrayList<>();
+        list.addAll(filter.values());
+        return list;
+    }
+
+    private Hop createHop(SingleCse sc, Hop template) {
+        try {
+            ArrayList<RangeTree> list = new ArrayList<>();
+            sc.prototype = null;
+            sc.protoRange = null;
+            for (Range range : sc.ranges) {
+                list.add(new RangeTree(range.left, range.right, sc, range.transpose));
+            }
+            return createHopInner(list, template);
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
     private Hop createHop(MultiCse multiCse, Hop template) {
         try {
-            Hop copy = deepCopyHopsDag(template);
-            // 准备区间数组
             ArrayList<RangeTree> list = new ArrayList<>();
-            for (int i = 0; i < leaves.size(); i++) {
-                SingleCse sc = new SingleCse(Range.of(i, i, false), leaves.get(i).hop);
-                sc.name = getRangeName(i, i);
-                RangeTree rangeTree = new RangeTree(i, i, sc, false);
-                list.add(rangeTree);
-            }
             for (SingleCse sc : multiCse.cses) {
                 sc.prototype = null;
                 sc.protoRange = null;
                 for (Range range : sc.ranges) {
                     list.add(new RangeTree(range.left, range.right, sc, range.transpose));
                 }
+            }
+            return createHopInner(list, template);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private Hop createHopInner(ArrayList<RangeTree> list, Hop template) {
+        try {
+            Hop copy = deepCopyHopsDag(template);
+            // 准备区间数组
+            for (int i = 0; i < leaves.size(); i++) {
+                SingleCse sc = new SingleCse(Range.of(i, i, false), leaves.get(i).hop);
+                sc.name = getRangeName(i, i);
+                RangeTree rangeTree = new RangeTree(i, i, sc, false);
+                list.add(rangeTree);
             }
             for (Range r : blockRanges) {
                 SingleCse sc = new SingleCse(Range.of(r.left, r.right, false), null);
