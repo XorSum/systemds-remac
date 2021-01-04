@@ -14,10 +14,12 @@ import java.util.*;
 
 public class CostTree {
 
-    public void testCostTree(ArrayList<Pair< SingleCse,Hop>> pairs) {
+    public void testCostTree(ArrayList<Pair<SingleCse, Hop>> pairs) {
         long time1 = System.nanoTime();
-        for (Pair< SingleCse,Hop> p : pairs) {
-            addHop(p.getRight(), p.getLeft());
+        int maxIndex = 0;
+        for (Pair<SingleCse, Hop> p : pairs) {
+            int tmpIndex = addHop(p.getRight(), p.getLeft());
+            maxIndex = Math.max(maxIndex, tmpIndex);
 //            System.out.println("added");
 //            System.out.println("range2Node size = "+range2Node.size());
 //            System.out.println(range2Node.keySet());
@@ -37,16 +39,16 @@ public class CostTree {
         selectBest();
 
         ArrayList<OperatorNode> list = new ArrayList<>();
-        for (Map.Entry<HashSet<SingleCse>,OperatorNode> e: dp.get(Pair.of(0,29)).entrySet()) {
+        for (Map.Entry<HashSet<SingleCse>, OperatorNode> e : dp.get(Pair.of(0, maxIndex)).entrySet()) {
             list.add(e.getValue());
         }
         list.sort(Comparator.comparingDouble(a -> a.accCost));
-        for (int i=0;i<20&&i<list.size();i++) {
+        for (int i = 0; i < 20 && i < list.size(); i++) {
             System.out.println(list.get(i));
         }
         System.out.println("done");
         long time2 = System.nanoTime();
-        System.out.println("time = "+((time2-time1)/1e9));
+        System.out.println("time = " + ((time2 - time1) / 1e9));
     }
 
 //    public static class RangeNode {
@@ -61,6 +63,7 @@ public class CostTree {
     public static class OperatorNode {
         //        ArrayList<RangeNode> operands = new ArrayList<>();
         Pair<Integer, Integer> range = null;
+        ArrayList<Pair<Integer, Integer>> ranges = new ArrayList<>();
         HashSet<SingleCse> dependencies = new HashSet<>();
         Hop hop = null;
         double thisCost = 1000000;
@@ -76,8 +79,8 @@ public class CostTree {
                     Double.compare(that.accCost, accCost) == 0 &&
                     range.equals(that.range) &&
                     Objects.equals(dependencies, that.dependencies);// &&
-                    //  Objects.equals(hop, that.hop) &&
-                 //   Objects.equals(inputs, that.inputs);
+            //  Objects.equals(hop, that.hop) &&
+            //   Objects.equals(inputs, that.inputs);
         }
 
 
@@ -114,9 +117,73 @@ public class CostTree {
     public CostTree() {
     }
 
+    int addHop2(Hop hop, SingleCse singleCse) {
+
+        return 0;
+    }
+
+    OperatorNode createOperatorGraph(Hop hop, HashMap<Hop, OperatorNode> mp, boolean transpose) {
+        if (mp.containsKey(hop)) {
+            return mp.get(hop);
+        }
+        OperatorNode node;//= new OperatorNode();
+        if (HopRewriteUtils.isTransposeOperation(hop)) {
+            return createOperatorGraph(hop.getInput().get(0), mp, !transpose);
+        } else if (hop instanceof LiteralOp) {
+            return null;
+        } else if (HopRewriteUtils.isUnary(hop, Types.OpOp1.CAST_AS_SCALAR) ||
+                Judge.isWrite(hop)) {
+            return createOperatorGraph(hop.getInput().get(0), mp, transpose);
+        } else if (Judge.isLeafMatrix(hop)) {
+            node = new OperatorNode();
+            node.hop = hop;
+            node.thisCost = 0;
+        } else {
+            node = new OperatorNode();
+            node.hop = hop;
+            node.thisCost = 0;
+            if (!transpose) {
+                for (int i = 0; i < hop.getInput().size(); i++) {
+                    OperatorNode tmp = createOperatorGraph(hop.getInput().get(i), mp, transpose);
+                    if (tmp == null) continue;
+                    node.inputs.add(tmp);
+                    node.dependencies.addAll(tmp.dependencies);
+                    node.accCost += tmp.accCost;
+                }
+            } else {
+                for (int i = hop.getInput().size() - 1; i >= 0; i--) {
+                    OperatorNode tmp = createOperatorGraph(hop.getInput().get(i), mp, transpose);
+                    if (tmp == null) continue;
+                    node.inputs.add(tmp);
+                    node.dependencies.addAll(tmp.dependencies);
+                    node.accCost += tmp.accCost;
+                }
+            }
+        }
+        mp.put(hop,node);
+        return node;
+    }
+
+    void analyzeOperatorRanges(OperatorNode root, MutableInt opIndex) {
+        int begin = opIndex.getValue();
+        if (root.inputs.size()>0) {
+            for (int i = 0; i < root.inputs.size(); i++) {
+                analyzeOperatorRanges(root.inputs.get(i), opIndex);
+            }
+        }else{
+            opIndex.increment();
+        }
+        int end = opIndex.getValue()-1;
+        root.ranges.add(Pair.of(begin,end));
+    }
+
+
+
+
+
     int count = 0;
 
-    public void addHop(Hop hop, SingleCse singleCse) {
+    public int addHop(Hop hop, SingleCse singleCse) {
         System.out.println("single cse: " + singleCse);
         HashMap<Hop, ArrayList<Pair<Integer, Integer>>> hop2index = new HashMap<>();
         MutableInt opIndex = new MutableInt(0);
@@ -128,6 +195,7 @@ public class CostTree {
 //            System.out.println(Explain.explain(hop));
             System.out.println("xx");
         }
+        return opIndex.getValue() - 1;
     }
 
     public OperatorNode rAddHop(Hop hop, MutableInt opIndex, HashMap<Hop, ArrayList<Pair<Integer, Integer>>> hop2index, SingleCse singleCse, boolean transpose) {
@@ -169,11 +237,10 @@ public class CostTree {
             boolean isCse = isCse(begin, end, singleCse);
             double cost = estimateCost(hop); // todo: estimate cost
             if (isCse) {
-
                 count++;
                 operatorNode.thisCost = cost / singleCse.ranges.size();
                 operatorNode.dependencies.add(singleCse);
-                if (isAta(hop)) operatorNode.thisCost/=100;
+                if (isAta(hop)) operatorNode.thisCost /= 100;
             } else {
                 operatorNode.thisCost = cost;
             }
@@ -274,7 +341,7 @@ public class CostTree {
                     Pair<Integer, Integer> rRange = operatorNode.inputs.get(1).range;
                     dp.get(lRange).forEach((singleCse, operatorNode1) -> {
                         dp.get(rRange).forEach((singleCse2, operatorNode2) -> {
-                            if (check(lRange, operatorNode1.dependencies, rRange, operatorNode2.dependencies,operatorNode.dependencies)) {
+                            if (check(lRange, operatorNode1.dependencies, rRange, operatorNode2.dependencies, operatorNode.dependencies)) {
                                 update(operatorNode1, operatorNode2, operatorNode);
                             }
                         });
@@ -296,14 +363,14 @@ public class CostTree {
     boolean check(Pair<Integer, Integer> lRange, HashSet<SingleCse> lcses,
                   Pair<Integer, Integer> rRange, HashSet<SingleCse> rcses,
                   HashSet<SingleCse> midcses) {
-        for (SingleCse m:midcses) {
-            for (SingleCse l:lcses) {
-                if (l.hash == m.hash ) return false;
-                if (l.conflict(m)||m.conflict(l)) return false;
+        for (SingleCse m : midcses) {
+            for (SingleCse l : lcses) {
+                if (l.hash == m.hash) return false;
+                if (l.conflict(m) || m.conflict(l)) return false;
             }
-            for (SingleCse r:rcses) {
-                if (r.hash == m.hash ) return false;
-                if (m.conflict(r)||r.conflict(m)) return false;
+            for (SingleCse r : rcses) {
+                if (r.hash == m.hash) return false;
+                if (m.conflict(r) || r.conflict(m)) return false;
             }
         }
         for (SingleCse lcse : lcses) {
@@ -334,7 +401,7 @@ public class CostTree {
     }
 
     void update(OperatorNode lNode, OperatorNode rNode, OperatorNode originNode) {
-        if (lNode.range.equals(originNode.range) ||rNode.range.equals(originNode.range) ) {
+        if (lNode.range.equals(originNode.range) || rNode.range.equals(originNode.range)) {
             System.out.println("chong fu ");
             System.out.println(lNode);
             System.out.println(rNode);
@@ -368,21 +435,21 @@ public class CostTree {
                     tmp.put(node.dependencies, node);
                 }
             } else {
-                if (tmp.size()<100) {
+                if (tmp.size() < 100) {
                     tmp.put(node.dependencies, node);
                 } else {
                     double maxCost = 0;
                     HashSet<SingleCse> key = null;
-                    for (HashMap.Entry<HashSet<SingleCse>,OperatorNode> e: tmp.entrySet()) {
-                        if (maxCost<e.getValue().accCost) {
+                    for (HashMap.Entry<HashSet<SingleCse>, OperatorNode> e : tmp.entrySet()) {
+                        if (maxCost < e.getValue().accCost) {
                             maxCost = e.getValue().accCost;
                             key = e.getKey();
                         }
                     }
-                    if (key!=null) {
+                    if (key != null) {
                         tmp.remove(key);
                     }
-                    tmp.put(node.dependencies,node);
+                    tmp.put(node.dependencies, node);
                 }
             }
         }
