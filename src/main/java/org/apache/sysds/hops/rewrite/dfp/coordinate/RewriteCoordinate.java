@@ -191,6 +191,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
         CostTree costTree = new CostTree();
         costTree.testCostTree(list);
+//        costTree.testOperatorGraph(list);
         System.exit(0);
     }
 
