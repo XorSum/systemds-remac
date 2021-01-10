@@ -9,6 +9,7 @@ import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.Range;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.SingleCse;
 import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
+import org.apache.sysds.utils.Explain;
 
 import java.util.*;
 
@@ -68,13 +69,13 @@ public class CostTree {
 
     public static class OperatorNode {
         //        ArrayList<RangeNode> operands = new ArrayList<>();
-        Pair<Integer, Integer> range = null;
+//        Pair<Integer, Integer> range = null;
         ArrayList<Pair<Integer, Integer>> ranges = new ArrayList<>();
         HashSet<SingleCse> dependencies = new HashSet<>();
         HashSet<SingleCse> oldDependencies = new HashSet<>();
         Hop hop = null;
-        double thisCost = 1000000;
-        double accCost = 0;
+        double thisCost = Double.MAX_VALUE;
+        double accCost =  Double.MAX_VALUE;
         ArrayList<OperatorNode> inputs = new ArrayList<>();
 
         @Override
@@ -84,7 +85,8 @@ public class CostTree {
             OperatorNode that = (OperatorNode) o;
             return Double.compare(that.thisCost, thisCost) == 0 &&
                     Double.compare(that.accCost, accCost) == 0 &&
-                    range.equals(that.range) &&
+//                    range.equals(that.range) &&
+                    ranges.equals(that.ranges) &&
                     Objects.equals(dependencies, that.dependencies);// &&
             //  Objects.equals(hop, that.hop) &&
             //   Objects.equals(inputs, that.inputs);
@@ -100,13 +102,15 @@ public class CostTree {
             sb.append(thisCost);
             sb.append(",");
             sb.append(accCost);
+            sb.append(",");
+            sb.append(ranges);
             sb.append(",[");
             for (SingleCse singleCse : dependencies) {
                 sb.append(singleCse.name);
                 sb.append(",");
                 sb.append(singleCse.ranges);
             }
-            sb.append("],");
+            sb.append("]");
 
             sb.append(",[");
             for (SingleCse singleCse : oldDependencies) {
@@ -117,12 +121,12 @@ public class CostTree {
             sb.append("],");
 
 //            sb.append(dependencies);
-            sb.append("[");
-            for (OperatorNode on : inputs) {
-                sb.append(",");
-                sb.append(on.range);
-            }
-            sb.append("]");
+//            sb.append("[");
+//            for (OperatorNode on : inputs) {
+//                sb.append(",");
+//                sb.append(on.ranges);
+//            }
+//            sb.append("]");
             sb.append("}\n");
             return sb.toString();
         }
@@ -147,14 +151,67 @@ public class CostTree {
 
     public void testOperatorGraph(ArrayList<Pair<SingleCse, Hop>> pairs) {
         ArrayList<OperatorNode> list = new ArrayList<>();
+        int maxIndex = 0;
         for (Pair<SingleCse, Hop> p : pairs) {
+            System.out.println(Explain.explain(p.getRight()));
             OperatorNode node = createOperatorGraph(p.getRight(), new HashMap<>(), false);
-            analyzeOperatorRanges(node, p.getLeft(), new MutableInt(0));
-            analyzeOperatorCost(node,new HashSet<>());
-            addOperatorNodeToTable(node,new HashSet<>());
+            MutableInt mutableInt = new MutableInt(0);
+            analyzeOperatorRanges(node, p.getLeft(), mutableInt);
+            System.out.println("mutableInt=" + mutableInt.getValue());
+            maxIndex = Math.max(maxIndex, mutableInt.getValue() - 1);
+            analyzeOperatorCost(node, new HashSet<>());
+            addOperatorNodeToTable(node, new HashSet<>());
             list.add(node);
-            System.out.println(node);
+            explain(node, 0);
+            System.out.println("========================");
+//            System.out.println(node);
         }
+
+//        for (Map.Entry<Pair<Integer,Integer>,ArrayList<OperatorNode>> e: range2OperatoeNode.entrySet()) {
+//            System.out.println(e.getKey());
+//            System.out.println(e.getValue().size());
+//        }
+
+//        System.exit(0);
+
+//          filterOperatorNode();
+        selectBest();
+
+        for (Pair<Integer,Integer> range: range2OperatoeNode.keySet()) {
+            showBest(range);
+        }
+
+        showBest(Pair.of(0, maxIndex));
+        System.out.println("done");
+    }
+
+    void showBest(Pair<Integer,Integer> range) {
+        System.out.println("range: "+range);
+        ArrayList<OperatorNode> list2 = new ArrayList<>();
+        for (Map.Entry<HashSet<SingleCse>, OperatorNode> e : dp.get(range).entrySet()) {
+            list2.add(e.getValue());
+//            if (e.getValue().dependencies.size() > 2) {
+//                System.out.println("dependencies size > 2");
+//            }
+        }
+        list2.sort(Comparator.comparingDouble(a -> a.accCost));
+        for (int i = 0; i < 20 && i < list2.size(); i++) {
+            System.out.println(list2.get(i));
+        }
+
+    }
+
+
+    void explain(OperatorNode node, int d) {
+//        for (int i = 0; i < d; i++) System.out.print(" ");
+//        System.out.print("{");
+//        System.out.print(node);
+        if (Judge.isRead(node.hop)) System.out.print(node.hop.getName()+" ");
+        for (int i = 0; i < node.inputs.size(); i++) {
+            explain(node.inputs.get(i), d + 1);
+        }
+//        for (int i = 0; i < d; i++) System.out.print(" ");
+//        System.out.println("}");
     }
 
 
@@ -167,10 +224,17 @@ public class CostTree {
             return createOperatorGraph(hop.getInput().get(0), mp, !transpose);
         } else if (hop instanceof LiteralOp) {
             return null;
-        } else if (HopRewriteUtils.isUnary(hop, Types.OpOp1.CAST_AS_SCALAR) ||
-                Judge.isWrite(hop)) {
+        }
+//        else if (HopRewriteUtils.isBinaryMatrixScalarOperation(hop)){
+//            System.out.println("binary scalar");
+//        }
+        else if (HopRewriteUtils.isUnary(hop, Types.OpOp1.CAST_AS_SCALAR)){
+//            System.out.println("cast as scalar");
+            return createOperatorGraph(hop.getInput().get(0),mp,transpose);
+        } else if (Judge.isWrite(hop)) {
             return createOperatorGraph(hop.getInput().get(0), mp, transpose);
-        } else if (Judge.isLeafMatrix(hop)) {
+        }
+        else if (Judge.isLeafMatrix(hop)) {
             node = new OperatorNode();
             node.hop = hop;
             node.thisCost = 0; // todo
@@ -195,7 +259,7 @@ public class CostTree {
                 }
             }
         }
-       // System.out.println("put " + node);
+        // System.out.println("put " + node);
         mp.put(hop, node);
         return node;
     }
@@ -220,33 +284,39 @@ public class CostTree {
         }
     }
 
-    void analyzeOperatorCost(OperatorNode node,HashSet<OperatorNode> visited) {
-        node.accCost = node.thisCost;
+    void analyzeOperatorCost(OperatorNode node, HashSet<OperatorNode> visited) {
+        if (visited.contains(node)) return;
+        node.accCost = 0;
         for (int i = 0; i < node.inputs.size(); i++) {
-            analyzeOperatorCost(node.inputs.get(i),visited);
+            analyzeOperatorCost(node.inputs.get(i), visited);
             node.accCost += node.inputs.get(i).accCost;
         }
+        node.thisCost = estimateCost(node.hop);
         if (node.ranges.size() > 0) {
-            node.accCost /= node.ranges.size();
+            node.thisCost = node.thisCost / node.ranges.size();
         }
+        node.accCost += node.thisCost;
+        System.out.println(node);
         visited.add(node);
     }
 
-    void addOperatorNodeToTable(OperatorNode node,HashSet<OperatorNode> visited) {
-        node.accCost = node.thisCost;
+    void addOperatorNodeToTable(OperatorNode node, HashSet<OperatorNode> visited) {
+        // node.accCost = node.thisCost;
         for (int i = 0; i < node.inputs.size(); i++) {
-            addOperatorNodeToTable(node.inputs.get(i),visited);
+            addOperatorNodeToTable(node.inputs.get(i), visited);
         }
-        for (int i=0;i<node.ranges.size();i++) {
-            Pair<Integer,Integer> range = node.ranges.get(i);
-            ArrayList<OperatorNode> nodes;
-            if (range2OperatoeNode.containsKey(range)) {
-                nodes = range2OperatoeNode.get(range);
-            } else {
-                nodes = new ArrayList<>();
+        for (int i = 0; i < node.ranges.size(); i++) {
+            Pair<Integer, Integer> range = node.ranges.get(i);
+            if (!visited.contains(node)) {
+                ArrayList<OperatorNode> nodes;
+                if (range2OperatoeNode.containsKey(range)) {
+                    nodes = range2OperatoeNode.get(range);
+                } else {
+                    nodes = new ArrayList<>();
+                }
+                nodes.add(node);
+                range2OperatoeNode.put(range, nodes);
             }
-            nodes.add(node);
-            range2OperatoeNode.put(range, nodes);
         }
         visited.add(node);
     }
@@ -319,7 +389,7 @@ public class CostTree {
         }
         Pair<Integer, Integer> range = Pair.of(begin, end);
         // System.out.println(hop.getHopID()+" "+range);
-        operatorNode.range = range;
+//        operatorNode.range = range;
         if (operatorNode != null) {
             ArrayList<OperatorNode> nodes;
             if (range2OperatoeNode.containsKey(range)) {
@@ -390,45 +460,72 @@ public class CostTree {
         }
     }
 
-    HashSet<Pair<Integer, Integer>> visited;
 
     HashMap<Pair<Integer, Integer>, HashMap<HashSet<SingleCse>, OperatorNode>> dp;
 
     void selectBest() {
         dp = new HashMap<>();
-        visited = new HashSet<>();
-        ArrayList<Pair<Integer, Integer>> ranges = new ArrayList<>();
-        ranges.addAll(range2OperatoeNode.keySet());
+        ArrayList<Pair<Integer, Integer>> ranges = new ArrayList<>(range2OperatoeNode.keySet());
         ranges.sort(Comparator.comparingInt(a -> (a.getRight() - a.getLeft())));
         System.out.println(ranges);
-        for (Pair<Integer, Integer> range : ranges) {
-            ArrayList<OperatorNode> operatorNodes = range2OperatoeNode.get(range);
+        for (Pair<Integer, Integer> boundery : ranges) {
+            ArrayList<OperatorNode> operatorNodes = range2OperatoeNode.get(boundery);
             for (OperatorNode operatorNode : operatorNodes) {
-                System.out.println("Operator Node " + operatorNode.range);
+                //  System.out.println("Operator Node " + operatorNode.range);
                 if (Judge.isLeafMatrix(operatorNode.hop)) {
-                    insert(operatorNode);
+                    insert(operatorNode, boundery);
                 } else if (operatorNode.inputs.size() == 2) {
-                    Pair<Integer, Integer> lRange = operatorNode.inputs.get(0).range;
-                    Pair<Integer, Integer> rRange = operatorNode.inputs.get(1).range;
-                    dp.get(lRange).forEach((singleCse, operatorNode1) -> {
-                        dp.get(rRange).forEach((singleCse2, operatorNode2) -> {
+                    //todo Pair<Integer, Integer> lRange = operatorNode.inputs.get(0).ranges.get(0);
+                    //todo Pair<Integer, Integer> rRange = operatorNode.inputs.get(1).ranges.get(0);
+                    Pair<Integer, Integer> lRange = null, rRange = null;
+                    for (Pair<Integer, Integer> tmp : operatorNode.inputs.get(0).ranges) {
+                        if (tmp.getLeft().equals(boundery.getLeft())) {
+                            lRange = tmp;
+                            break;
+                        }
+                    }
+                    for (Pair<Integer, Integer> tmp : operatorNode.inputs.get(1).ranges) {
+                        if (tmp.getRight().equals(boundery.getRight())) {
+                            rRange = tmp;
+                            break;
+                        }
+                    }
+                    if (lRange == null || rRange == null) continue;
+                    for (Map.Entry<HashSet<SingleCse>, OperatorNode> entry1 : dp.get(lRange).entrySet()) {
+                        OperatorNode operatorNode1 = entry1.getValue();
+                        for (Map.Entry<HashSet<SingleCse>, OperatorNode> entry2 : dp.get(rRange).entrySet()) {
+                            OperatorNode operatorNode2 = entry2.getValue();
                             if (check(lRange, operatorNode1.dependencies, rRange, operatorNode2.dependencies, operatorNode.dependencies)) {
-                                update(operatorNode1, operatorNode2, operatorNode);
+                                update(operatorNode1, lRange, operatorNode2, rRange, operatorNode, boundery);
                             }
-                        });
-                    });
-                    update(operatorNode.inputs.get(0), operatorNode.inputs.get(1), operatorNode);
+                        }
+                    }
+                    update(operatorNode.inputs.get(0), lRange, operatorNode.inputs.get(1), rRange, operatorNode, boundery);
+                } else {
+                    System.out.println("ELSE");
+                    System.out.println(operatorNode);
                 }
 //                if (dp.containsKey(operatorNode.range)) {
 //                    System.out.println(operatorNode.range+" "+  dp.get(operatorNode.range));
 //                }
             }
-            if (!dp.containsKey(range)) {
-                dp.put(range, new HashMap<>());
+            if (!dp.containsKey(boundery)) {
+                dp.put(boundery, new HashMap<>());
             } else {
-                System.out.println(dp.get(range).size());
+//                   System.out.println(boundery + " = " + dp.get(boundery).size());
+            }
+            System.out.println(boundery + " = " + dp.get(boundery).size());
+        }
+
+        for (Pair<Integer, Integer> range : range2OperatoeNode.keySet()) {
+            if (!dp.containsKey(range)) {
+                System.out.println(range + " " + 0);
+            } else {
+                System.out.println(range + " " + dp.get(range).size());
             }
         }
+
+
     }
 
     boolean check(Pair<Integer, Integer> lRange, HashSet<SingleCse> lcses,
@@ -471,8 +568,23 @@ public class CostTree {
         return true;
     }
 
-    void update(OperatorNode lNode, OperatorNode rNode, OperatorNode originNode) {
-        if (lNode.range.equals(originNode.range) || rNode.range.equals(originNode.range)) {
+    void update(OperatorNode lNode, Pair<Integer, Integer> lRange,
+                OperatorNode rNode, Pair<Integer, Integer> rRange,
+                OperatorNode originNode, Pair<Integer, Integer> midRange) {
+        if (lNode.accCost>=Double.MAX_VALUE/2||
+                rNode.accCost>=Double.MAX_VALUE/2||
+                lNode.thisCost>=Double.MAX_VALUE/2||
+                rNode.thisCost>=Double.MAX_VALUE/2
+        ){
+            System.out.println("cost error");
+            System.out.println(originNode);
+            System.out.println(lNode);
+            System.out.println(rNode);
+            System.exit(0);
+        }
+
+
+        if (lRange.equals(midRange) || rRange.equals(midRange)) {
             System.out.println("chong fu ");
             System.out.println(lNode);
             System.out.println(rNode);
@@ -480,7 +592,9 @@ public class CostTree {
             System.exit(0);
         }
         OperatorNode node = new OperatorNode();
-        node.range = originNode.range; //Pair.of(lNode.range.getLeft(), rNode.range.getRight());
+        node.ranges.add(midRange);
+
+        //   node.range = originNode.range; //Pair.of(lNode.range.getLeft(), rNode.range.getRight());
         //  System.out.println(lNode.range + " " + rNode.range + " " + node.range);
         node.inputs.add(lNode);
         node.inputs.add(rNode);
@@ -489,33 +603,44 @@ public class CostTree {
         node.dependencies.addAll(lNode.dependencies);
         node.dependencies.addAll(rNode.dependencies);
 
+//        if (node.dependencies.size()>2) {
+//            System.out.println("dependencies size > 2");
+//        }
+
         node.oldDependencies.addAll(originNode.oldDependencies);
         node.oldDependencies.addAll(lNode.oldDependencies);
         node.oldDependencies.addAll(rNode.oldDependencies);
 
         node.thisCost = originNode.thisCost;
         node.hop = originNode.hop;
+
         node.accCost = lNode.accCost + rNode.accCost + node.thisCost;
-        insert(node);
+//        System.out.println(node);
+//        System.out.println("cost : "+lNode.accCost+" "+rNode.accCost+" "+node.thisCost);
+        insert(node, midRange);
     }
 
-    void insert(OperatorNode node) {
-        //   removeUnusedSingleCse(node);
-        if (!dp.containsKey(node.range)) {
+    void insert(OperatorNode node, Pair<Integer, Integer> range) {
+//        removeUnusedSingleCse(node, range);
+        boolean add = false;
+        if (!dp.containsKey(range)) {
             HashMap<HashSet<SingleCse>, OperatorNode> tmp = new HashMap<>();
             tmp.put(node.dependencies, node);
-            dp.put(node.range, tmp);
+            add = true;
+            dp.put(range, tmp);
         } else {
-            HashMap<HashSet<SingleCse>, OperatorNode> tmp = dp.get(node.range);
+            HashMap<HashSet<SingleCse>, OperatorNode> tmp = dp.get(range);
             if (tmp.containsKey(node.dependencies)) {
                 OperatorNode node1 = tmp.get(node.dependencies);
                 if (node1.accCost > node.accCost) {
                     tmp.put(node.dependencies, node);
+                    add = true;
                 }
             } else {
 //                tmp.put(node.dependencies, node);
-                if (tmp.size() < 100) {
+                if (tmp.size() < 200) {
                     tmp.put(node.dependencies, node);
+                    add = true;
                 } else {
                     double maxCost = 0;
                     HashSet<SingleCse> key = null;
@@ -525,17 +650,23 @@ public class CostTree {
                             key = e.getKey();
                         }
                     }
-                    if (key != null) {
+                    if (maxCost > node.accCost) {
                         tmp.remove(key);
+                        tmp.put(node.dependencies, node);
+                        add = true;
                     }
-                    tmp.put(node.dependencies, node);
                 }
             }
         }
+//        if (add && node.dependencies.size() > 2) {
+//            if (node.ranges.get(0).getRight() - node.ranges.get(0).getLeft() >= 9) {
+//                System.out.println("insert " + node);
+//            }
+//        }
     }
 
 
-    void removeUnusedSingleCse(OperatorNode node) {
+    void removeUnusedSingleCse(OperatorNode node, Pair<Integer, Integer> boundery) {
         for (Iterator<SingleCse> iter = node.dependencies.iterator(); iter.hasNext(); ) {
             SingleCse singleCse = iter.next();
             int min = Integer.MAX_VALUE, max = -1;
@@ -543,7 +674,7 @@ public class CostTree {
                 min = Math.min(range.left, min);
                 max = Math.max(range.right, max);
             }
-            if (node.range.getLeft() <= min && max <= node.range.getRight()) {
+            if (boundery.getLeft() <= min && max <= boundery.getRight()) {
                 node.oldDependencies.add(singleCse);
                 iter.remove();
                 //  System.out.println("remove");

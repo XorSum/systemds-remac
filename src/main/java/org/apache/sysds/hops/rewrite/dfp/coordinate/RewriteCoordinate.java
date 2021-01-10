@@ -190,8 +190,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         ArrayList<Pair<SingleCse,Hop>> list = genHopFromSingleCses(singleCses,template);
 
         CostTree costTree = new CostTree();
-        costTree.testCostTree(list);
-//        costTree.testOperatorGraph(list);
+//        costTree.testCostTree(list);
+        costTree.testOperatorGraph(list);
         System.exit(0);
     }
 
