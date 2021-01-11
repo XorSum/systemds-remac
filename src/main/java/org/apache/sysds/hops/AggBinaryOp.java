@@ -1032,7 +1032,7 @@ public class AggBinaryOp extends MultiThreadedHop
 		return footprint;
 	}
 
-	private static MMultMethod optFindMMultMethodCP( long m1_rows, long m1_cols, long m2_rows, long m2_cols, MMTSJType mmtsj, ChainType chainType, boolean leftPM ) 
+	public static MMultMethod optFindMMultMethodCP( long m1_rows, long m1_cols, long m2_rows, long m2_cols, MMTSJType mmtsj, ChainType chainType, boolean leftPM )
 	{	
 		//step 1: check for TSMM pattern
 		if( mmtsj != MMTSJType.NONE )

@@ -1,0 +1,140 @@
+    public void testCostTree(ArrayList<Pair<SingleCse, Hop>> pairs) {
+
+//        Hop hop = pairs.get(0).getRight();
+//        hop.resetVisitStatusForced(new HashSet<>());
+//        testHash(hop);
+//        System.exit(0);
+
+        long time1 = System.nanoTime();
+        int maxIndex = 0;
+        for (Pair<SingleCse, Hop> p : pairs) {
+            int tmpIndex = addHop(p.getRight(), p.getLeft());
+            maxIndex = Math.max(maxIndex, tmpIndex);
+//            System.out.println("added");
+//            System.out.println("range2Node size = "+range2Node.size());
+//            System.out.println(range2Node.keySet());
+//            OptionalInt min = range2Node.keySet().stream().mapToInt(p->p.getLeft()).min();
+//            OptionalInt max = range2Node.keySet().stream().mapToInt(p->p.getRight()).max();
+//            System.out.println(min+"  "+max);
+        }
+        filterOperatorNode();
+//        for (HashMap.Entry<Pair<Integer, Integer>, ArrayList<OperatorNode>> entry : range2OperatoeNode.entrySet()) {
+//            System.out.println("range: " + entry.getKey().getLeft() + " " + entry.getKey().getRight() + " " + entry.getValue().size());
+//            for (OperatorNode node: entry.getValue()) {
+//                System.out.println(node.thisCost);
+//            }
+//            //  System.out.println(entry.getValue());
+//        }
+//        System.exit(0);
+        selectBest();
+
+        ArrayList<OperatorNode> list = new ArrayList<>();
+        for (Map.Entry<HashSet<SingleCse>, OperatorNode> e : dp.get(Pair.of(0, maxIndex)).entrySet()) {
+            list.add(e.getValue());
+        }
+        list.sort(Comparator.comparingDouble(a -> a.accCost));
+        for (int i = 0; i < 20 && i < list.size(); i++) {
+            System.out.println(list.get(i));
+        }
+        System.out.println("done");
+        long time2 = System.nanoTime();
+        System.out.println("time = " + ((time2 - time1) / 1e9));
+    }
+
+
+    int count = 0;
+
+    public int addHop(Hop hop, SingleCse singleCse) {
+        System.out.println("single cse: " + singleCse);
+        HashMap<Hop, ArrayList<Pair<Integer, Integer>>> hop2index = new HashMap<>();
+        MutableInt opIndex = new MutableInt(0);
+        count = 0;
+        rAddHop(hop, opIndex, hop2index, singleCse, false);
+        if (count != singleCse.ranges.size()) {
+//            System.out.println(singleCse);
+//            System.out.println(hop2index);
+//            System.out.println(Explain.explain(hop));
+            System.out.println("xx");
+        }
+        return opIndex.getValue() - 1;
+    }
+
+    public OperatorNode rAddHop(Hop hop, MutableInt opIndex, HashMap<Hop, ArrayList<Pair<Integer, Integer>>> hop2index, SingleCse singleCse, boolean transpose) {
+        int begin, end;
+        OperatorNode operatorNode = new OperatorNode();
+        operatorNode.hop = hop;
+        if (HopRewriteUtils.isTransposeOperation(hop)) {
+            return rAddHop(hop.getInput().get(0), opIndex, hop2index, singleCse, !transpose);
+        } else if (HopRewriteUtils.isUnary(hop, Types.OpOp1.CAST_AS_SCALAR) ||
+                Judge.isWrite(hop)) {
+            return rAddHop(hop.getInput().get(0), opIndex, hop2index, singleCse, transpose);
+        } else if (hop instanceof LiteralOp) {
+            return null;
+        } else if (Judge.isLeafMatrix(hop)) {
+            begin = opIndex.getValue();
+            opIndex.increment();
+            end = opIndex.getValue() - 1;
+            operatorNode.thisCost = 0;
+        } else {
+            begin = opIndex.getValue();
+            if (!transpose) {
+                for (int i = 0; i < hop.getInput().size(); i++) {
+                    OperatorNode tmp = rAddHop(hop.getInput().get(i), opIndex, hop2index, singleCse, transpose);
+                    if (tmp == null) continue;
+                    operatorNode.inputs.add(tmp);
+                    operatorNode.dependencies.addAll(tmp.dependencies);
+                    operatorNode.accCost += tmp.accCost;
+                }
+            } else {
+                for (int i = hop.getInput().size() - 1; i >= 0; i--) {
+                    OperatorNode tmp = rAddHop(hop.getInput().get(i), opIndex, hop2index, singleCse, transpose);
+                    if (tmp == null) continue;
+                    operatorNode.inputs.add(tmp);
+                    operatorNode.dependencies.addAll(tmp.dependencies);
+                    operatorNode.accCost += tmp.accCost;
+                }
+            }
+            end = opIndex.getValue() - 1;
+            boolean isCse = isCse(begin, end, singleCse);
+            double cost = estimateCost(hop); // todo: estimate cost
+            if (isCse) {
+                count++;
+                operatorNode.thisCost = cost / singleCse.ranges.size();
+                operatorNode.dependencies.add(singleCse);
+                if (isAta(hop)) operatorNode.thisCost /= 100;
+            } else {
+                operatorNode.thisCost = cost;
+            }
+            operatorNode.accCost += operatorNode.thisCost;
+        }
+        Pair<Integer, Integer> range = Pair.of(begin, end);
+        // System.out.println(hop.getHopID()+" "+range);
+//        operatorNode.range = range;
+        if (operatorNode != null) {
+            ArrayList<OperatorNode> nodes;
+            if (range2OperatoeNode.containsKey(range)) {
+                nodes = range2OperatoeNode.get(range);
+            } else {
+                nodes = new ArrayList<>();
+            }
+            nodes.add(operatorNode);
+            range2OperatoeNode.put(range, nodes);
+        }
+        if (!hop2index.containsKey(hop)) {
+            hop2index.put(hop, new ArrayList<>());
+        }
+        hop2index.get(hop).add(range);
+        return operatorNode;
+    }
+
+    boolean isAta(Hop hop) {
+        if (HopRewriteUtils.isMatrixMultiply(hop)) {
+            Hop l = hop.getInput().get(0);
+            Hop r = hop.getInput().get(1);
+            if (HopRewriteUtils.isTransposeOperation(l) && l.getInput().get(0).equals(r) && r.getName().equals("a") ||
+                    HopRewriteUtils.isTransposeOperation(r) && r.getInput().get(0).equals(l) && l.getName().equals("a")) {
+                return true;
+            }
+        }
+        return false;
+    }

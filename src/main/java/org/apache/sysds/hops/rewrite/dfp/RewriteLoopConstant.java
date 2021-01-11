@@ -7,6 +7,7 @@ import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
 import org.apache.sysds.hops.rewrite.StatementBlockRewriteRule;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
+import org.apache.sysds.hops.rewrite.dfp.dp.CostTree;
 import org.apache.sysds.parser.*;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
 
@@ -73,6 +74,7 @@ public class RewriteLoopConstant extends StatementBlockRewriteRule {
         double cost = 0;
         WhileStatement ws = (WhileStatement) wsb.getStatement(0);
         VariableSet variablesUpdated = wsb.variablesUpdated();
+        CostTree.variablesUpdated = variablesUpdated;
         RewriteCoordinate rewriteCoordinateConstant = new RewriteCoordinate(ec, wsb, variablesUpdated);
         RewriteCoordinate rewriteCoordinate = new RewriteCoordinate(ec,wsb);
         ArrayList<Hop> twriteHops = new ArrayList<>();

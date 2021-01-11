@@ -25,6 +25,10 @@ public class DistributedScratch {
 
     private static HashMap<String, EstimatorMatrixHistogram.MatrixHistogram> map = new HashMap<>();
 
+    public static void setMatrixHistogram( String name, EstimatorMatrixHistogram.MatrixHistogram histogram)     {
+        map.put(name,histogram);
+    }
+
     public static EstimatorMatrixHistogram.MatrixHistogram getMatrixHistogram( String name  ) {
         if (map.containsKey(name)) return map.get(name);
         if (ec == null) {

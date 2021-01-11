@@ -699,17 +699,17 @@ public class FakeCostEstimator2 {
     }
 
 
-    private static double computeCostSPMM(DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
+    public static double computeCostSPMM(DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
         double result = CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc2.getSparsity() * 1.5 / OptimizerUtils.getNumReducers(false);
         return result;
     }
 
 
-    private static double matrixSize(DataCharacteristics dc) {
+    public static double matrixSize(DataCharacteristics dc) {
         return MatrixBlock.estimateSizeInMemory(dc.getRows(), dc.getCols(), dc.getSparsity());
     }
 
-    private static double matrixSize(MatrixBlock mb) {
+    public static double matrixSize(MatrixBlock mb) {
         return MatrixBlock.estimateSizeInMemory(mb.getNumRows(), mb.getNumColumns(), mb.getSparsity());
     }
 
@@ -979,7 +979,7 @@ public class FakeCostEstimator2 {
         return shuffleCost + computeCost;
     }
 
-    private static long reducerNumber(long rows, long cols) {
+    public static long reducerNumber(long rows, long cols) {
         if (defaultBlockSize <= 0) return OptimizerUtils.getNumReducers(false);
         long nrb = (long) Math.ceil((double) rows / defaultBlockSize);
         long ncb = (long) Math.ceil((double) cols / defaultBlockSize);
