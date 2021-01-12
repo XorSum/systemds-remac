@@ -28,18 +28,18 @@ public class CostTree {
         ArrayList<OperatorNode> list = new ArrayList<>();
         int maxIndex = 0;
         for (Pair<SingleCse, Hop> p : pairs) {
-          //  HopCostEstimator.buildMMNodeTree(p.getRight());
-           // System.out.println(Explain.explain(p.getRight()));
+            //  HopCostEstimator.buildMMNodeTree(p.getRight());
+            // System.out.println(Explain.explain(p.getRight()));
             OperatorNode node = createOperatorGraph(p.getRight(), new HashMap<>(), false);
             MutableInt mutableInt = new MutableInt(0);
             analyzeOperatorRanges(node, p.getLeft(), mutableInt);
-          //  System.out.println("mutableInt=" + mutableInt.getValue());
+            //  System.out.println("mutableInt=" + mutableInt.getValue());
             maxIndex = Math.max(maxIndex, mutableInt.getValue() - 1);
             analyzeOperatorConstant(node);
             analyzeOperatorCost(node, new HashSet<>());
             addOperatorNodeToTable(node, new HashSet<>());
             list.add(node);
-           // explain(node, 0);
+            // explain(node, 0);
             System.out.println("========================");
 //            System.out.println(node);
         }
@@ -98,20 +98,23 @@ public class CostTree {
             return mp.get(hop);
         }
         OperatorNode node = null;  //= new OperatorNode();
-        if (HopRewriteUtils.isTransposeOperation(hop)) {
+        if (Judge.isWrite(hop)) {
+            node = createOperatorGraph(hop.getInput().get(0), mp, transpose);
+            node.hops.add(hop);
+        } else if (Judge.isLeafMatrix(hop)) {
+            node = new OperatorNode();
+            node.hops.add(hop);
+        } else if (HopRewriteUtils.isTransposeOperation(hop)) {
             node = createOperatorGraph(hop.getInput().get(0), mp, !transpose);
+            node.hops.add(hop);
         } else if (hop instanceof LiteralOp) {
             return null;
         } else if (HopRewriteUtils.isUnary(hop, Types.OpOp1.CAST_AS_SCALAR)) {
             node = createOperatorGraph(hop.getInput().get(0), mp, transpose);
-        } else if (Judge.isWrite(hop)) {
-            node =  createOperatorGraph(hop.getInput().get(0), mp, transpose);
-        } else if (Judge.isLeafMatrix(hop)) {
-            node = new OperatorNode();
-            node.hop = hop;
+            node.hops.add(hop);
         } else {
             node = new OperatorNode();
-            node.hop = hop;
+            node.hops.add(hop);
             if (!transpose) {
                 for (int i = 0; i < hop.getInput().size(); i++) {
                     OperatorNode tmp = createOperatorGraph(hop.getInput().get(i), mp, transpose);
@@ -162,12 +165,14 @@ public class CostTree {
                 ans = false;
             }
         }
-        if (Judge.isRead(node.hop)) {
-            if (variablesUpdated.containsVariable(node.hop.getName())) {
-                ans = false;
+        for (Hop h : node.hops) {
+            if (Judge.isRead(h)) {
+                if (variablesUpdated.containsVariable(h.getName())) {
+                    ans = false;
+                }
             }
         }
-      //  System.out.println(node.hop.getName() + " " + ans);
+        //  System.out.println(node.hop.getName() + " " + ans);
         node.isConstant = ans;
         return ans;
     }
@@ -270,7 +275,7 @@ public class CostTree {
             ArrayList<OperatorNode> operatorNodes = range2OperatoeNode.get(boundery);
             for (OperatorNode operatorNode : operatorNodes) {
                 //  System.out.println("Operator Node " + operatorNode.range);
-                if (Judge.isLeafMatrix(operatorNode.hop)) {
+                if (Judge.isLeafMatrix(operatorNode.hops.get(0))) {
                     insert(operatorNode, boundery);
                 } else if (operatorNode.inputs.size() == 2) {
                     //todo Pair<Integer, Integer> lRange = operatorNode.inputs.get(0).ranges.get(0);
@@ -411,7 +416,7 @@ public class CostTree {
         node.oldDependencies.addAll(rNode.oldDependencies);
 
         node.thisCost = originNode.thisCost;
-        node.hop = originNode.hop;
+        node.hops.addAll(originNode.hops);
 
         node.accCost = lNode.accCost + rNode.accCost + node.thisCost;
 //        System.out.println(node);

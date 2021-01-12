@@ -16,7 +16,8 @@ public class OperatorNode {
     ArrayList<Pair<Integer, Integer>> ranges = new ArrayList<>();
     HashSet<SingleCse> dependencies = new HashSet<>();
     HashSet<SingleCse> oldDependencies = new HashSet<>();
-    Hop hop = null;
+    //Hop hop = null;
+    ArrayList<Hop> hops = new ArrayList<>();
     double thisCost = Double.MAX_VALUE;
     double accCost = Double.MAX_VALUE;
     ArrayList<OperatorNode> inputs = new ArrayList<>();
@@ -43,9 +44,13 @@ public class OperatorNode {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("ON{");
-        sb.append(hop.getOpString());
-        sb.append(",");
+        sb.append("ON{[");
+//        sb.append(hop.getOpString());
+        for (Hop h: hops) {
+            sb.append(h.getOpString());
+            sb.append(",");
+        }
+        sb.append("],");
         sb.append(thisCost);
         sb.append(",");
         sb.append(accCost);
