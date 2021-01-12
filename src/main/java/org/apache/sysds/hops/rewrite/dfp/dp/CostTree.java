@@ -28,18 +28,18 @@ public class CostTree {
         ArrayList<OperatorNode> list = new ArrayList<>();
         int maxIndex = 0;
         for (Pair<SingleCse, Hop> p : pairs) {
-            HopCostEstimator.buildMMNodeTree(p.getRight());
-            System.out.println(Explain.explain(p.getRight()));
+          //  HopCostEstimator.buildMMNodeTree(p.getRight());
+           // System.out.println(Explain.explain(p.getRight()));
             OperatorNode node = createOperatorGraph(p.getRight(), new HashMap<>(), false);
             MutableInt mutableInt = new MutableInt(0);
             analyzeOperatorRanges(node, p.getLeft(), mutableInt);
-            System.out.println("mutableInt=" + mutableInt.getValue());
+          //  System.out.println("mutableInt=" + mutableInt.getValue());
             maxIndex = Math.max(maxIndex, mutableInt.getValue() - 1);
             analyzeOperatorConstant(node);
             analyzeOperatorCost(node, new HashSet<>());
             addOperatorNodeToTable(node, new HashSet<>());
             list.add(node);
-            explain(node, 0);
+           // explain(node, 0);
             System.out.println("========================");
 //            System.out.println(node);
         }
@@ -99,26 +99,19 @@ public class CostTree {
         }
         OperatorNode node = null;  //= new OperatorNode();
         if (HopRewriteUtils.isTransposeOperation(hop)) {
-            return createOperatorGraph(hop.getInput().get(0), mp, !transpose);
+            node = createOperatorGraph(hop.getInput().get(0), mp, !transpose);
         } else if (hop instanceof LiteralOp) {
             return null;
-        }
-//        else if (HopRewriteUtils.isBinaryMatrixScalarOperation(hop)){
-//            System.out.println("binary scalar");
-//        }
-        else if (HopRewriteUtils.isUnary(hop, Types.OpOp1.CAST_AS_SCALAR)) {
-//            System.out.println("cast as scalar");
-            return createOperatorGraph(hop.getInput().get(0), mp, transpose);
+        } else if (HopRewriteUtils.isUnary(hop, Types.OpOp1.CAST_AS_SCALAR)) {
+            node = createOperatorGraph(hop.getInput().get(0), mp, transpose);
         } else if (Judge.isWrite(hop)) {
-            return createOperatorGraph(hop.getInput().get(0), mp, transpose);
+            node =  createOperatorGraph(hop.getInput().get(0), mp, transpose);
         } else if (Judge.isLeafMatrix(hop)) {
             node = new OperatorNode();
             node.hop = hop;
-            node.thisCost = 0; // todo
         } else {
             node = new OperatorNode();
             node.hop = hop;
-            node.thisCost = estimateCost(hop); // todo
             if (!transpose) {
                 for (int i = 0; i < hop.getInput().size(); i++) {
                     OperatorNode tmp = createOperatorGraph(hop.getInput().get(i), mp, transpose);
@@ -135,6 +128,7 @@ public class CostTree {
                 }
             }
         }
+//        node.thisCost = NodeCostEstimator.getNodeCost(node);
         // System.out.println("put " + node);
         mp.put(hop, node);
         return node;
@@ -173,7 +167,7 @@ public class CostTree {
                 ans = false;
             }
         }
-        System.out.println(node.hop.getName() + " " + ans);
+      //  System.out.println(node.hop.getName() + " " + ans);
         node.isConstant = ans;
         return ans;
     }
@@ -185,12 +179,14 @@ public class CostTree {
             analyzeOperatorCost(node.inputs.get(i), visited);
             node.accCost += node.inputs.get(i).accCost;
         }
-//        node.thisCost = estimateCost(node.hop);
+        node.thisCost = NodeCostEstimator.getNodeCost(node);
         node.accCost += node.thisCost;
         if (node.ranges.size() > 0) {
+            node.thisCost = node.thisCost / node.ranges.size();
             node.accCost = node.accCost / node.ranges.size();
         }
         if (node.isConstant) {
+            node.thisCost /= 100;
             node.accCost /= 100;
         }
         System.out.println(node);
@@ -217,7 +213,6 @@ public class CostTree {
         }
         visited.add(node);
     }
-
 
 
     public double estimateCost(Hop hop) {

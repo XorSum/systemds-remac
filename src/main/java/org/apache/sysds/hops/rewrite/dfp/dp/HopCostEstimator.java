@@ -24,7 +24,7 @@ import static org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch.set
 import static org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2.*;
 
 public class HopCostEstimator {
-    protected static final Log LOG = LogFactory.getLog(FakeCostEstimator2.class.getName());
+    protected static final Log LOG = LogFactory.getLog(HopCostEstimator.class.getName());
 
     private static double CpuSpeed = 1.0;
     private static double ShuffleSpeed = 5.0;
@@ -235,6 +235,9 @@ public class HopCostEstimator {
         MMNode node = null;
         // if (mapmm)
         if (Judge.isWrite(hop)) {
+            if (hop.getName().equals("h")) {
+                System.out.println("x");
+            }
             try {
                 System.out.println("Twrite " + hop.getName());
                 node = buildMMNodeTree(hop.getInput().get(0));
@@ -254,7 +257,6 @@ public class HopCostEstimator {
                     System.out.println(hop.getOpString());
                     System.out.println("x");
                 }
-
                 long nnz = histogram.getNonZeros();
                 dc.setNonZeros(nnz);
                 node = new MMNode(dc);

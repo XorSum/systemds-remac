@@ -75,7 +75,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         try {
             originalSolution.cost = estimate(originalSolution, true);
             if (!"h".equals(root.getName())) {
-                HopCostEstimator.buildMMNodeTree(root);
+             //   HopCostEstimator.buildMMNodeTree(root);
                 return originalSolution;
             }
 

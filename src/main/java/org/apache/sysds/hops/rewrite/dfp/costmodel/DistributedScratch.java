@@ -25,11 +25,20 @@ public class DistributedScratch {
 
     private static HashMap<String, EstimatorMatrixHistogram.MatrixHistogram> map = new HashMap<>();
 
-    public static void setMatrixHistogram( String name, EstimatorMatrixHistogram.MatrixHistogram histogram)     {
-        map.put(name,histogram);
+    public static void setMatrixHistogram(String name, EstimatorMatrixHistogram.MatrixHistogram histogram) {
+        map.put(name, histogram);
     }
 
-    public static EstimatorMatrixHistogram.MatrixHistogram getMatrixHistogram( String name  ) {
+
+   public static EstimatorMatrixHistogram.MatrixHistogram createFullHistogram(int row, int col) {
+        int[] r = new int[row];
+        for (int i = 0; i < row; i++) r[i] = col;
+        int[] c = new int[col];
+        for (int i = 0; i < col; i++) c[i] = row;
+        return new EstimatorMatrixHistogram.MatrixHistogram(r, null, c, null, col, row);
+    }
+
+    public static EstimatorMatrixHistogram.MatrixHistogram getMatrixHistogram(String name) {
         if (map.containsKey(name)) return map.get(name);
         if (ec == null) {
             System.out.println("ec == null");
@@ -47,7 +56,7 @@ public class DistributedScratch {
                 rtprog.execute(ec);
                 System.out.println("execute succ");
                 histogram = getScrtchMatrixes(name);
-                map.put(name,histogram);
+                map.put(name, histogram);
             }
         } catch (Exception e) {
             e.printStackTrace();
