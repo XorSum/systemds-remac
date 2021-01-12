@@ -13,6 +13,7 @@ import org.apache.sysds.hops.rewrite.dfp.MySolution;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
 import org.apache.sysds.hops.rewrite.dfp.dp.CostTree;
+import org.apache.sysds.hops.rewrite.dfp.dp.HopCostEstimator;
 import org.apache.sysds.hops.rewrite.dfp.utils.*;
 import org.apache.sysds.parser.*;
 import org.apache.sysds.runtime.controlprogram.Program;
@@ -73,8 +74,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
         try {
             originalSolution.cost = estimate(originalSolution, true);
-            if (!"h".equals(root.getName()))
+            if (!"h".equals(root.getName())) {
+                HopCostEstimator.buildMMNodeTree(root);
                 return originalSolution;
+            }
 
             // 1. 深拷贝，格式化
             Hop hop = deepCopyHopsDag(root);
@@ -332,6 +335,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     SingleCse newSC = new SingleCse(hash, frontSC.ranges, rangeA, index);
                     newSC.name = frontSC.name;
                     result.add(newSC);
+                    if (result.size()%1000==0) {
+                        System.out.println(result.size());
+                    }
                 }
             }
         }

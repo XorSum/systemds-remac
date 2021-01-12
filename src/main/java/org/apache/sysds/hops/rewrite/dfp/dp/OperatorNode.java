@@ -2,6 +2,8 @@ package org.apache.sysds.hops.rewrite.dfp.dp;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.sysds.hops.Hop;
+import org.apache.sysds.hops.estim.MMNode;
+import org.apache.sysds.hops.estim.SparsityEstimator;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.SingleCse;
 
 import java.util.ArrayList;
@@ -19,6 +21,9 @@ public class OperatorNode {
     double accCost = Double.MAX_VALUE;
     ArrayList<OperatorNode> inputs = new ArrayList<>();
     boolean isConstant = false;
+
+    MMNode mmNode = null;
+   // SparsityEstimator.OpCode opCode=null;
 
     @Override
     public boolean equals(Object o) {

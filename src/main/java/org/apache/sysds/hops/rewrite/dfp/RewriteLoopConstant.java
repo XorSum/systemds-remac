@@ -65,7 +65,7 @@ public class RewriteLoopConstant extends StatementBlockRewriteRule {
             func1((WhileStatementBlock) sb, res, false, true);
 //        }
         LOG.info("=================================");
-        System.exit(0);
+      //  System.exit(0);
         FakeCostEstimator2.cleanUnusedScratchMMNode();
         return res;
     }

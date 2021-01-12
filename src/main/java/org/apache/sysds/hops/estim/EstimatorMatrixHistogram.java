@@ -80,6 +80,9 @@ public class EstimatorMatrixHistogram extends SparsityEstimator
 			h2.setData(root.getRight().isLeaf() ? root.getRight().getData() : null);
 		MatrixHistogram outMap = MatrixHistogram
 			.deriveOutputHistogram(h1, h2, ret, root.getOp(), root.getMisc());
+		if (outMap.cNnz1e==null||outMap.rNnz1e==null) {
+			System.out.println("e");
+		}
 		root.setSynopsis(outMap);
 		return root.setDataCharacteristics(new MatrixCharacteristics(
 			outMap.getRows(), outMap.getCols(), outMap.getNonZeros()));
