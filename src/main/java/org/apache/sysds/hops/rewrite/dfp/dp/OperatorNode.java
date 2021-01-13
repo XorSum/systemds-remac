@@ -48,6 +48,8 @@ public class OperatorNode {
 //        sb.append(hop.getOpString());
         for (Hop h: hops) {
             sb.append(h.getOpString());
+            sb.append(" ");
+            sb.append(h.getHopID());
             sb.append(",");
         }
         sb.append("],");

@@ -378,10 +378,6 @@ public class AggBinaryOp extends MultiThreadedHop
 		return true;
 	}
 
-	public ExecType getExecType2(){
-		if (_etype==null) optFindExecType();
-		return _etype;
-	}
 
 	@Override
 	protected ExecType optFindExecType()

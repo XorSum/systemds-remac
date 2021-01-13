@@ -1,5 +1,6 @@
 package org.apache.sysds.hops.rewrite.dfp.coordinate;
 
+import org.apache.spark.sql.catalyst.expressions.Sin;
 import org.apache.sysds.hops.Hop;
 
 import java.util.ArrayList;
@@ -45,8 +46,18 @@ public class SingleCse {
         return false;
     }
 
+    public boolean intersect(SingleCse other) {
+        for (Range p: ranges) {
+            for (Range q: other.ranges) {
+                if (p.intersect(q)) return true;
+            }
+        }
+        return false;
+    }
+
     public boolean contain(SingleCse innner) {
         HashSet<ArrayList<Integer>> mask = new HashSet<>();
+        int count = 0;
         for (Range or : ranges) {
             ArrayList<Integer> tmp = new ArrayList<>();
             for (Range ir : innner.ranges) {
@@ -65,8 +76,10 @@ public class SingleCse {
                 }
             }
             mask.add(tmp);
+            if (tmp.size()>0) count++;
         }
-        return mask.size() == 1;
+      //  return mask.size()==1;
+        return mask.size() == 1 && count==Math.min(innner.ranges.size(),ranges.size()) ;
     }
 
     @Override

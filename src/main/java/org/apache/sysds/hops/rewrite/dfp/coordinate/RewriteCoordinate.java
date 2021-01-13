@@ -60,7 +60,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     // private int hMultiCseId = 6392;
 
-    private int maxMultiCseNumber = 30000; // 设为-1,则生成所有的；设为正数，则最多生成那么多个
+    private int maxMultiCseNumber = 100000; // 设为-1,则生成所有的；设为正数，则最多生成那么多个
 
     private static long epoch = 100;
 
@@ -257,7 +257,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             for (int l = block.left; l <= block.right; l++) {
                 //    LOG.debug("i=" + l + " name=" + leaves.get(l).hop.getName() + " updated=" + variablesUpdated.containsVariable(leaves.get(l).hop.getName()));
                 if (onlySearchConstantSubExp && notConstant(l)) continue;
-                int r = onlySearchConstantSubExp ? l + 1 : l + 2;
+               // int r = onlySearchConstantSubExp ? l + 1 : l + 2;
+                int r = l + 1;
                 for (; r <= block.right; r++) {
                     if (onlySearchConstantSubExp && notConstant(r)) break;
                     long first = rangeHash1(l, r);
@@ -347,7 +348,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return result;
     }
 
-    static boolean searchCombinedCandidates = false;
+    static boolean searchCombinedCandidates = true;
 
     private ArrayList<MultiCse> genMultiCse(ArrayList<SingleCse> singleCse) {
         long start = System.nanoTime();
@@ -692,12 +693,12 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         for (SingleCse sc : singleCses) {
             Hop h = createHop(sc, template);
             Pair<Long, Long> hash = Hash.hashHopDag(h);
-            if (filter.containsKey(hash)) {
-                if (filter.get(hash).getLeft().ranges.size() < sc.ranges.size()) {
-                    filter.put(hash, Pair.of(sc, h));
-                }
-            } else {
-                filter.put(hash, Pair.of(sc, h));
+            if   ( (!filter.containsKey(hash)) ||
+                    (filter.containsKey(hash)&&
+                            (filter.get(hash).getLeft().ranges.size() < sc.ranges.size())))  {
+                  Hop copy = deepCopyHopsDag(h);
+                  rewriteCommonSubexpressionElimination.rewriteHopDAG(copy, new ProgramRewriteStatus());
+                  filter.put(hash, Pair.of(sc, copy));
             }
         }
         ArrayList<Pair<SingleCse, Hop>> list = new ArrayList<>();

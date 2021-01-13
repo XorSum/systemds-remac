@@ -58,7 +58,7 @@ public class HopCostEstimator {
     public static double estimateMM(AggBinaryOp hop) {
         double ans = 0;
 
-        if (hop.getExecType2() == LopProperties.ExecType.SPARK) {
+        if (hop.getExecType() == LopProperties.ExecType.SPARK) {
             hop.constructLops();
             AggBinaryOp.MMultMethod method = (hop).getMMultMethod();
             System.out.println(method);
