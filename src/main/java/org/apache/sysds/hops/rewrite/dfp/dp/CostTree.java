@@ -16,10 +16,11 @@ import java.util.*;
 
 public class CostTree {
 
-    public CostTree() {
+    public CostTree(VariableSet variablesUpdated) {
+        this.variablesUpdated = variablesUpdated;
     }
 
-    public static VariableSet variablesUpdated = null;
+    public  VariableSet variablesUpdated = null;
 
     HashMap<Pair<Integer, Integer>, ArrayList<OperatorNode>> range2OperatoeNode = new HashMap<>();
 

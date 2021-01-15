@@ -75,7 +75,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         try {
             originalSolution.cost = estimate(originalSolution, true);
             if (!"h".equals(root.getName())) {
-             //   HopCostEstimator.buildMMNodeTree(root);
+                //   HopCostEstimator.buildMMNodeTree(root);
                 return originalSolution;
             }
 
@@ -110,7 +110,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             ArrayList<SingleCse> singleCses = genSingleCse();
 
             testCostTree(singleCses, hop);
-
+            if (true) {
+                return originalSolution;
+            }
 //            if (!onlySearchConstantSubExp && singleCses.size() <= 13) {
 //                LOG.debug("ss<=13 return original hop");
 //                return originalSolution;
@@ -190,9 +192,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //            Hop hop = createHop(multiCse, template);
 //            pairs.add(Pair.of(hop, singleCse));
 //        }
-        ArrayList<Pair<SingleCse,Hop>> list = genHopFromSingleCses(singleCses,template);
+        ArrayList<Pair<SingleCse, Hop>> list = genHopFromSingleCses(singleCses, template);
 
-        CostTree costTree = new CostTree();
+        CostTree costTree = new CostTree(variablesUpdated);
 //        costTree.testCostTree(list);
         costTree.testOperatorGraph(list);
         System.exit(0);
@@ -257,7 +259,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             for (int l = block.left; l <= block.right; l++) {
                 //    LOG.debug("i=" + l + " name=" + leaves.get(l).hop.getName() + " updated=" + variablesUpdated.containsVariable(leaves.get(l).hop.getName()));
                 if (onlySearchConstantSubExp && notConstant(l)) continue;
-               // int r = onlySearchConstantSubExp ? l + 1 : l + 2;
+                // int r = onlySearchConstantSubExp ? l + 1 : l + 2;
                 int r = l + 1;
                 for (; r <= block.right; r++) {
                     if (onlySearchConstantSubExp && notConstant(r)) break;
@@ -336,7 +338,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     SingleCse newSC = new SingleCse(hash, frontSC.ranges, rangeA, index);
                     newSC.name = frontSC.name;
                     result.add(newSC);
-                    if (result.size()%1000==0) {
+                    if (result.size() % 1000 == 0) {
                         System.out.println(result.size());
                     }
                 }
@@ -693,12 +695,12 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         for (SingleCse sc : singleCses) {
             Hop h = createHop(sc, template);
             Pair<Long, Long> hash = Hash.hashHopDag(h);
-            if   ( (!filter.containsKey(hash)) ||
-                    (filter.containsKey(hash)&&
-                            (filter.get(hash).getLeft().ranges.size() < sc.ranges.size())))  {
-                  Hop copy = deepCopyHopsDag(h);
-                  rewriteCommonSubexpressionElimination.rewriteHopDAG(copy, new ProgramRewriteStatus());
-                  filter.put(hash, Pair.of(sc, copy));
+            if ((!filter.containsKey(hash)) ||
+                    (filter.containsKey(hash) &&
+                            (filter.get(hash).getLeft().ranges.size() < sc.ranges.size()))) {
+                Hop copy = deepCopyHopsDag(h);
+                rewriteCommonSubexpressionElimination.rewriteHopDAG(copy, new ProgramRewriteStatus());
+                filter.put(hash, Pair.of(sc, copy));
             }
         }
         ArrayList<Pair<SingleCse, Hop>> list = new ArrayList<>();

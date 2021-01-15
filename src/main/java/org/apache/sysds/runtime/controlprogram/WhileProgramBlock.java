@@ -26,10 +26,7 @@ import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
 import org.apache.sysds.hops.rewrite.ProgramRewriter;
 import org.apache.sysds.hops.rewrite.dfp.RewriteLoopConstant;
-import org.apache.sysds.parser.DMLProgram;
-import org.apache.sysds.parser.DMLTranslator;
-import org.apache.sysds.parser.StatementBlock;
-import org.apache.sysds.parser.WhileStatementBlock;
+import org.apache.sysds.parser.*;
 import org.apache.sysds.api.DMLScript;
 import org.apache.sysds.common.Types.ValueType;
 import org.apache.sysds.runtime.DMLRuntimeException;
@@ -106,7 +103,8 @@ public class WhileProgramBlock extends ProgramBlock
 //			System.out.println( "StatementBlock = " +  _sb);
 			try {
 			//	System.out.println("Reducer Number: "+ OptimizerUtils.getNumReducers(false));
-				ProgramRewriter rewriter = new ProgramRewriter(new RewriteLoopConstant(ec));
+			    VariableSet variablesUpdated = _sb.variablesUpdated();
+				ProgramRewriter rewriter = new ProgramRewriter(new RewriteLoopConstant(ec,variablesUpdated));
 				ArrayList<StatementBlock> sbs = new ArrayList<>();
 				sbs.add(_sb);
 				sbs = rewriter.rRewriteStatementBlocks(sbs, new ProgramRewriteStatus(), false);

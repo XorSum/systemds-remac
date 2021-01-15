@@ -22,9 +22,11 @@ public class RewriteLoopConstant extends StatementBlockRewriteRule {
     protected final static Log LOG = LogFactory.getLog(RewriteLoopConstant.class.getName());
 
     private ExecutionContext ec;
+    public VariableSet variablesUpdated = null;
 
-    public RewriteLoopConstant(ExecutionContext ec) {
+    public RewriteLoopConstant(ExecutionContext ec,VariableSet variablesUpdated) {
         this.ec = ec;
+        this.variablesUpdated = variablesUpdated;
     }
 
 
@@ -37,8 +39,10 @@ public class RewriteLoopConstant extends StatementBlockRewriteRule {
 
     @Override
     public List<StatementBlock> rewriteStatementBlock(StatementBlock sb, ProgramRewriteStatus state) {
+
+
         List<StatementBlock> res = new ArrayList<>();
-        if (!(sb instanceof WhileStatementBlock)) {
+        if (sb.getHops()==null) {
             res.add(sb);
             return res;
         }
@@ -53,7 +57,7 @@ public class RewriteLoopConstant extends StatementBlockRewriteRule {
 //        System.exit(0);
         LOG.info("=================================");
         LOG.info("begin normal search");
-        double cost2 = func1((WhileStatementBlock) sb, res, false, false);
+        double cost2 = func1( sb, res, false, false);
         LOG.info("end normal search");
 //        LOG.info("constant cost = "+cost1);
         LOG.info("normal cost = "+cost2);
@@ -62,29 +66,37 @@ public class RewriteLoopConstant extends StatementBlockRewriteRule {
 //            func1((WhileStatementBlock) sb, res, true, true);
 //        } else {
             LOG.info("use normal result");
-            func1((WhileStatementBlock) sb, res, false, true);
+            func1(sb, res, false, true);
 //        }
         LOG.info("=================================");
       //  System.exit(0);
         FakeCostEstimator2.cleanUnusedScratchMMNode();
         return res;
+
+
+
     }
 
-    double func1(WhileStatementBlock wsb, List<StatementBlock> res, boolean constant, boolean modify) {
+
+
+
+    double func1(StatementBlock sb, List<StatementBlock> res, boolean constant, boolean modify) {
+//        WhileStatementBlock wsb = (WhileStatementBlock) sb;
+//        WhileStatement ws =(WhileStatement) wsb.getStatement(0);
+//
+//        sb.variablesUpdated();
+
+
         double cost = 0;
-        WhileStatement ws = (WhileStatement) wsb.getStatement(0);
-        VariableSet variablesUpdated = wsb.variablesUpdated();
-        CostTree.variablesUpdated = variablesUpdated;
-        RewriteCoordinate rewriteCoordinateConstant = new RewriteCoordinate(ec, wsb, variablesUpdated);
-        RewriteCoordinate rewriteCoordinate = new RewriteCoordinate(ec,wsb);
+
+        RewriteCoordinate rewriteCoordinateConstant = new RewriteCoordinate(ec, sb,variablesUpdated);
+        RewriteCoordinate rewriteCoordinate = new RewriteCoordinate(ec,sb);
+
         ArrayList<Hop> twriteHops = new ArrayList<>();
-        for (int j = 0; j < ws.getBody().size(); j++) {
-            StatementBlock s = ws.getBody().get(j);
-            if (s == null || s.getHops() == null) continue;
-            rewriteCoordinate.statementBlock = s;
-            rewriteCoordinateConstant.statementBlock = s;
-            for (int k = 0; k < s.getHops().size(); k++) {
-                Hop hop = s.getHops().get(k);
+
+            for (int k = 0; k < sb.getHops().size(); k++) {
+             //   Hop hop = s.getHops().get(k);
+                Hop  hop = sb.getHops().get(k);
                 Hop copy = deepCopyHopsDag(hop);
              //   LOG.debug(" Exp =" + MyExplain.myExplain(copy));
                 MySolution mySolution;
@@ -101,21 +113,21 @@ public class RewriteLoopConstant extends StatementBlockRewriteRule {
                 } else {
                     if (constant) mySolution = map1.get(hop);
                     else mySolution = map2.get(hop);
-                    s.getHops().set(k,mySolution.body);
+                    sb.getHops().set(k,mySolution.body);
                     twriteHops.addAll(mySolution.preLoopConstants);
                 }
             }
-        }
+
         if (modify) {
             res.clear();
             if (twriteHops.size() > 0) {
                 StatementBlock preStatmentBlock = new StatementBlock();
-                preStatmentBlock.setLiveIn(wsb.liveIn());
-                preStatmentBlock.setLiveOut(wsb.liveIn());  // 这里没写错,就该这样写
+                preStatmentBlock.setLiveIn(sb.liveIn());
+                preStatmentBlock.setLiveOut(sb.liveIn());  // 这里没写错,就该这样写
                 preStatmentBlock.setHops(twriteHops);
                 res.add(preStatmentBlock);
             }
-            res.add(wsb);
+            res.add(sb);
         }
         return cost;
     }
