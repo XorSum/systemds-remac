@@ -158,7 +158,7 @@ public class CostTree {
             opIndex.increment();
         }
         int end = opIndex.getValue() - 1;
-        root.ranges.add(Pair.of(begin, end));
+        root.range = Pair.of(begin, end);
 
         for (Range range : cse.ranges) {
             if ((range.left == begin && range.right == end) || (range.left == end && range.right == begin)) {
@@ -196,10 +196,10 @@ public class CostTree {
         }
         node.thisCost = NodeCostEstimator.getNodeCost(node);
         node.accCost += node.thisCost;
-        if (node.ranges.size() > 0) {
-            node.thisCost = node.thisCost / node.ranges.size();
-            node.accCost = node.accCost / node.ranges.size();
-        }
+//        if (node.ranges.size() > 0) {
+//            node.thisCost = node.thisCost / node.ranges.size();
+//            node.accCost = node.accCost / node.ranges.size();
+//        }
         if (node.isConstant) {
             node.thisCost /= 100;
             node.accCost /= 100;
@@ -213,8 +213,8 @@ public class CostTree {
         for (int i = 0; i < node.inputs.size(); i++) {
             addOperatorNodeToTable(node.inputs.get(i), visited);
         }
-        for (int i = 0; i < node.ranges.size(); i++) {
-            Pair<Integer, Integer> range = node.ranges.get(i);
+//        for (int i = 0; i < node.ranges.size(); i++) {
+            Pair<Integer, Integer> range = node.range;
             if (!visited.contains(node)) {
                 ArrayList<OperatorNode> nodes;
                 if (range2OperatoeNode.containsKey(range)) {
@@ -225,7 +225,7 @@ public class CostTree {
                 nodes.add(node);
                 range2OperatoeNode.put(range, nodes);
             }
-        }
+//        }
         visited.add(node);
     }
 
@@ -288,19 +288,8 @@ public class CostTree {
                 if (Judge.isLeafMatrix(operatorNode.hops.get(0))) {
                     insert(operatorNode, boundery);
                 } else if (operatorNode.inputs.size() == 2) {
-                    Pair<Integer, Integer> lRange = null, rRange = null;
-                    for (Pair<Integer, Integer> tmp : operatorNode.inputs.get(0).ranges) {
-                        if (tmp.getLeft().equals(boundery.getLeft())) {
-                            lRange = tmp;
-                            break;
-                        }
-                    }
-                    for (Pair<Integer, Integer> tmp : operatorNode.inputs.get(1).ranges) {
-                        if (tmp.getRight().equals(boundery.getRight())) {
-                            rRange = tmp;
-                            break;
-                        }
-                    }
+                    Pair<Integer, Integer> lRange = operatorNode.inputs.get(0).range;
+                    Pair<Integer, Integer>  rRange = operatorNode.inputs.get(1).range;
                     if (lRange == null || rRange == null) continue;
                     if (lRange.equals(boundery) || rRange.equals(boundery)) continue;
                     for (Map.Entry<HashSet<SingleCse>, OperatorNode> entry1 : dp.get(lRange).entrySet()) {
@@ -407,7 +396,7 @@ public class CostTree {
             System.exit(0);
         }
         OperatorNode node = new OperatorNode();
-        node.ranges.add(midRange);
+        node.range= midRange;
 
         //   node.range = originNode.range; //Pair.of(lNode.range.getLeft(), rNode.range.getRight());
         //  System.out.println(lNode.range + " " + rNode.range + " " + node.range);
@@ -453,7 +442,7 @@ public class CostTree {
                 }
             } else {
              //   tmp.put(node.dependencies, node);
-                if (tmp.size() < 100) {
+                if (tmp.size() < 300) {
                     tmp.put(node.dependencies, node);
                     add = true;
                 } else {
@@ -473,11 +462,11 @@ public class CostTree {
                 }
             }
         }
-//        if (add && node.dependencies.size() > 2) {
-//            if (node.ranges.get(0).getRight() - node.ranges.get(0).getLeft() >= 9) {
-//                System.out.println("insert " + node);
-//            }
-//        }
+        if (add && node.dependencies.size() > 2) {
+            if (node.range.getRight() - node.range.getLeft() >= 9) {
+                System.out.println("insert " + node);
+            }
+        }
     }
 
 

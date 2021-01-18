@@ -12,8 +12,8 @@ import java.util.Objects;
 
 public class OperatorNode {
     //        ArrayList<RangeNode> operands = new ArrayList<>();
-//        Pair<Integer, Integer> range = null;
-    ArrayList<Pair<Integer, Integer>> ranges = new ArrayList<>();
+        Pair<Integer, Integer> range = null;
+//    ArrayList<Pair<Integer, Integer>> ranges = new ArrayList<>();
     HashSet<SingleCse> dependencies = new HashSet<>();
     HashSet<SingleCse> oldDependencies = new HashSet<>();
     //Hop hop = null;
@@ -33,8 +33,8 @@ public class OperatorNode {
         OperatorNode that = (OperatorNode) o;
         return Double.compare(that.thisCost, thisCost) == 0 &&
                 Double.compare(that.accCost, accCost) == 0 &&
-//                    range.equals(that.range) &&
-                ranges.equals(that.ranges) &&
+                    range.equals(that.range) &&
+//                ranges.equals(that.ranges) &&
                 Objects.equals(dependencies, that.dependencies);// &&
         //  Objects.equals(hop, that.hop) &&
         //   Objects.equals(inputs, that.inputs);
@@ -57,7 +57,7 @@ public class OperatorNode {
         sb.append(",");
         sb.append(accCost);
         sb.append(",");
-        sb.append(ranges);
+        sb.append(range);
         sb.append(",");
         sb.append(isConstant);
         sb.append(",[");

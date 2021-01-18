@@ -46,11 +46,9 @@ public class NodeCostEstimator {
 
     public static MMNode addOpnode2Mmnode(OperatorNode opnode) {
         if (opnode.mmNode != null) return opnode.mmNode;
-        for (Pair<Integer, Integer> r : opnode.ranges) {
-            if (range2mmnode.containsKey(r)) {
-                opnode.mmNode = range2mmnode.get(r);
-                return opnode.mmNode;
-            }
+        if (range2mmnode.containsKey(opnode.range)) {
+            opnode.mmNode = range2mmnode.get(opnode.range);
+            return opnode.mmNode;
         }
         MMNode ans = null;
         if (Judge.isLeafMatrix(opnode.hops.get(0))) {
@@ -90,10 +88,8 @@ public class NodeCostEstimator {
             System.out.println("un handled hop type: " + opnode.hops.get(0).getOpString());
         }
         if (ans != null) {
-            for (Pair<Integer, Integer> r : opnode.ranges) {
-                if (!range2mmnode.containsKey(r)) {
-                    range2mmnode.put(r, ans);
-                }
+            if (!range2mmnode.containsKey(opnode.range)) {
+                range2mmnode.put(opnode.range, ans);
             }
             opnode.mmNode = ans;
         } else {
