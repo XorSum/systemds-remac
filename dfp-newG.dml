@@ -32,8 +32,9 @@ while((i<500)&(!end)) {
     loss = sum(t(g)%*%g)
     print("i="+toString(i)+"  loss="+toString(loss))
     i = i + 1
+    d =   h %*% g
     if (loss > e) {
-        d =   h %*% g
+
         x = x - alpha * d
         h = h - (h%*%t(a)%*%a%*%d%*%t(d)%*%t(a)%*%a%*%h)/(t(d)%*%t(a)%*%a%*%h%*%t(a)%*%a%*%d)  + (d%*%t(d))/(t(d)%*%t(a)%*%a%*%d*2)
    	} else {
