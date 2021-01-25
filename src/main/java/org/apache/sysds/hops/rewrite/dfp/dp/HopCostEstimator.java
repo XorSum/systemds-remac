@@ -61,7 +61,7 @@ public class HopCostEstimator {
         if (hop.getExecType() == LopProperties.ExecType.SPARK) {
             hop.constructLops();
             AggBinaryOp.MMultMethod method = (hop).getMMultMethod();
-            System.out.println(method);
+           // System.out.println(method);
 
             switch (method) {
                 case MAPMM_L:
@@ -88,7 +88,7 @@ public class HopCostEstimator {
                 default:
                     ans = estimateCPMM(hop);
             }
-            System.out.println("matrix multply cost = " + ans);
+        //    System.out.println("matrix multply cost = " + ans);
         } else {
 //             ans = estimateMMsinglenode(hop);
         }

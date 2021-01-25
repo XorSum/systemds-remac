@@ -35,6 +35,7 @@ import org.apache.sysds.runtime.lineage.LineageCacheConfig;
 import org.apache.sysds.runtime.lineage.LineageCacheStatistics;
 import org.apache.sysds.runtime.lineage.LineageItem;
 import org.apache.sysds.runtime.lineage.LineageItemUtils;
+import org.apache.sysds.utils.Explain;
 import org.apache.sysds.utils.Statistics;
 
 public class BasicProgramBlock extends ProgramBlock 
@@ -87,7 +88,7 @@ public class BasicProgramBlock extends ProgramBlock
 	public void execute(ExecutionContext ec)
 	{
 		ArrayList<Instruction> tmp = _inst;
-
+		LOG.info(Explain.explain(_inst));
 		//dynamically recompile instructions if enabled and required
 		try
 		{

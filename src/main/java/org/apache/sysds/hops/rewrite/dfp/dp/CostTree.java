@@ -6,6 +6,7 @@ import org.apache.sysds.common.Types;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.LiteralOp;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
+import org.apache.sysds.hops.rewrite.dfp.coordinate.MultiCse;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.Range;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.SingleCse;
 import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
@@ -20,12 +21,12 @@ public class CostTree {
         this.variablesUpdated = variablesUpdated;
     }
 
-    public  VariableSet variablesUpdated = null;
+    public VariableSet variablesUpdated = null;
 
     HashMap<Pair<Integer, Integer>, ArrayList<OperatorNode>> range2OperatoeNode = new HashMap<>();
 
 
-    public void testOperatorGraph(ArrayList<Pair<SingleCse, Hop>> pairs) {
+    public ArrayList<MultiCse> testOperatorGraph(ArrayList<Pair<SingleCse, Hop>> pairs) {
         ArrayList<OperatorNode> list = new ArrayList<>();
         int maxIndex = 0;
         for (Pair<SingleCse, Hop> p : pairs) {
@@ -40,8 +41,8 @@ public class CostTree {
             analyzeOperatorCost(node, new HashSet<>());
             addOperatorNodeToTable(node, new HashSet<>());
             list.add(node);
-            explain(node, 0);
-            System.out.println("========================");
+            //explain(node, 0);
+          //  System.out.println("========================");
 //            System.out.println(node);
         }
 
@@ -61,6 +62,20 @@ public class CostTree {
 
         showBest(Pair.of(0, maxIndex));
         System.out.println("done");
+
+
+        ArrayList<OperatorNode> list2 = new ArrayList<>();
+        for (Map.Entry<HashSet<SingleCse>, OperatorNode> e : dp.get(Pair.of(0, maxIndex)).entrySet()) {
+            list2.add(e.getValue());
+        }
+        list2.sort(Comparator.comparingDouble(a -> a.accCost));
+        ArrayList<MultiCse> list3 = new ArrayList<>();
+        for (int i=0;i<20;i++) {
+            MultiCse multiCse = new MultiCse();
+            multiCse.cses.addAll(list2.get(i).dependencies);
+            list3.add(multiCse);
+        }
+        return list3;
     }
 
     void showBest(Pair<Integer, Integer> range) {
@@ -200,10 +215,10 @@ public class CostTree {
             node.thisCost = node.thisCost / node.ranges.size();
             node.accCost = node.accCost / node.ranges.size();
         }
-        if (node.isConstant) {
-            node.thisCost /= 100;
-            node.accCost /= 100;
-        }
+//        if (node.isConstant) {
+//            node.thisCost /= 100;
+//            node.accCost /= 100;
+//        }
         System.out.println(node);
         visited.add(node);
     }
@@ -279,7 +294,11 @@ public class CostTree {
     void selectBest() {
         dp = new HashMap<>();
         ArrayList<Pair<Integer, Integer>> ranges = new ArrayList<>(range2OperatoeNode.keySet());
-        ranges.sort(Comparator.comparingInt(a -> (a.getRight() - a.getLeft())));
+        ranges.sort((Pair<Integer, Integer> a, Pair<Integer, Integer> b) -> {
+            int x = (a.getRight() - a.getLeft()) - (b.getRight() - b.getLeft());
+            if (x != 0) return x;
+            return a.getLeft();
+        });
         System.out.println(ranges);
         for (Pair<Integer, Integer> boundery : ranges) {
             ArrayList<OperatorNode> operatorNodes = range2OperatoeNode.get(boundery);
@@ -436,7 +455,7 @@ public class CostTree {
     }
 
     void insert(OperatorNode node, Pair<Integer, Integer> range) {
-      //  removeUnusedSingleCse(node, range);
+        //  removeUnusedSingleCse(node, range);
         boolean add = false;
         if (!dp.containsKey(range)) {
             HashMap<HashSet<SingleCse>, OperatorNode> tmp = new HashMap<>();
@@ -452,7 +471,7 @@ public class CostTree {
                     add = true;
                 }
             } else {
-             //   tmp.put(node.dependencies, node);
+                //   tmp.put(node.dependencies, node);
                 if (tmp.size() < 100) {
                     tmp.put(node.dependencies, node);
                     add = true;

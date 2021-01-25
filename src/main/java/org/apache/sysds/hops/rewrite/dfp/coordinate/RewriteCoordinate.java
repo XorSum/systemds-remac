@@ -105,12 +105,27 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 LOG.debug("before coordinate");
                 LOG.debug(Explain.explain(root));
             }
-
+//            try {
+//                MySolution aaaSolution = createAAA(hop);
+//                return aaaSolution;
+//            } catch (Exception e) {
+//                e.printStackTrace();
+//                System.exit(0);
+//            }
             // 生成singleCes
             ArrayList<SingleCse> singleCses = genSingleCse();
 
-            testCostTree(singleCses, hop);
+            try {
+                MySolution dpSolution = testCostTree(singleCses, hop);
+                LOG.info("return dynamic program solution");
+                return dpSolution;
+            } catch (Exception e) {
+                e.printStackTrace();
+                System.exit(0);
+            }
+
             if (true) {
+                LOG.info("return original solution");
                 return originalSolution;
             }
 //            if (!onlySearchConstantSubExp && singleCses.size() <= 13) {
@@ -184,7 +199,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     }
 
-    void testCostTree(ArrayList<SingleCse> singleCses, Hop template) {
+    MySolution testCostTree(ArrayList<SingleCse> singleCses, Hop template) {
 //        ArrayList<Pair<Hop, SingleCse>> pairs = new ArrayList<>();
 //        for (SingleCse singleCse : singleCses) {
 //            MultiCse multiCse = new MultiCse();
@@ -196,8 +211,65 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
         CostTree costTree = new CostTree(variablesUpdated);
 //        costTree.testCostTree(list);
-        costTree.testOperatorGraph(list);
-        System.exit(0);
+        ArrayList<MultiCse> multiCse = costTree.testOperatorGraph(list);
+        ArrayList<MySolution> solutions = genSolutions(multiCse, template);
+
+        MySolution mySolution = new MySolution(template);
+
+        // 估代价并返回代价最小的计划
+        MySolution solution = selectSolution(solutions, mySolution);
+
+        solution.body = deepCopyHopsDag(solution.body);
+        rewriteCommonSubexpressionElimination.rewriteHopDAG(solution.body, new ProgramRewriteStatus());
+
+        LOG.info("dp result:");
+        LOG.info(solution);
+//        System.exit(0);
+        return solution;
+    }
+
+    MySolution createAAA(Hop template) {
+//        MultiCses:{
+//            SingleCse: name={h g } ranges=[(4,5,false),(6,7,true),(11,12,true),(18,19,false),(20,21,false),(28,29,false),]
+//            SingleCse: name={t(a) a h g } ranges=[(2,5,false),(6,9,true),(11,14,true),(16,19,false),(26,29,false),]
+//            SingleCse: name={h t(a) a h g } ranges=[(1,5,false),(6,10,true),(11,15,true),(25,29,false),]
+//        }
+        MultiCse multiCse = new MultiCse();
+        SingleCse singleCse1 = new SingleCse();
+        singleCse1.ranges.add(Range.of(4, 5, false));
+        singleCse1.ranges.add(Range.of(6, 7, true));
+        singleCse1.ranges.add(Range.of(11, 12, true));
+        singleCse1.ranges.add(Range.of(18, 19, false));
+        singleCse1.ranges.add(Range.of(20, 21, false));
+        singleCse1.ranges.add(Range.of(28, 29, false));
+        multiCse.cses.add(singleCse1);
+        SingleCse singleCse2 = new SingleCse();
+        singleCse2.ranges.add(Range.of(2, 5, false));
+        singleCse2.ranges.add(Range.of(6, 9, true));
+        singleCse2.ranges.add(Range.of(11, 14, true));
+        singleCse2.ranges.add(Range.of(16, 19, false));
+        singleCse2.ranges.add(Range.of(26, 29, false));
+        multiCse.cses.add(singleCse2);
+        SingleCse singleCse3 = new SingleCse();
+        singleCse3.ranges.add(Range.of(1, 5, false));
+        singleCse3.ranges.add(Range.of(6, 10, true));
+        singleCse3.ranges.add(Range.of(11, 15, true));
+        singleCse3.ranges.add(Range.of(25, 29, false));
+        multiCse.cses.add(singleCse3);
+        ArrayList<MultiCse> multiCses = new ArrayList<>();
+        multiCses.add(multiCse);
+
+        ArrayList<MySolution> solutions = genSolutions(multiCses, template);
+
+        MySolution mySolution = new MySolution(template);
+
+        // 估代价并返回代价最小的计划
+        MySolution solution = selectSolution(solutions, mySolution);
+
+        solution.body = deepCopyHopsDag(solution.body);
+        rewriteCommonSubexpressionElimination.rewriteHopDAG(solution.body, new ProgramRewriteStatus());
+
+        return solution;
     }
 
 
