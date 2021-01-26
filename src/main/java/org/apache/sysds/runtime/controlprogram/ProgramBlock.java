@@ -37,7 +37,6 @@ import org.apache.sysds.runtime.controlprogram.caching.MatrixObject.UpdateType;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
 import org.apache.sysds.runtime.instructions.Instruction;
 import org.apache.sysds.runtime.instructions.cp.*;
-import org.apache.sysds.runtime.instructions.spark.BinarySPInstruction;
 import org.apache.sysds.runtime.lineage.LineageCache;
 import org.apache.sysds.runtime.lineage.LineageCacheConfig.ReuseCacheType;
 import org.apache.sysds.runtime.matrix.data.MatrixBlock;
@@ -201,7 +200,7 @@ public abstract class ProgramBlock implements ParseInfo
 				if (variableCPInstruction.getVariableOpcode()==VariableCPInstruction.VariableOperationCode.CopyVariable) {
 					CPOperand in1 = variableCPInstruction.getInput1();
 					CPOperand in2 = variableCPInstruction.getInput2();
-					if ("h".equals(in2.getName())) {
+					if (TempPersist.variableName.equals(in2.getName())) {
 						System.out.println("Persist " + in1.getName());
 						TempPersist.rddName = in1.getName();
 					}
