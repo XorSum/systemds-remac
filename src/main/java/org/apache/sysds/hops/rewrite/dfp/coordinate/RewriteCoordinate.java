@@ -1,5 +1,6 @@
 package org.apache.sysds.hops.rewrite.dfp.coordinate;
 
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -54,15 +55,16 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     private boolean showMinCostHop = true;
     private boolean showOriginHop = true;
 
-    private boolean skipEstimateStage = false;
-    //    private int hSingleCseNumber = 546;
-    private int hSingleCseNumber = 355;
-
     // private int hMultiCseId = 6392;
 
     private int maxMultiCseNumber = 100000; // 设为-1,则生成所有的；设为正数，则最多生成那么多个
 
     private static long epoch = 100;
+
+    private boolean useDirectPolicy = false;
+    private boolean useDynamicProgramPolicy = false;
+    private boolean useBruceForcePolicy = true;
+
 
     // </configuration>
 
@@ -73,32 +75,36 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         MySolution originalSolution = new MySolution(root);
 
         try {
+            LOG.trace(ec.getVariables().keySet());
             originalSolution.cost = estimate(originalSolution, true);
             if (!"h".equals(root.getName())) {
-                //   HopCostEstimator.buildMMNodeTree(root);
                 return originalSolution;
             }
 
-            // 1. 深拷贝，格式化
-            Hop hop = deepCopyHopsDag(root);
-            hop = reorder(hop);
+            LOG.info("original cost = " + originalSolution.cost);
 
-            hop.resetVisitStatusForced(new HashSet<>());
+            // 1. 深拷贝，格式化
+            Hop template = deepCopyHopsDag(root);
+            template = reorder(template);
+
+            template.resetVisitStatusForced(new HashSet<>());
             LOG.debug("start coordinate " + MyExplain.myExplain(root));
 
             LOG.info("origin cost=" + originalSolution.cost);
-            System.out.println(ec.getVariables().keySet());
-            LOG.debug("after reorder    " + MyExplain.myExplain(hop));
+
+            LOG.debug("after reorder    " + MyExplain.myExplain(template));
 
             prepare();
 
             // 找到所有的叶子节点
-            findAllLeaf(hop, new ArrayList<>(), 0);
+            findAllLeaf(template, new ArrayList<>(), 0);
+            if (leaves.size() < 4) return originalSolution;
 
             // 划分 块
             genBlocks();
 
-            if (leaves.size() < 4) return originalSolution;
+            // 生成singleCes
+            ArrayList<SingleCse> singleCses = genSingleCse();
 
             if (showOriginHop) {
                 root.resetVisitStatusForced(new HashSet<>());
@@ -106,85 +112,81 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 LOG.debug(Explain.explain(root));
             }
 
-            // 生成singleCes
-            ArrayList<SingleCse> singleCses = genSingleCse();
-
-            testCostTree(singleCses, hop);
-            if (true) {
-                return originalSolution;
+            MySolution mySolution = null;
+            if (useDirectPolicy) {
+                mySolution = testDirectSolution(template);
+            } else if (useDynamicProgramPolicy) {
+                mySolution = testCostTree(singleCses, template);
+            } else if (useBruceForcePolicy) {
+                mySolution = testBruteForce(singleCses, template);
             }
-//            if (!onlySearchConstantSubExp && singleCses.size() <= 13) {
-//                LOG.debug("ss<=13 return original hop");
-//                return originalSolution;
-//            }
 
-//            System.out.println("xxx");
-//
-//            return root;
+            if (mySolution != null) return mySolution;
 
-            if (skipEstimateStage) {
-                if (singleCses.size() != hSingleCseNumber) {
-                    LOG.debug("not target, return original hop");
-                    return originalSolution;
-                } else {
-//                    MultiCse multiCse = createBestMultiCse546(singleCses);
-                    MultiCse multiCse = createBestMultiCse1386(singleCses);
-                    LOG.debug(multiCse);
-                    Hop result = createHop(multiCse, hop);
-                    result = deepCopyHopsDag(result);
-                    rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
-                    LOG.debug("return best hop");
-                    LOG.debug(Explain.explain(result));
-                    MySolution solution = new MySolution(result);
+//            testusefulCse(singleCses, template);
 
-                    return solution;
-                }
-            } else {
-                // 构造出所有的MultiCse
-                ArrayList<MultiCse> multiCses = genMultiCse(singleCses);
+            //   testCostTree(singleCses, template);
 
-//                try {
-//                    originalSolution.cost = estimate(originalSolution);
-//                    System.out.println("cost="+originalSolution.cost);
-//                }catch (Exception e) {
-//                    e.printStackTrace();
-//                    System.out.println("xxx");
-//                }
-
-                if (multiCses.size() == 0) return originalSolution;
-                //    if (multiCses.size()>5000 || multiCses.size()==2769 ) return root;
-
-
-                // 构造计划
-                ArrayList<MySolution> solutions = genSolutions(multiCses, hop);
-
-                // 估代价并返回代价最小的计划
-                MySolution solution = selectSolution(solutions, originalSolution);
-//                Hop result = genAndSelectHop(singleCses, multiCses, hop, root);
-                if (solution.body != null) {
-                    if (showMinCostHop) {
-                        solution.body.resetVisitStatusForced(new HashSet<>());
-                        LOG.debug("after coordinate");
-                        LOG.debug(solution);
-
-//                        LOG.info("before coordinate runtime plan");
-//                        FakeCostEstimator2.printInstructions(constructProgramBlocks(root));
-//                        LOG.info("after coordinate runtime plan");
-//                        FakeCostEstimator2.printInstructions(constructProgramBlocks(solution.body));
-                    }
-                    return solution;
-                }
-            }
         } catch (Exception e) {
             e.printStackTrace();
+            System.exit(-1);
         }
         LOG.debug("final return original hop");
-
         return originalSolution;
 
     }
 
-    void testCostTree(ArrayList<SingleCse> singleCses, Hop template) {
+
+    MySolution testDirectSolution(Hop template) {
+        MultiCse multiCse = createBestMultiCse1386();
+        LOG.debug(multiCse);
+        Hop result = createHop(multiCse, template);
+        result = deepCopyHopsDag(result);
+        rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
+        LOG.debug("return best template");
+        LOG.debug(Explain.explain(result));
+        return new MySolution(result);
+    }
+
+    MySolution testBruteForce(ArrayList<SingleCse> singleCses, Hop template) {
+        // 构造出所有的MultiCse
+
+        ArrayList<MultiCse> multiCses = genMultiCse(singleCses);
+
+        if (multiCses.size() == 0) return null;
+
+        // 构造计划
+        ArrayList<MySolution> solutions = genSolutions(multiCses, template);
+
+        // 估代价并返回代价最小的计划
+        MySolution solution = selectSolution(solutions);
+//                Hop result = genAndSelectHop(singleCses, multiCses, template, root);
+        if (solution.body != null) {
+            if (showMinCostHop) {
+                solution.body.resetVisitStatusForced(new HashSet<>());
+                LOG.debug("after coordinate");
+                LOG.debug(solution);
+//                        LOG.info("before coordinate runtime plan");
+//                        FakeCostEstimator2.printInstructions(constructProgramBlocks(root));
+//                        LOG.info("after coordinate runtime plan");
+//                        FakeCostEstimator2.printInstructions(constructProgramBlocks(solution.body));
+            }
+            return solution;
+        }
+        return null;
+    }
+
+
+    void testusefulCse(ArrayList<SingleCse> cses, Hop template) {
+        MySolution solution = genSolution(new MultiCse(), template);
+        System.out.println(solution);
+
+
+        //   System.exit(-1);
+    }
+
+
+    MySolution testCostTree(ArrayList<SingleCse> singleCses, Hop template) {
 //        ArrayList<Pair<Hop, SingleCse>> pairs = new ArrayList<>();
 //        for (SingleCse singleCse : singleCses) {
 //            MultiCse multiCse = new MultiCse();
@@ -198,12 +200,14 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //        costTree.testCostTree(list);
         costTree.testOperatorGraph(list);
         System.exit(0);
+        return new MySolution();
     }
 
 
     private int findAllLeaf(Hop hop, ArrayList<Integer> path, int depth) {
-        if (isLeafMatrix(hop) ||
-                (HopRewriteUtils.isTransposeOperation(hop) && isLeafMatrix(hop.getInput().get(0)))) {
+        if (isLeafMatrix(hop)
+                || (HopRewriteUtils.isTransposeOperation(hop) && isLeafMatrix(hop.getInput().get(0)))
+                || hop.getParent().size() > 1) {
             int index = leaves.size();
             hopId2LeafIndex.put(hop.getHopID(), index);
             Leaf leaf = new Leaf(hop, path, depth);
@@ -218,17 +222,17 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 int r = findAllLeaf(hop.getInput().get(1), path, depth + 1);
                 if (l >= 0 && r >= 0) {
                     djs.merge(l, r);
-                    return l;
                 }
+                return r;
             } else {
                 for (int i = 0; i < hop.getInput().size(); i++) {
                     if (path.size() <= depth) path.add(i);
                     else path.set(depth, i);
                     findAllLeaf(hop.getInput().get(i), path, depth + 1);
                 }
+                return -1;
             }
         }
-        return -1;
     }
 
     private void prepare() {
@@ -250,8 +254,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 while (l - 1 >= 0 && djs.find(l - 1) == djs.find(i)) l--;
                 while (r + 1 < leaves.size() && djs.find(r + 1) == djs.find(i)) r++;
                 blockRanges.add(Range.of(l, r, false));
-                if (showBlock)
-                    LOG.info("Range " + l + " " + r + " " + getRangeName(l, r));
+                //     if (showBlock)
+                LOG.info("Range " + l + " " + r + " " + getRangeName(l, r));
             }
         }
         // 4. 求出每个区间的哈希值，并把哈希值相同的汇聚起来
@@ -338,14 +342,14 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     SingleCse newSC = new SingleCse(hash, frontSC.ranges, rangeA, index);
                     newSC.name = frontSC.name;
                     result.add(newSC);
-                    if (result.size() % 1000 == 0) {
-                        System.out.println(result.size());
-                    }
+//                    if (result.size() % 1000 == 0) {
+//                        System.out.println(result.size());
+//                    }
                 }
             }
         }
-        for (int j = 0; j < ranges.size(); j++) {
-            result.remove(0);
+        if (ranges.size() > 0) {
+            result.subList(0, ranges.size()).clear();
         }
         return result;
     }
@@ -403,7 +407,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return result;
     }
 
-    private MultiCse createBestMultiCse546(ArrayList<SingleCse> singleCses) {
+    private MultiCse createBestMultiCse546() {
         MultiCse m = new MultiCse();
         SingleCse s1 = new SingleCse();
         s1.ranges.add(Range.of(1, 4, false));
@@ -434,7 +438,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return m;
     }
 
-    private MultiCse createBestMultiCse1386(ArrayList<SingleCse> singleCses) {
+    private MultiCse createBestMultiCse1386() {
         MultiCse m = new MultiCse();
         SingleCse s1 = new SingleCse();
         s1.ranges.add(Range.of(1, 5, false));
@@ -461,16 +465,45 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return m;
     }
 
+    private MySolution genSolution(MultiCse multiCse, Hop template) {
+        try {
+            Hop hop = createHop(multiCse, template);
+            hop = copyAndEliminateHop(hop);
+            MySolution solution = new MySolution(multiCse, hop);
+            return solution;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private Hop copyAndEliminateHop(Hop hop) {
+        // deep copy 是为了清除无用的父节点,返回一个干净的hop
+        hop = deepCopyHopsDag(hop);
+        rewriteCommonSubexpressionElimination.rewriteHopDAG(hop, new ProgramRewriteStatus());
+        return hop;
+    }
+
 
     private ArrayList<MySolution> genSolutions(ArrayList<MultiCse> multiCses, Hop template) {
         long constructHopTime = 0;
         long start = System.nanoTime();
         ArrayList<MySolution> solutions = new ArrayList<>();
         HashMap<Pair<Long, Long>, ArrayList<Hop>> filter = new HashMap<>();
+//        LOG.debug("temlate:");
+//        LOG.debug(Explain.explain(template));
         for (int i = 0; i < multiCses.size(); i++) {
+            MultiCse c;
+            Hop hop;
             try {
-                MultiCse c = multiCses.get(i);
-                Hop hop = createHop(c, template);
+                c = multiCses.get(i);
+                if (i == 5) {
+                    System.out.println("x");
+                }
+                hop = createHop(c, template);
+//                LOG.debug("hop:");
+//                MyExplain.explain_iter2(hop);
+//                LOG.debug(Explain.explain(hop));
                 Pair<Long, Long> key = Hash.hashHopDag(hop);
                 if (filter.containsKey(key)) {
                     for (Hop another : filter.get(key)) {
@@ -497,6 +530,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     }
                 }
             } catch (Exception e) {
+//                System.out.println(multiCses.get(i));
                 e.printStackTrace();
             }
         }
@@ -507,7 +541,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return solutions;
     }
 
-    private MySolution selectSolution(ArrayList<MySolution> solutions, MySolution originSolution) {
+    private MySolution selectSolution(ArrayList<MySolution> solutions) {
         long estimateCostTime = 0;
         long start, end;
         int id = -1;
@@ -526,109 +560,25 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 }
             } catch (Exception e) {
                 LOG.error("estimate error");
-                //   e.printStackTrace();
             }
         }
         LOG.info("minium cost = " + bestSolution.cost);
         if (bestSolution.body != null) {
             estimate(bestSolution, true);
+        } else {
+            return null;
         }
-        if (bestSolution.body == null || bestSolution.cost >= originSolution.cost) {
-            bestSolution = originSolution;
-            id = -1;
-        }
-
         end = System.nanoTime();
         estimateCostTime += end - start;
         LOG.info("estimate cost time =" + (estimateCostTime / 1e6) + "ms");
-
-        LOG.info("original cost = " + originSolution.cost);
-        if (id != -1) {
-            LOG.info("use rewrited hop, multicse id = " + id);
-            if (bestSolution.multiCse != null) {
-                LOG.info(bestSolution.multiCse);
-            }
-            // deep copy 是为了清除无用的父节点,返回一个干净的hop
-            bestSolution.body = deepCopyHopsDag(bestSolution.body);
-            rewriteCommonSubexpressionElimination.rewriteHopDAG(bestSolution.body, new ProgramRewriteStatus());
-        } else {
-            LOG.info("use original hop");
+        LOG.info("use rewrited hop, multicse id = " + id);
+        if (bestSolution.multiCse != null) {
+            LOG.info(bestSolution.multiCse);
         }
+        bestSolution.body = copyAndEliminateHop(bestSolution.body);
+
         return bestSolution;
     }
-
-//    private Hop genAndSelectHop(ArrayList<SingleCse> singleCses, ArrayList<MultiCse> multiCses, Hop template, Hop originalRoot) {
-//        // 构造出所有的Hop
-//
-//        long constructHopTime = 0;
-//        long estimateCostTime = 0;
-//        long start, end;
-//
-//        MultiCse multiCse = null;
-//        Hop result = null;
-//        int id = -1;
-//        double cost = Double.MAX_VALUE;  //estimate(originalRoot);
-//
-//        for (int i = 0; i < multiCses.size(); i++) {
-//            try {
-//                start = System.nanoTime();
-//                MultiCse c = multiCses.get(i);
-//                Hop hop = createHop(c, template);
-//                end = System.nanoTime();
-//                constructHopTime += end - start;
-//
-//                if (hop == null) continue;
-//
-//                start = System.nanoTime();
-//                double newCost = 0;
-//                //   if (multiCses.size()==4643 && i == 4552) {
-//                newCost = estimate(hop);
-//                //        System.out.println("x");
-//                //       }
-//                end = System.nanoTime();
-//                estimateCostTime += end - start;
-//
-//                if (showCost)
-//                    LOG.debug("cost=" + newCost);
-//
-//                if (cost > newCost || result == null) {
-//                    result = hop;
-//                    cost = newCost;
-//                    multiCse = c;
-//                    id = i;
-//                }
-//
-//            } catch (Exception e) {
-//                e.printStackTrace();
-//            }
-//        }
-//
-//        double newCost = estimate(originalRoot);
-//        if (cost >= newCost || result == null) {
-//            result = originalRoot;
-//            cost = newCost;
-//            multiCse = null;
-//            id = -1;
-//        }
-//
-//        LOG.info("construct hop time =" + (constructHopTime / 1e6) + "ms");
-//        LOG.info("estimate cost time =" + (estimateCostTime / 1e6) + "ms");
-//        LOG.info("minium cost = " + cost);
-//        LOG.info("original cost = " + newCost);
-//        if (id != -1) {
-//            LOG.info("use rewrited hop, multicse id = " + id);
-//            if (multiCse != null) {
-//                LOG.info(multiCse);
-//            }
-//            // deep copy 是为了清除无用的父节点,返回一个干净的hop
-//            result = deepCopyHopsDag(result);
-//            rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
-//        } else {
-//            LOG.info("use original hop");
-//        }
-//
-//        return result;
-//    }
 
 
     private double estimate(MySolution solution, boolean showDetails) {
@@ -743,12 +693,30 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             Hop copy = deepCopyHopsDag(template);
             // 准备区间数组
             for (int i = 0; i < leaves.size(); i++) {
+                boolean ok = true;
+                for (RangeTree rangeTree : list) {
+                    if (rangeTree.left == i && rangeTree.right == i) {
+                        ok = false;
+                        break;
+                    }
+                }
+                if (!ok) continue;
                 SingleCse sc = new SingleCse(Range.of(i, i, false), leaves.get(i).hop);
                 sc.name = getRangeName(i, i);
                 RangeTree rangeTree = new RangeTree(i, i, sc, false);
                 list.add(rangeTree);
             }
-            for (Range r : blockRanges) {
+//            for (Range r : blockRanges) {
+            for (int i = 0; i < blockRanges.size(); i++) {
+                Range r = blockRanges.get(i);
+                boolean ok = true;
+                for (RangeTree rangeTree : list) {
+                    if (rangeTree.left == r.left && rangeTree.right == r.right) {
+                        ok = false;
+                        break;
+                    }
+                }
+                if (!ok) continue;
                 SingleCse sc = new SingleCse(Range.of(r.left, r.right, false), null);
                 sc.name = getRangeName(r);
                 list.add(new RangeTree(r.left, r.right, sc, isTranspose(r.left, r.right)));
@@ -772,9 +740,12 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             }
             // 递归遍历RangeTree，建起HopDag
             for (RangeTree rt : stack) {
+//                System.out.println("handle rangetree "+rt);
+//                System.out.println(Explain.explain(copy));
                 // 建起一个块的HopDag
                 //    LOG.debug(rt.toString());
                 Hop block_hop = rCreateHop(rt);
+//                System.out.println(Explain.explain(block_hop));
                 if (block_hop == null) {
                     //    LOG.debug("BLOCK HOP NULL");
                     return null;
@@ -795,15 +766,16 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 }
                 // 替换
                 if (parent != null) {
+//                    System.out.println("replace child reference "+parent.getHopID()+" "+cur.getHopID()+" "+block_hop.getHopID());
                     HopRewriteUtils.replaceChildReference(parent, cur, block_hop);
-                    HopRewriteUtils.cleanupUnreferenced(cur);
+//                    HopRewriteUtils.cleanupUnreferenced(cur);
                 } else {
                     copy = block_hop;
                 }
             }
             if (copy != null) {
-                //   copy = deepCopyHopsDag(copy);
-                //   rewriteCommonSubexpressionElimination.rewriteHopDAG(copy, new ProgramRewriteStatus());
+//                copy = deepCopyHopsDag(copy);
+//                rewriteCommonSubexpressionElimination.rewriteHopDAG(copy, new ProgramRewriteStatus());
                 return copy;
             }
         } catch (Exception e) {
@@ -814,6 +786,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     }
 
     private Hop rCreateHop(RangeTree rt) {
+        if (rt.left == rt.right) {
+            return rt.singleCse.prototype;
+//            return leaves.get(rt.left).hop;
+        }
         if (rt.singleCse.prototype != null) {
             if (rt.transpose == rt.singleCse.protoRange.transpose) {
                 return rt.singleCse.prototype;
@@ -821,20 +797,18 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 return HopRewriteUtils.createTranspose(rt.singleCse.prototype);
             }
         }
-        if (rt.left == rt.right) {
-            return leaves.get(rt.left).hop;
-        } else {
-            ArrayList<Hop> children = new ArrayList<>();
-            for (RangeTree son : rt.children) {
-                Hop s = rCreateHop(son);
-                if (s == null) return null;
+
+        ArrayList<Hop> children = new ArrayList<>();
+        for (RangeTree son : rt.children) {
+            Hop s = rCreateHop(son);
+            if (s == null) return null;
 //                if ( ! isSame(son.left,son.right,son.singleCse.protoRange.left,son.singleCse.protoRange.right) )
 //                    if (son.transpose!=son.singleCse.protoRange.transpose)
 //                    s = HopRewriteUtils.createTranspose(s);
-                children.add(s);
-            }
-            Hop ret = build_binary_tree_mmc(children);
-            //           Hop ret = build_binary_tree_naive(children);
+            children.add(s);
+        }
+        Hop ret = build_binary_tree_mmc(children);
+        //           Hop ret = build_binary_tree_naive(children);
 //            if (!Judge.isSame(ret1,ret2)) {
 //                LOG.debug(MyExplain.myExplain(ret2));
 //                LOG.debug("naive");
@@ -846,10 +820,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //                LOG.debug("mmc error");
 //            }
 //            Hop ret = ret1;
-            rt.singleCse.prototype = ret;
-            rt.singleCse.protoRange = Range.of(rt.left, rt.right, rt.transpose);
-            return ret;
-        }
+        rt.singleCse.prototype = ret;
+        rt.singleCse.protoRange = Range.of(rt.left, rt.right, rt.transpose);
+        return ret;
+
     }
 
     private Hop build_binary_tree_naive(ArrayList<Hop> mmChain) {

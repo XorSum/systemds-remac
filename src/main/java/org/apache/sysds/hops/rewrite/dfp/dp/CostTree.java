@@ -395,6 +395,7 @@ public class CostTree {
         initRangeCounter();
 //        dp = new HashMap<>();
         ArrayList<Pair<Integer, Integer>> ranges = new ArrayList<>(range2acnode.keySet());
+      //  ranges.sort(Comparator.comparingInt((Pair<Integer,Integer> a)->(a.getRight()-a.getLeft())));
         ranges.sort(Comparator.comparingInt((Pair<Integer, Integer> a) -> (a.getRight() - a.getLeft())).thenComparingInt(Pair::getLeft));
         System.out.println(ranges);
         for (Pair<Integer, Integer> boundery : ranges) {
@@ -479,9 +480,9 @@ public class CostTree {
             } else {
                 System.out.println("boundery="+boundery + " = " + range2acnode.get(boundery).uncertainACs.size());
               //  System.out.println(range2acnode.get(boundery).uncertainACs);
-                if (boundery.getLeft()==24 && boundery.getRight()==25) {
-                    System.exit(0);
-                }
+//                if (boundery.getLeft()==24 && boundery.getRight()==25) {
+//                    System.exit(0);
+//                }
             }
         }
 
