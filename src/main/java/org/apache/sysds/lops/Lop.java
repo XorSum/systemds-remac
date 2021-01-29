@@ -34,7 +34,8 @@ import org.apache.sysds.runtime.privacy.PrivacyConstraint;
 
 public abstract class Lop 
 {
-	
+	public boolean shouldPersist = false;
+
 	public enum Type {
 		Data, DataGen,                                      //CP/MR read/write/datagen 
 		ReBlock, CSVReBlock,                                //MR reblock operations

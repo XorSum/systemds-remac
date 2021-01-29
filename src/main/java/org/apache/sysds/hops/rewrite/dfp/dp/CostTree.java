@@ -294,11 +294,7 @@ public class CostTree {
     void selectBest() {
         dp = new HashMap<>();
         ArrayList<Pair<Integer, Integer>> ranges = new ArrayList<>(range2OperatoeNode.keySet());
-        ranges.sort((Pair<Integer, Integer> a, Pair<Integer, Integer> b) -> {
-            int x = (a.getRight() - a.getLeft()) - (b.getRight() - b.getLeft());
-            if (x != 0) return x;
-            return a.getLeft();
-        });
+        ranges.sort(Comparator.comparingInt((Pair<Integer, Integer> a) -> (a.getRight() - a.getLeft())).thenComparingInt(Pair::getLeft));
         System.out.println(ranges);
         for (Pair<Integer, Integer> boundery : ranges) {
             ArrayList<OperatorNode> operatorNodes = range2OperatoeNode.get(boundery);

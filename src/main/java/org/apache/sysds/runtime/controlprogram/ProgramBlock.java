@@ -201,24 +201,19 @@ public abstract class ProgramBlock implements ParseInfo
 					CPOperand in1 = variableCPInstruction.getInput1();
 					CPOperand in2 = variableCPInstruction.getInput2();
 					if ("h".equals(in2.getName())) {
-						System.out.println("Persist " + in1.getName());
-						TempPersist.rddName = in1.getName();
+						System.out.println("Persist H " + in1.getName());
+						TempPersist.addCseLabel(in1.getName());
 					}
 				}
 			}
 		}
 
+		// execute
 		for (int i = 0; i < inst.size(); i++) {
 			//indexed access required due to dynamic add
 			Instruction currInst = inst.get(i);
 			//execute instruction
 			executeSingleInstruction(currInst, ec);
-		}
-
-		//  unpersist
-		while (TempPersist.rdds.size()>3) {
-			TempPersist.rdds.get(0).unpersist();
-			TempPersist.rdds.remove(0);
 		}
 
 	}

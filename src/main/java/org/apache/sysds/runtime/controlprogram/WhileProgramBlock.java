@@ -138,6 +138,8 @@ public class WhileProgramBlock extends ProgramBlock
 			//run loop body until predicate becomes false
 			while( executePredicate(ec).getBooleanValue() ) {
 				long start = System.nanoTime();
+				TempPersist.createNewFrame();
+
 				if (DMLScript.LINEAGE_DEDUP)
 					ec.getLineage().resetDedupPath();
 
@@ -150,13 +152,15 @@ public class WhileProgramBlock extends ProgramBlock
 					_childBlocks.get(i).execute(ec);
 				}
 
+				TempPersist.cleanPersistedCses();
+
 				if (DMLScript.LINEAGE_DEDUP) {
 					LineageDedupUtils.replaceLineage(ec);
 					// hook the dedup map to the main lineage trace
 					ec.getLineage().traceCurrentDedupPath(this, ec);
 				}
 				long end = System.nanoTime();
-				System.out.println("WhileExecTime = "+((end-start)/1e9)+"s");
+				System.out.println("WhileExecTime = "+((end-start)/1e9)+" s");
 			}
 
 			// clear current LineageDedupBlock

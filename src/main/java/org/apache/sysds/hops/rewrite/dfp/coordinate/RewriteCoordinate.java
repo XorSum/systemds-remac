@@ -105,6 +105,13 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 LOG.debug("before coordinate");
                 LOG.debug(Explain.explain(root));
             }
+
+
+//            Program program = constructProgramBlocks(root);
+//            System.out.println(Explain.explain(program));
+//            System.out.println(Explain.explain(program));
+//            System.out.println("x");
+
 //            try {
 //                MySolution aaaSolution = createAAA(hop);
 //                return aaaSolution;
@@ -224,6 +231,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
         LOG.info("dp result:");
         LOG.info(solution);
+        System.out.println("x");
 //        System.exit(0);
         return solution;
     }
@@ -592,7 +600,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 solution.cost = estimate(solution, false);
                 if (showCost)
                     LOG.debug("cost=" + solution.cost);
-                if (bestSolution.body == null || bestSolution.cost >= solution.cost) {
+                if (bestSolution.body == null
+                        || bestSolution.cost > solution.cost
+                        || (Math.abs(bestSolution.cost - solution.cost) < 0.0001
+                        && bestSolution.multiCse.cses.size() < solution.multiCse.cses.size())) {
                     bestSolution = solution;
                     id = i;
                 }
@@ -876,6 +887,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             if (copy != null) {
                 //   copy = deepCopyHopsDag(copy);
                 //   rewriteCommonSubexpressionElimination.rewriteHopDAG(copy, new ProgramRewriteStatus());
+//                LOG.debug("inner created hop:");
+//                LOG.debug(Explain.explain(copy));
                 return copy;
             }
         } catch (Exception e) {
@@ -886,16 +899,19 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     }
 
     private Hop rCreateHop(RangeTree rt) {
+        if (rt.left == rt.right) {
+            return leaves.get(rt.left).hop;
+        }
         if (rt.singleCse.prototype != null) {
+            rt.singleCse.prototype.shouldPersist = true;
+            System.out.println("Set hop " + rt.singleCse.prototype.getHopID() + " should persist");
             if (rt.transpose == rt.singleCse.protoRange.transpose) {
                 return rt.singleCse.prototype;
             } else {
                 return HopRewriteUtils.createTranspose(rt.singleCse.prototype);
             }
         }
-        if (rt.left == rt.right) {
-            return leaves.get(rt.left).hop;
-        } else {
+        {
             ArrayList<Hop> children = new ArrayList<>();
             for (RangeTree son : rt.children) {
                 Hop s = rCreateHop(son);

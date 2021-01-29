@@ -59,6 +59,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 
 public abstract class Hop implements ParseInfo {
+	public boolean shouldPersist = false;
+
 	private static final Log LOG =  LogFactory.getLog(Hop.class.getName());
 	
 	public static final long CPThreshold = 2000;
@@ -115,7 +117,7 @@ public abstract class Hop implements ParseInfo {
 	protected boolean _requiresLineageCaching = true;
 	
 	private Lop _lops = null;
-	
+
 	protected Hop(){
 		//default constructor for clone
 		_ID = getNextHopID();
@@ -983,6 +985,9 @@ public abstract class Hop implements ParseInfo {
 
 	public void setLops(Lop lops) {
 		_lops = lops;
+		if (_lops!=null) {
+			_lops.shouldPersist = this.shouldPersist;
+		}
 	}
 
 	public boolean isVisited() {
@@ -1308,7 +1313,7 @@ public abstract class Hop implements ParseInfo {
 	{
 		if( withRefs )
 			throw new CloneNotSupportedException( "Hops deep copy w/ lops/inputs/parents not supported." );
-		
+		shouldPersist = that.shouldPersist;
 		_name = that._name;
 		_dataType = that._dataType;
 		_valueType = that._valueType;

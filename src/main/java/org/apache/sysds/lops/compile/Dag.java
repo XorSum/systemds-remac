@@ -36,6 +36,7 @@ import org.apache.sysds.lops.OutputParameters;
 import org.apache.sysds.parser.DataExpression;
 import org.apache.sysds.parser.StatementBlock;
 import org.apache.sysds.runtime.DMLRuntimeException;
+import org.apache.sysds.runtime.controlprogram.TempPersist;
 import org.apache.sysds.runtime.controlprogram.parfor.util.IDSequence;
 import org.apache.sysds.runtime.instructions.CPInstructionParser;
 import org.apache.sysds.runtime.instructions.Instruction;
@@ -466,8 +467,10 @@ public class Dag<N extends Lop>
 					// go into Temporary Files (temp0, temp1, etc.)
 					
 					NodeOutput out = setupNodeOutputs(node, ExecType.CP, false, false);
+					if (node.shouldPersist) {
+						TempPersist.addCseLabel(node.getOutputParameters().getLabel());
+					}
 					inst.addAll(out.getPreInstructions());
-					
 					boolean hasTransientWriteParent = false;
 					for ( Lop parent : node.getOutputs() ) {
 						if ( parent.isDataExecLocation() 
@@ -477,7 +480,6 @@ public class Dag<N extends Lop>
 							break;
 						}
 					}
-					
 					if ( !hasTransientWriteParent ) {
 						deleteInst.addAll(out.getLastInstructions());
 					} 
@@ -534,7 +536,7 @@ public class Dag<N extends Lop>
 								node.getInputs().get(0).getOutputParameters().getLabel(),
 								node.getInputs().get(1).getOutputParameters().getLabel(),
 								node.getOutputParameters().getLabel());
-					} 
+					}
 					else if (node.getInputs().size() == 3 || node.getType() == Type.Ctable) {
 						inst_string = node.getInstructions(
 								node.getInputs().get(0).getOutputParameters().getLabel(),
@@ -611,7 +613,7 @@ public class Dag<N extends Lop>
 						currInstr.setLocation(node.getInputs().get(0));
 						currInstr.setPrivacyConstraint(node.getInputs().get(0));
 					}
-					
+
 					inst.add(currInstr);
 				} catch (Exception e) {
 					throw new LopsException(node.printErrorLocation() + "Problem generating simple inst - "
@@ -659,7 +661,7 @@ public class Dag<N extends Lop>
 								node.getOutputParameters().getFile_name());
 						CPInstruction currInstr = CPInstructionParser.parseSingleInstruction(io_inst);
 						currInstr.setLocation(node);
-						
+
 						inst.add(currInstr);
 						
 						Instruction tempInstr = VariableCPInstruction.prepareRemoveInstruction(node.getOutputParameters().getLabel());

@@ -88,7 +88,6 @@ public class BasicProgramBlock extends ProgramBlock
 	public void execute(ExecutionContext ec)
 	{
 		ArrayList<Instruction> tmp = _inst;
-		LOG.info(Explain.explain(_inst));
 		//dynamically recompile instructions if enabled and required
 		try
 		{
@@ -127,15 +126,15 @@ public class BasicProgramBlock extends ProgramBlock
 			}
 			t0 = System.nanoTime();
 		}
-
-
+		System.out.println("basic program block instructions:");
+		System.out.println(Explain.explain(tmp));
 
 		try {
 			long start = System.nanoTime();
 			//actual instruction execution
 			executeInstructions(tmp, ec);
 			long end = System.nanoTime();
-			LOG.info("basic program execution time = "+((end-start)/1e6)+" s");
+			LOG.info("basic program execution time = "+((end-start)/1e9)+" s");
 		} catch (Exception e) {
 			LOG.error("basic program execution error");
 			e.printStackTrace();
