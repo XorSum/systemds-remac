@@ -19,7 +19,7 @@ public class TempPersist {
 
         public boolean shouldPersist(String rddLabel) {
             boolean ans = rddLabels.contains(rddLabel);
-            System.out.println(ans + ", check " + rddLabel + " in " + rddLabels);
+            //System.out.println(ans + ", check " + rddLabel + " in " + rddLabels);
             return ans;
         }
 
@@ -55,9 +55,15 @@ public class TempPersist {
     }
 
     public static boolean shouldPersist(String rddLabel) {
-        if (frames.size() == 0) createNewFrame();
-        Frame frame = frames.getLast();
-        return frame.shouldPersist(rddLabel);
+        boolean ans = false;
+        for (Frame frame : frames) {
+            if(frame.shouldPersist(rddLabel)) {
+                ans = true;
+                break;
+            }
+        }
+        System.out.println(ans + ", check " + rddLabel + " in " + frames.stream().map(x->x.rddLabels.toString()).reduce((x,y)->x+","+y).get());
+        return ans;
     }
 
     public static void addRdd(JavaPairRDD<?, ?> rdd) {

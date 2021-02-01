@@ -641,20 +641,24 @@ public class AggBinaryOp extends MultiThreadedHop
 		
 		//right vector transpose
 		Lop lY = Y.constructLops();
+		lY.shouldPersist = Y.shouldPersist;
 		Lop tY = (lY instanceof Transform && ((Transform)lY).getOp()==ReOrgOp.TRANS ) ?
 				lY.getInputs().get(0) : //if input is already a transpose, avoid redundant transpose ops
 				new Transform(lY, ReOrgOp.TRANS, getDataType(), getValueType(), ExecType.CP, k);
+		tY.shouldPersist = Y.shouldPersist;
 		tY.getOutputParameters().setDimensions(Y.getDim2(), Y.getDim1(), getBlocksize(), Y.getNnz());
 		setLineNumbers(tY);
-		
+		Lop lX = X.constructLops();
+		lX.shouldPersist = X.shouldPersist  || getInput().get(0).shouldPersist ;
 		//matrix mult
-		Lop mult = new MatMultCP(tY, X.constructLops(), getDataType(), getValueType(), ExecType.CP, k);
+		Lop mult = new MatMultCP(tY,lX , getDataType(), getValueType(), ExecType.CP, k);
 		mult.getOutputParameters().setDimensions(Y.getDim2(), X.getDim2(), getBlocksize(), getNnz());
+		mult.shouldPersist = shouldPersist;
 		setLineNumbers(mult);
 		
 		//result transpose (dimensions set outside)
 		Lop out = new Transform(mult, ReOrgOp.TRANS, getDataType(), getValueType(), ExecType.CP, k);
-		
+		out.shouldPersist = shouldPersist;
 		return out;
 	}
 	
@@ -674,7 +678,7 @@ public class AggBinaryOp extends MultiThreadedHop
 	private void constructSparkLopsMapMM(MMultMethod method)
 	{
 		Lop mapmult = null;
-		if( isLeftTransposeRewriteApplicable(false) ) 
+		if( isLeftTransposeRewriteApplicable(false) )
 		{
 			mapmult = constructSparkLopsMapMMWithLeftTransposeRewrite();
 		}
@@ -682,13 +686,13 @@ public class AggBinaryOp extends MultiThreadedHop
 		{
 			// If number of columns is smaller than block size then explicit aggregation is not required.
 			// i.e., entire matrix multiplication can be performed in the mappers.
-			boolean needAgg = requiresAggregation(method); 
+			boolean needAgg = requiresAggregation(method);
 			SparkAggType aggtype = getSparkMMAggregationType(needAgg);
-			_outputEmptyBlocks = !OptimizerUtils.allowsToFilterEmptyBlockOutputs(this); 
-			
+			_outputEmptyBlocks = !OptimizerUtils.allowsToFilterEmptyBlockOutputs(this);
+
 			//core matrix mult
-			mapmult = new MapMult( getInput().get(0).constructLops(), getInput().get(1).constructLops(), 
-				getDataType(), getValueType(), (method==MMultMethod.MAPMM_R), false, 
+			mapmult = new MapMult( getInput().get(0).constructLops(), getInput().get(1).constructLops(),
+				getDataType(), getValueType(), (method==MMultMethod.MAPMM_R), false,
 				_outputEmptyBlocks, aggtype);
 		}
 		setOutputDimensions(mapmult);
@@ -702,23 +706,31 @@ public class AggBinaryOp extends MultiThreadedHop
 		Hop Y = getInput().get(1);
 		
 		//right vector transpose
-		Lop tY = new Transform(Y.constructLops(), ReOrgOp.TRANS, getDataType(), getValueType(), ExecType.CP);
+
+		Lop lY = Y.constructLops();
+		lY.shouldPersist = Y.shouldPersist;
+		Lop tY = new Transform(lY, ReOrgOp.TRANS, getDataType(), getValueType(), ExecType.CP);
+		tY.shouldPersist = Y.shouldPersist;
 		tY.getOutputParameters().setDimensions(Y.getDim2(), Y.getDim1(), getBlocksize(), Y.getNnz());
 		setLineNumbers(tY);
-		
+
 		//matrix mult spark
 		boolean needAgg = requiresAggregation(MMultMethod.MAPMM_R); 
 		SparkAggType aggtype = getSparkMMAggregationType(needAgg);
-		_outputEmptyBlocks = !OptimizerUtils.allowsToFilterEmptyBlockOutputs(this); 
-		
-		Lop mult = new MapMult( tY, X.constructLops(), getDataType(), getValueType(), 
+		_outputEmptyBlocks = !OptimizerUtils.allowsToFilterEmptyBlockOutputs(this);
+
+		Lop lX = X.constructLops();
+		lX.shouldPersist = X.shouldPersist || getInput().get(0).shouldPersist ;
+
+		Lop mult = new MapMult( tY, lX, getDataType(), getValueType(),
 				      false, false, _outputEmptyBlocks, aggtype);	
 		mult.getOutputParameters().setDimensions(Y.getDim2(), X.getDim2(), getBlocksize(), getNnz());
+		mult.shouldPersist = shouldPersist;
 		setLineNumbers(mult);
 		
 		//result transpose (dimensions set outside)
 		Lop out = new Transform(mult, ReOrgOp.TRANS, getDataType(), getValueType(), ExecType.CP);
-		
+		out.shouldPersist = shouldPersist;
 		return out;
 	}
 
@@ -755,7 +767,7 @@ public class AggBinaryOp extends MultiThreadedHop
 	private void constructSparkLopsCPMM() {
 		if( isLeftTransposeRewriteApplicable(false) ) {
 			setLops( constructSparkLopsCPMMWithLeftTransposeRewrite() );
-		} 
+		}
 		else {
 			SparkAggType aggtype = getSparkMMAggregationType(true);
 			_outputEmptyBlocks = !OptimizerUtils.allowsToFilterEmptyBlockOutputs(this);
@@ -774,20 +786,28 @@ public class AggBinaryOp extends MultiThreadedHop
 		Hop Y = getInput().get(1);
 		
 		//right vector transpose CP
-		Lop tY = new Transform(Y.constructLops(), ReOrgOp.TRANS, getDataType(), getValueType(), ExecType.CP);
+		Lop lY = Y.constructLops();
+		lY.shouldPersist = Y.shouldPersist;
+		Lop tY = new Transform(lY, ReOrgOp.TRANS, getDataType(), getValueType(), ExecType.CP);
+		tY.shouldPersist = Y.shouldPersist;
 		tY.getOutputParameters().setDimensions(Y.getDim2(), Y.getDim1(), Y.getBlocksize(), Y.getNnz());
 		setLineNumbers(tY);
-		
+
+		Lop lX = X.constructLops();
+		lX.shouldPersist = X.shouldPersist || getInput().get(0).shouldPersist ;
+
 		//matrix multiply
 		_outputEmptyBlocks = !OptimizerUtils.allowsToFilterEmptyBlockOutputs(this); 
-		MMCJ mmcj = new MMCJ(tY, X.constructLops(), getDataType(), getValueType(), _outputEmptyBlocks, aggtype, ExecType.SPARK);
+		MMCJ mmcj = new MMCJ(tY, lX, getDataType(), getValueType(), _outputEmptyBlocks, aggtype, ExecType.SPARK);
 		mmcj.getOutputParameters().setDimensions(getDim1(), getDim2(), getBlocksize(), getNnz());
+		mmcj.shouldPersist = shouldPersist;
 		setLineNumbers(mmcj);
 
 		//result transpose CP 
 		Lop out = new Transform(mmcj, ReOrgOp.TRANS, getDataType(), getValueType(), ExecType.CP);
+		out.shouldPersist = shouldPersist;
 		out.getOutputParameters().setDimensions(X.getDim2(), Y.getDim2(), getBlocksize(), getNnz());
-		
+
 		return out;
 	}
 

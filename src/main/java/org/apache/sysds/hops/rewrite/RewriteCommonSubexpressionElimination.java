@@ -28,6 +28,7 @@ import org.apache.sysds.hops.LiteralOp;
 import org.apache.sysds.common.Types.OpOpData;
 import org.apache.sysds.common.Types.ValueType;
 import org.apache.sysds.runtime.util.UtilFunctions;
+import org.apache.sysds.utils.Explain;
 
 /**
  * Rule: CommonSubexpressionElimination. For all statement blocks, 
@@ -53,7 +54,7 @@ public class RewriteCommonSubexpressionElimination extends HopRewriteRule
 	{
 		if( roots == null )
 			return null;
-		
+
 		//CSE pass 1: merge leaf nodes by name
 		int cseMerged = 0;
 		if( _mergeLeafs ) {
@@ -70,7 +71,7 @@ public class RewriteCommonSubexpressionElimination extends HopRewriteRule
 		
 		if( cseMerged > 0 )
 			LOG.debug("Common Subexpression Elimination - removed "+cseMerged+" operators.");
-		
+
 		return roots;
 	}
 
@@ -110,13 +111,23 @@ public class RewriteCommonSubexpressionElimination extends HopRewriteRule
 		{
 			if( hop instanceof LiteralOp ) {
 				LiteralKey key = new LiteralKey(hop.getValueType(), hop.getName());
-				if( !literalops.containsKey(key) )
+				if( !literalops.containsKey(key) ) {
 					literalops.put(key, hop);
+				} else {
+					Hop h1 = literalops.get(key);
+					h1.shouldPersist = h1.shouldPersist || hop.shouldPersist;
+					literalops.put(key,h1);
+				}
 			}
-			else if( hop instanceof DataOp && ((DataOp)hop).isRead()
-				&& !dataops.containsKey(hop.getName())) {
-				dataops.put(hop.getName(), hop);
-			} 
+			else if( hop instanceof DataOp && ((DataOp)hop).isRead()) {
+				if (!dataops.containsKey(hop.getName())) {
+					dataops.put(hop.getName(), hop);
+				} else {
+					Hop h1 = dataops.get(hop.getName());
+					h1.shouldPersist = h1.shouldPersist || hop.shouldPersist;
+					dataops.put(hop.getName(),h1);
+				}
+			}
 		}
 		else //INNER NODE
 		{
@@ -131,6 +142,7 @@ public class RewriteCommonSubexpressionElimination extends HopRewriteRule
 					if( tmp != hi ) { //if required
 						tmp.getParent().add(hop);
 						tmp.setVisited();
+						tmp.shouldPersist = tmp.shouldPersist||hi.shouldPersist;
 						hop.getInput().set(i, tmp);
 						ret++;
 					}
@@ -141,6 +153,7 @@ public class RewriteCommonSubexpressionElimination extends HopRewriteRule
 					if( tmp != hi ){ //if required
 						tmp.getParent().add(hop);
 						tmp.setVisited();
+						tmp.shouldPersist = tmp.shouldPersist||hi.shouldPersist;
 						hop.getInput().set(i, tmp);
 						ret++;
 					}
@@ -184,7 +197,7 @@ public class RewriteCommonSubexpressionElimination extends HopRewriteRule
 					else if( h1.compare(h2) ) { //merge h2 into h1
 						//remove h2 from parent list
 						hop.getParent().remove(j);
-						
+						h1.shouldPersist=h2.shouldPersist;
 						//replace h2 w/ h1 in h2-parent inputs
 						ArrayList<Hop> parent = h2.getParent();
 						for( Hop p : parent )

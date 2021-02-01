@@ -836,9 +836,10 @@ public class SparkExecutionContext extends ExecutionContext
 	 * @param rdd JavaPairRDD handle for variable
 	 */
 	public void setRDDHandleForVariable(String varname, JavaPairRDD<?,?> rdd) {
+		rdd.setName(varname);
 		if (TempPersist.shouldPersist(varname)) {
 			System.out.println("Persist RDD with label "+varname);
-			rdd = rdd.persist(StorageLevel.MEMORY_AND_DISK_SER());
+			rdd.persist(StorageLevel.MEMORY_AND_DISK_SER());
 			TempPersist.addRdd(rdd);
 		}
 		CacheableData<?> obj = getCacheableData(varname);
