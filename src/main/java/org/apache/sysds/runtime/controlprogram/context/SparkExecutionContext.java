@@ -835,6 +835,7 @@ public class SparkExecutionContext extends ExecutionContext
 	 * @param rdd JavaPairRDD handle for variable
 	 */
 	public void setRDDHandleForVariable(String varname, JavaPairRDD<?,?> rdd) {
+		rdd.setName(varname);
 		CacheableData<?> obj = getCacheableData(varname);
 		RDDObject rddhandle = new RDDObject(rdd);
 		obj.setRDDHandle( rddhandle );

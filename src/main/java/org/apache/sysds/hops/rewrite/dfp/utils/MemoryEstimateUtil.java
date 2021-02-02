@@ -16,15 +16,16 @@ public class MemoryEstimateUtil {
     public static void main(String[] args) {
 
       //  long prod = 12480000000l;
-      //  double sparsity = 0.00074;
+        double sparsity = 0.00074;
 //        double sparsity = 0.2;
-        double sparsity = 1.0;
+//        double sparsity = 1.0;
         int aaa = 0;
 //        while (aaa<=3) {
             long id = 1;
-            for (long dim2 = 500; dim2 <= 1000; dim2 += 1000) {
+            long dim2 = 52692;
+//            for (long dim2 = 500; dim2 <= 1000; dim2 += 1000) {
                 long dim1 = 1000;
-                while (MatrixBlock.estimateSizeInMemory(dim1, dim2, sparsity) <= 3e10) {
+                while (MatrixBlock.estimateSizeInMemory(dim1, dim2, sparsity) <= 1e9) {
                     dim1 += 1000;
                 }
 
@@ -37,7 +38,7 @@ public class MemoryEstimateUtil {
 //                for (int j=0;j<aaa;j++) System.out.print("0");
 //                System.out.print("1/\" \n");
 //                id++;
-            }
+//            }
 //            aaa++;
 //            sparsity = sparsity*0.1;
 //        }

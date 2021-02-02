@@ -11,9 +11,9 @@ import java.util.HashSet;
 import java.util.Objects;
 
 public class OperatorNode {
-    //        ArrayList<RangeNode> operands = new ArrayList<>();
-        Pair<Integer, Integer> range = null;
-//    ArrayList<Pair<Integer, Integer>> ranges = new ArrayList<>();
+    //    ArrayList<RangeNode> operands = new ArrayList<>();
+    Pair<Integer, Integer> range = null;
+    //    ArrayList<Pair<Integer, Integer>> ranges = new ArrayList<>();
     HashSet<SingleCse> dependencies = new HashSet<>();
     HashSet<SingleCse> oldDependencies = new HashSet<>();
     //Hop hop = null;
@@ -24,7 +24,7 @@ public class OperatorNode {
     boolean isConstant = false;
 
     MMNode mmNode = null;
-   // SparsityEstimator.OpCode opCode=null;
+//    SparsityEstimator.OpCode opCode = null;
 
     @Override
     public boolean equals(Object o) {
@@ -33,7 +33,7 @@ public class OperatorNode {
         OperatorNode that = (OperatorNode) o;
         return Double.compare(that.thisCost, thisCost) == 0 &&
                 Double.compare(that.accCost, accCost) == 0 &&
-                    range.equals(that.range) &&
+                range.equals(that.range) &&
 //                ranges.equals(that.ranges) &&
                 Objects.equals(dependencies, that.dependencies);// &&
         //  Objects.equals(hop, that.hop) &&
@@ -46,7 +46,7 @@ public class OperatorNode {
         StringBuilder sb = new StringBuilder();
         sb.append("ON{[");
 //        sb.append(hop.getOpString());
-        for (Hop h: hops) {
+        for (Hop h : hops) {
             sb.append(h.getOpString());
             sb.append(" ");
             sb.append(h.getHopID());

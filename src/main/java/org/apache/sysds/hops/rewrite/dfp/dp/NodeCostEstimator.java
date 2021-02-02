@@ -171,7 +171,7 @@ public class NodeCostEstimator {
 //        if (true){
             hop.constructLops();
             AggBinaryOp.MMultMethod method = hop.getMMultMethod();
-            System.out.println(method);
+//            System.out.println(method);
             switch (method) {
                 case MAPMM_R:
                 case MAPMM_L:

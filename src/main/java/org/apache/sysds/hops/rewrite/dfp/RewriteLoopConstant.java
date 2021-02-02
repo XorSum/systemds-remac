@@ -91,7 +91,7 @@ public class RewriteLoopConstant extends StatementBlockRewriteRule {
 
         RewriteCoordinate rewriteCoordinateConstant = new RewriteCoordinate(ec, sb,variablesUpdated);
         RewriteCoordinate rewriteCoordinate = new RewriteCoordinate(ec,sb);
-
+        rewriteCoordinate.variablesUpdated = variablesUpdated;
         ArrayList<Hop> twriteHops = new ArrayList<>();
 
             for (int k = 0; k < sb.getHops().size(); k++) {

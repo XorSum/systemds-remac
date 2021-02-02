@@ -1,10 +1,8 @@
 package org.apache.sysds.hops.rewrite.dfp.coordinate;
 
-import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.sysds.conf.ConfigurationManager;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.*;
 import org.apache.sysds.hops.rewrite.dfp.AnalyzeSymmetryMatrix;
@@ -20,9 +18,9 @@ import org.apache.sysds.parser.*;
 import org.apache.sysds.runtime.controlprogram.Program;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
 import org.apache.sysds.utils.Explain;
-
 import java.util.*;
 
+import static org.apache.sysds.hops.rewrite.dfp.utils.CreateRuntimeProgram.constructProgramBlocks;
 import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.isLeafMatrix;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Reorder.reorder;
@@ -31,11 +29,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     protected final Log LOG = LogFactory.getLog(RewriteCoordinate.class.getName());
 
-    private DisjointSet djs = new DisjointSet(1000);
-    private HashMap<Long, Integer> hopId2LeafIndex = new HashMap<>();
-    private ArrayList<Leaf> leaves = new ArrayList<>();
-    private ArrayList<Range> blockRanges = new ArrayList<>();
-    private HashMap<HashKey, ArrayList<Range>> hash2Ranges = new HashMap<>();
+
+    public ArrayList<Leaf> leaves = new ArrayList<>();
+    public HashMap<Long, Integer> hopId2LeafIndex = new HashMap<>();
+
     private ExecutionContext ec;
     public StatementBlock statementBlock;
 
@@ -62,7 +59,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     private static long epoch = 100;
 
     private boolean useDirectPolicy = false;
-    private boolean useDynamicProgramPolicy = false;
+    private boolean useDynamicProgramPolicy = true;
     private boolean useBruceForcePolicy = true;
 
 
@@ -88,23 +85,31 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             template = reorder(template);
 
             template.resetVisitStatusForced(new HashSet<>());
+            LOG.debug("template: \n"+Explain.explain(template));
+
             LOG.debug("start coordinate " + MyExplain.myExplain(root));
 
             LOG.info("origin cost=" + originalSolution.cost);
 
             LOG.debug("after reorder    " + MyExplain.myExplain(template));
 
-            prepare();
+            DisjointSet djs = new DisjointSet(1000);
+            ArrayList<Range> blockRanges = new ArrayList<>();
+
+            hopId2LeafIndex = new HashMap<>();
+            leaves = new ArrayList<>();
 
             // 找到所有的叶子节点
-            findAllLeaf(template, new ArrayList<>(), 0);
+            findAllLeaf(template, new ArrayList<>(), 0, hopId2LeafIndex, djs);
             if (leaves.size() < 4) return originalSolution;
-
-            // 划分 块
-            genBlocks();
+            System.out.println("leaves.size:"+leaves.size());
+            for (int i=0;i<leaves.size();i++) {
+                System.out.println("leavesID: "+i);
+                System.out.println(Explain.explain(leaves.get(i).hop));
+            }
 
             // 生成singleCes
-            ArrayList<SingleCse> singleCses = genSingleCse();
+            ArrayList<SingleCse> singleCses = genSingleCse(djs, blockRanges);
 
             if (showOriginHop) {
                 root.resetVisitStatusForced(new HashSet<>());
@@ -114,11 +119,11 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
             MySolution mySolution = null;
             if (useDirectPolicy) {
-                mySolution = testDirectSolution(template);
+                mySolution = testDirectSolution(template, blockRanges);
             } else if (useDynamicProgramPolicy) {
-                mySolution = testCostTree(singleCses, template);
+                mySolution = testCostTree(singleCses, template, blockRanges);
             } else if (useBruceForcePolicy) {
-                mySolution = testBruteForce(singleCses, template);
+                mySolution = testBruteForce(singleCses, template, blockRanges);
             }
 
             if (mySolution != null) return mySolution;
@@ -137,10 +142,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     }
 
 
-    MySolution testDirectSolution(Hop template) {
+    MySolution testDirectSolution(Hop template, ArrayList<Range> blockRanges) {
         MultiCse multiCse = createBestMultiCse1386();
         LOG.debug(multiCse);
-        Hop result = createHop(multiCse, template);
+        Hop result = createHop(multiCse, template, blockRanges);
         result = deepCopyHopsDag(result);
         rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
         LOG.debug("return best template");
@@ -148,7 +153,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return new MySolution(result);
     }
 
-    MySolution testBruteForce(ArrayList<SingleCse> singleCses, Hop template) {
+    MySolution testBruteForce(ArrayList<SingleCse> singleCses, Hop template, ArrayList<Range> blockRanges) {
         // 构造出所有的MultiCse
 
         ArrayList<MultiCse> multiCses = genMultiCse(singleCses);
@@ -156,7 +161,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         if (multiCses.size() == 0) return null;
 
         // 构造计划
-        ArrayList<MySolution> solutions = genSolutions(multiCses, template);
+        ArrayList<MySolution> solutions = genSolutions(multiCses, template, blockRanges);
 
         // 估代价并返回代价最小的计划
         MySolution solution = selectSolution(solutions);
@@ -177,8 +182,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     }
 
 
-    void testusefulCse(ArrayList<SingleCse> cses, Hop template) {
-        MySolution solution = genSolution(new MultiCse(), template);
+    void testusefulCse(ArrayList<SingleCse> cses, Hop template, ArrayList<Range> blockRanges) {
+        MySolution solution = genSolution(new MultiCse(), template, blockRanges);
         System.out.println(solution);
 
 
@@ -186,7 +191,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     }
 
 
-    MySolution testCostTree(ArrayList<SingleCse> singleCses, Hop template) {
+    MySolution testCostTree(ArrayList<SingleCse> singleCses, Hop template, ArrayList<Range> blockRanges) {
 //        ArrayList<Pair<Hop, SingleCse>> pairs = new ArrayList<>();
 //        for (SingleCse singleCse : singleCses) {
 //            MultiCse multiCse = new MultiCse();
@@ -194,20 +199,22 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //            Hop hop = createHop(multiCse, template);
 //            pairs.add(Pair.of(hop, singleCse));
 //        }
-        ArrayList<Pair<SingleCse, Hop>> list = genHopFromSingleCses(singleCses, template);
-
+        ArrayList<Pair<SingleCse, Hop>> list = genHopFromSingleCses(singleCses, template, blockRanges);
+        list.add(Pair.of(new SingleCse(),template));
         CostTree costTree = new CostTree(variablesUpdated);
 //        costTree.testCostTree(list);
-        costTree.testOperatorGraph(list);
+        costTree.testOperatorGraph(list,leaves);
         System.exit(0);
         return new MySolution();
     }
 
 
-    private int findAllLeaf(Hop hop, ArrayList<Integer> path, int depth) {
+    private int findAllLeaf(Hop hop, ArrayList<Integer> path, int depth, HashMap<Long, Integer> hopId2LeafIndex, DisjointSet djs) {
+        System.out.println("findAllLeaf visit: "+hop.getHopID()+" "+hop.getName());
         if (isLeafMatrix(hop)
                 || (HopRewriteUtils.isTransposeOperation(hop) && isLeafMatrix(hop.getInput().get(0)))
-                || hop.getParent().size() > 1) {
+               // || hop.getParent().size() > 1)
+        ){
             int index = leaves.size();
             hopId2LeafIndex.put(hop.getHopID(), index);
             Leaf leaf = new Leaf(hop, path, depth);
@@ -217,9 +224,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             if (HopRewriteUtils.isMatrixMultiply(hop)) {
                 if (path.size() <= depth) path.add(0);
                 else path.set(depth, 0);
-                int l = findAllLeaf(hop.getInput().get(0), path, depth + 1);
+                int l = findAllLeaf(hop.getInput().get(0), path, depth + 1, hopId2LeafIndex, djs);
                 path.set(depth, 1);
-                int r = findAllLeaf(hop.getInput().get(1), path, depth + 1);
+                int r = findAllLeaf(hop.getInput().get(1), path, depth + 1, hopId2LeafIndex, djs);
                 if (l >= 0 && r >= 0) {
                     djs.merge(l, r);
                 }
@@ -228,25 +235,14 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 for (int i = 0; i < hop.getInput().size(); i++) {
                     if (path.size() <= depth) path.add(i);
                     else path.set(depth, i);
-                    findAllLeaf(hop.getInput().get(i), path, depth + 1);
+                    findAllLeaf(hop.getInput().get(i), path, depth + 1, hopId2LeafIndex, djs);
                 }
                 return -1;
             }
         }
     }
 
-    private void prepare() {
-
-        djs = new DisjointSet(1000);
-        hopId2LeafIndex = new HashMap<>();
-        leaves = new ArrayList<>();
-        blockRanges = new ArrayList<>();
-        hash2Ranges = new HashMap<>();
-
-    }
-
-    private void genBlocks() {
-
+    private void genBlocks(DisjointSet djs, ArrayList<Range> blockRanges, HashMap<HashKey, ArrayList<Range>> hash2Ranges) {
         // 3. 把叶子根据并查集分为多个块
         for (int i = 0; i < leaves.size(); i++) {
             if (djs.find(i) == i) {
@@ -254,8 +250,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 while (l - 1 >= 0 && djs.find(l - 1) == djs.find(i)) l--;
                 while (r + 1 < leaves.size() && djs.find(r + 1) == djs.find(i)) r++;
                 blockRanges.add(Range.of(l, r, false));
-                //     if (showBlock)
-                LOG.info("Range " + l + " " + r + " " + getRangeName(l, r));
+                if (showBlock)
+                    LOG.info("Range " + l + " " + r + " " + getRangeName(l, r));
             }
         }
         // 4. 求出每个区间的哈希值，并把哈希值相同的汇聚起来
@@ -301,7 +297,11 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return variablesUpdated.containsVariable(hop.getName());
     }
 
-    private ArrayList<SingleCse> genSingleCse() {
+    private ArrayList<SingleCse> genSingleCse(DisjointSet djs, ArrayList<Range> blockRanges) {
+        HashMap<HashKey, ArrayList<Range>> hash2Ranges = new HashMap<>();
+        // 划分 块
+        genBlocks(djs, blockRanges, hash2Ranges);
+
         // 构造出所有的SingleCse
         long start = System.nanoTime();
         ArrayList<SingleCse> result = new ArrayList<>();
@@ -465,9 +465,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return m;
     }
 
-    private MySolution genSolution(MultiCse multiCse, Hop template) {
+    private MySolution genSolution(MultiCse multiCse, Hop template, ArrayList<Range> blockRanges) {
         try {
-            Hop hop = createHop(multiCse, template);
+            Hop hop = createHop(multiCse, template, blockRanges);
             hop = copyAndEliminateHop(hop);
             MySolution solution = new MySolution(multiCse, hop);
             return solution;
@@ -485,7 +485,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     }
 
 
-    private ArrayList<MySolution> genSolutions(ArrayList<MultiCse> multiCses, Hop template) {
+    private ArrayList<MySolution> genSolutions(ArrayList<MultiCse> multiCses, Hop template, ArrayList<Range> blockRanges) {
         long constructHopTime = 0;
         long start = System.nanoTime();
         ArrayList<MySolution> solutions = new ArrayList<>();
@@ -500,7 +500,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 if (i == 5) {
                     System.out.println("x");
                 }
-                hop = createHop(c, template);
+                hop = createHop(c, template, blockRanges);
 //                LOG.debug("hop:");
 //                MyExplain.explain_iter2(hop);
 //                LOG.debug(Explain.explain(hop));
@@ -593,12 +593,12 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 FakeCostEstimator2.ec = ec;
                 double preCost = 0;
                 for (Hop h : solution.preLoopConstants) {
-                    Program program = constructProgramBlocks(h);
+                    Program program = constructProgramBlocks(h,statementBlock);
                     if (showDetails)
                         LOG.debug(Explain.explain(program));
                     preCost += FakeCostEstimator2.estimate(program);
                 }
-                Program programBlocks = constructProgramBlocks(solution.body);
+                Program programBlocks = constructProgramBlocks(solution.body,statementBlock);
                 if (showDetails)
                     LOG.debug(Explain.explain(programBlocks));
                 //cost = CostEstimationWrapper.getTimeEstimate(programBlocks, ec);
@@ -640,10 +640,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return transpose;
     }
 
-    private ArrayList<Pair<SingleCse, Hop>> genHopFromSingleCses(ArrayList<SingleCse> singleCses, Hop template) {
+    private ArrayList<Pair<SingleCse, Hop>> genHopFromSingleCses(ArrayList<SingleCse> singleCses, Hop template, ArrayList<Range> blockRanges) {
         HashMap<Pair<Long, Long>, Pair<SingleCse, Hop>> filter = new HashMap<>();
         for (SingleCse sc : singleCses) {
-            Hop h = createHop(sc, template);
+            Hop h = createHop(sc, template, blockRanges);
             Pair<Long, Long> hash = Hash.hashHopDag(h);
             if ((!filter.containsKey(hash)) ||
                     (filter.containsKey(hash) &&
@@ -658,7 +658,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return list;
     }
 
-    private Hop createHop(SingleCse sc, Hop template) {
+    private Hop createHop(SingleCse sc, Hop template, ArrayList<Range> blockRanges) {
         try {
             ArrayList<RangeTree> list = new ArrayList<>();
             sc.prototype = null;
@@ -666,13 +666,13 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             for (Range range : sc.ranges) {
                 list.add(new RangeTree(range.left, range.right, sc, range.transpose));
             }
-            return createHopInner(list, template);
+            return createHopInner(list, template, blockRanges);
         } catch (Exception e) {
             return null;
         }
     }
 
-    private Hop createHop(MultiCse multiCse, Hop template) {
+    private Hop createHop(MultiCse multiCse, Hop template, ArrayList<Range> blockRanges) {
         try {
             ArrayList<RangeTree> list = new ArrayList<>();
             for (SingleCse sc : multiCse.cses) {
@@ -682,13 +682,13 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     list.add(new RangeTree(range.left, range.right, sc, range.transpose));
                 }
             }
-            return createHopInner(list, template);
+            return createHopInner(list, template, blockRanges);
         } catch (Exception e) {
             return null;
         }
     }
 
-    private Hop createHopInner(ArrayList<RangeTree> list, Hop template) {
+    private Hop createHopInner(ArrayList<RangeTree> list, Hop template, ArrayList<Range> blockRanges) {
         try {
             Hop copy = deepCopyHopsDag(template);
             // 准备区间数组
@@ -1012,27 +1012,6 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return sbs;
     }
 
-    private Program constructProgramBlocks(Hop hop) {
-        DMLProgram prog = new DMLProgram();
-        StatementBlock sb = new StatementBlock();
-        ArrayList<Hop> hops = new ArrayList<>();
-        hops.add(hop);
-        sb.setHops(hops);
-        sb.setLiveIn(statementBlock.liveIn());
-        sb.setLiveOut(statementBlock.liveOut());
-        prog.addStatementBlock(sb);
-        DMLTranslator dmlt = new DMLTranslator(prog);
-        try {
-            dmlt.constructLops(prog);
-        } catch (Exception e) {
-            System.out.println("Construct Program Blocks Error");
-            hop.resetVisitStatusForced(new HashSet<>());
-            System.out.println(MyExplain.myExplain(hop));
-            System.out.println("y");
-        }
-        Program rtprog = dmlt.getRuntimeProgram(prog, ConfigurationManager.getDMLConfig());
-        return rtprog;
-    }
 
 
 }

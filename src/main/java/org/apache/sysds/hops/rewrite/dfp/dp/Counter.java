@@ -15,12 +15,12 @@ public class Counter<T> {
         if (counter.containsKey(t)) {
             int v = counter.get(t);
             counter.put(t, v + 1);
-            if (t instanceof SingleCse)
-            System.out.println("increment " + (v + 1)+" "+t);
+//            if (t instanceof SingleCse)
+//            System.out.println("increment " + (v + 1)+" "+t);
         } else {
             counter.put(t, 1);
-            if (t instanceof SingleCse)
-            System.out.println("increment " + 1+" "+t);
+//            if (t instanceof SingleCse)
+//            System.out.println("increment " + 1+" "+t);
         }
     }
 
@@ -29,8 +29,8 @@ public class Counter<T> {
             int v = counter.get(t);
             if (v > 0) {
                 counter.put(t, v - 1);
-                if (t instanceof SingleCse)
-                    System.out.println("decrement "+ (v - 1)+" "+t);
+//                if (t instanceof SingleCse)
+//                    System.out.println("decrement "+ (v - 1)+" "+t);
             } else {
                 System.out.println("error: counter negative");
                 System.exit(0);
