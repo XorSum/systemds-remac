@@ -1467,7 +1467,8 @@ public class SparkExecutionContext extends ExecutionContext
 	public static void cleanupRDDVariable(JavaPairRDD<?,?> rvar)
 	{
 		if( rvar.getStorageLevel()!=StorageLevel.NONE() ) {
-			rvar.unpersist( !ASYNCHRONOUS_VAR_DESTROY );
+			if (!TempPersist.shouldPersist(rvar.name()))
+				rvar.unpersist( !ASYNCHRONOUS_VAR_DESTROY );
 		}
 	}
 
