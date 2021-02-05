@@ -8,7 +8,6 @@ import java.util.HashMap;
 
 public class CseStateMaintainer {
 
-
     private Counter<Pair<Integer, Integer>> rangeCounter = new Counter<>();
     private Counter<SingleCse> cseCounter = new Counter<>();
 
@@ -36,7 +35,7 @@ public class CseStateMaintainer {
 //            }
 //        }
         for (ACNode acNode : range2acnode.values()) {
-            for (OperatorNode node : acNode.operatorNodes) {
+            for (OperatorNode node : acNode.getOperatorNodes()) {
                 for (OperatorNode in : node.inputs) {
                     rangeCounter.increment(in.range);
                 }
@@ -103,7 +102,7 @@ public class CseStateMaintainer {
                 cseCounter.increment(cse);
             }
         }
-        for (OperatorNode node : acNode.operatorNodes) {
+        for (OperatorNode node : acNode.getOperatorNodes()) {
             for (OperatorNode in : node.inputs) {
                 rangeCounter.decrement(in.range);
                 if (rangeCounter.getValue(in.range) == 0) {

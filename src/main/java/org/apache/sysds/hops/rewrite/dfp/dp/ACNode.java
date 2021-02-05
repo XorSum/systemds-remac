@@ -10,11 +10,40 @@ import java.util.HashSet;
 public class ACNode {
 
     Pair<Integer, Integer> range = null;
-     ArrayList<OperatorNode> operatorNodes = new ArrayList<>();
+
+        private    ArrayList<OperatorNode> operatorNodes = new ArrayList<>();
+//    private HashMap<HashSet<SingleCse>, OperatorNode> cse2operatorNodes = new HashMap<>();
 
 
+    void addOperatorNode(OperatorNode node) {
+        operatorNodes.add(node);
+//        if (!cse2operatorNodes.containsKey(node.dependencies)) {
+//            cse2operatorNodes.put(node.dependencies, node);
+//        }
+//        else {
+//          OperatorNode node1 = cse2operatorNodes.get(node.dependencies);
+//          if (node1.thisCost>node.thisCost) {
+//              cse2operatorNodes.put(node.dependencies,node);
+//          }
+//        }
+    }
 
+    ArrayList<OperatorNode> getOperatorNodes() {
+        return operatorNodes;
+//        return new ArrayList<>(cse2operatorNodes.values());
+//        HashMap<HashSet<SingleCse>,OperatorNode> a3 = new HashMap<>();
+//        for (OperatorNode node: operatorNodes) {
+//            if (!a3.containsKey(node.dependencies))
+//                a3.put(node.dependencies,node);
+//        }
+//        return new ArrayList<>(a3.values());
+    }
 
+    void setOperatorNodes(ArrayList<OperatorNode> ops) {
+        operatorNodes=ops;
+//        cse2operatorNodes.clear();
+//        for (OperatorNode node: ops) addOperatorNode(node);
+    }
 
     /*
     HashMap<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>, HashMap<HashSet<SingleCse>, OperatorNode>> drange2operatornodes = new HashMap<>();
