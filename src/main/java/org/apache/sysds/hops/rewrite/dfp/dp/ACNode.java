@@ -3,9 +3,7 @@ package org.apache.sysds.hops.rewrite.dfp.dp;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.SingleCse;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.*;
 
 public class ACNode {
 
@@ -40,14 +38,15 @@ public class ACNode {
         drange2operatornodes.put(p2, cses2node);
     }
 
-    ArrayList<OperatorNode> getOperatorNodes() {
-        ArrayList<OperatorNode> ops = new ArrayList<>();
-        ops.addAll(uncertainACs.values());
+    ArrayList<OperatorNode> getOperatorNodes(CseStateMaintainer maintainer) {
+        uncertainACs.entrySet().removeIf(entry -> maintainer.hasUselessCse(entry.getKey()));
+        ArrayList<OperatorNode> ops = new ArrayList<>(uncertainACs.values());
         if (certainAC != null) ops.add(certainAC);
         for (HashMap<HashSet<SingleCse>, OperatorNode> x : drange2operatornodes.values()) {
            for (OperatorNode node:x.values()) {
                 if (node.accCost<Double.MAX_VALUE/2) {
-                    ops.add(node);
+                    if (!maintainer.hasUselessCse(node.dependencies))
+                        ops.add(node);
                 }
            }
         }

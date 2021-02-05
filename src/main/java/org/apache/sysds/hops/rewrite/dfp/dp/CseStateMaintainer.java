@@ -5,12 +5,14 @@ import org.apache.sysds.hops.rewrite.dfp.coordinate.SingleCse;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 
 public class CseStateMaintainer {
 
 
-    private Counter<Pair<Integer, Integer>> rangeCounter = new Counter<>();
-    private Counter<SingleCse> cseCounter = new Counter<>();
+     Counter<Pair<Integer, Integer>> rangeCounter = new Counter<>();
+     Counter<SingleCse> cseCounter = new Counter<>();
 
     enum CseState {
         certainlyUseful, certainlyUseless, uncertain, constant
@@ -45,15 +47,16 @@ public class CseStateMaintainer {
     }
 
     void setCseState(SingleCse cse, CseState state) {
+        System.out.println("update cse state "+state+" "+cse);
         map.put(cse, state);
     }
 
     CseState getCseState(SingleCse cse) {
-        if (map.get(cse)==CseState.uncertain) {
-            if (cseCounter.getValue(cse) == 0) {
-                setCseState(cse, CseState.certainlyUseless);
-            }
-        }
+//        if (map.get(cse)==CseState.uncertain) {
+//            if (cseCounter.getValue(cse) == 0) {
+//                setCseState(cse, CseState.certainlyUseless);
+//            }
+//        }
         return map.get(cse);
 //        return CseState.uncertain;
     }
@@ -74,7 +77,7 @@ public class CseStateMaintainer {
                     if (acNode1.minAC != null) {
                         for (SingleCse cse : acNode1.minAC.dependencies) {
                             cseCounter.decrement(cse);
-                            if (cseCounter.getValue(cse) == 0) {
+                            if (cseCounter.getValue(cse) == 0 && getCseState(cse)==CseState.uncertain) {
                                 setCseState(cse, CseState.certainlyUseless);
                             }
                         }
@@ -88,7 +91,7 @@ public class CseStateMaintainer {
                     if (acNode1.minAC != null) {
                         for (SingleCse cse : acNode1.minAC.dependencies) {
                             cseCounter.decrement(cse);
-                            if (cseCounter.getValue(cse) == 0) {
+                            if (cseCounter.getValue(cse) == 0 && getCseState(cse)==CseState.uncertain) {
                                 setCseState(cse, CseState.certainlyUseless);
                             }
                         }
@@ -119,6 +122,42 @@ public class CseStateMaintainer {
 //                }
 //            }
 //        }
+    }
+
+    boolean hasUncertain(HashSet<SingleCse> singleCses) {
+        for (SingleCse cse : singleCses) {
+            if (getCseState(cse) == CseState.uncertain) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    boolean hasUselessCse(HashSet<SingleCse> singleCses) {
+        for (SingleCse cse : singleCses) {
+            if (getCseState(cse) == CseState.certainlyUseless) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void printCseNumStats() {
+        int uncertainNum=0,usefulNum=0,uselessNum=0,constantNum=0;
+
+        for (Map.Entry<SingleCse,CseState>  entry: map.entrySet()) {
+            switch (entry.getValue()) {
+                case uncertain:
+                    uncertainNum++;break;
+                case certainlyUseful:
+                    usefulNum++;break;
+                case certainlyUseless:
+                    uselessNum++;break;
+                case constant:
+                    constantNum++;break;
+            }
+        }
+        System.out.println("uncertain: "+uncertainNum+" useful: "+usefulNum+" useless: "+uselessNum);
     }
 
 }
