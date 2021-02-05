@@ -1,5 +1,10 @@
 package org.apache.sysds.hops.rewrite.dfp.coordinate;
 
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
+
+import java.util.Objects;
+
 import static java.lang.Integer.min;
 import static java.lang.Integer.reverse;
 import static org.apache.commons.lang3.ObjectUtils.max;
@@ -35,5 +40,18 @@ public class Range {
     @Override
     public String toString() {
         return "(" + left + "," + right + "," + transpose + ")";
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Range range = (Range) o;
+        return left == range.left && right == range.right && transpose == range.transpose;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(left, right, transpose);
     }
 }
