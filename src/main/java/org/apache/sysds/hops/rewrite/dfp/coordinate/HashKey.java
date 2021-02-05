@@ -13,6 +13,7 @@ public class HashKey {
 
     @Override
     public boolean equals(Object obj) {
+        if (obj==null) return false;
         HashKey o = (HashKey) obj;
         return left == o.left && right == o.right;
     }

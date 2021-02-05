@@ -3,7 +3,6 @@ package org.apache.sysds.hops.rewrite.dfp.dp;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.estim.MMNode;
-import org.apache.sysds.hops.estim.SparsityEstimator;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.SingleCse;
 
 import java.util.ArrayList;
@@ -86,4 +85,16 @@ public class OperatorNode {
         sb.append("}\n");
         return sb.toString();
     }
+
+    public OperatorNode copyWithoutDependencies() {
+        OperatorNode node = new OperatorNode();
+        node.range = range;
+        node.inputs = (ArrayList<OperatorNode>) inputs.clone();
+        node.hops = (ArrayList<Hop>) hops.clone();
+        node.thisCost = thisCost;
+        node.accCost = accCost;
+        return node;
+    }
+
+
 }

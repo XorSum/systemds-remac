@@ -1,10 +1,13 @@
 package org.apache.sysds.hops.rewrite.dfp.coordinate;
 
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.spark.sql.catalyst.expressions.Sin;
 import org.apache.sysds.hops.Hop;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Objects;
 
 
 public class SingleCse {
@@ -16,6 +19,9 @@ public class SingleCse {
     public Range protoRange = null;
 
     public String name = "";
+
+
+
 
     public SingleCse() {
         this.ranges = new ArrayList<>();
@@ -79,7 +85,7 @@ public class SingleCse {
             if (tmp.size()>0) count++;
         }
       //  return mask.size()==1;
-        return mask.size() == 1 && count==Math.min(innner.ranges.size(),ranges.size()) ;
+        return mask.size() == 1 && count == ranges.size() ;
     }
 
     @Override
@@ -96,5 +102,18 @@ public class SingleCse {
         }
         sb.append("]");
         return sb.toString();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        SingleCse cse = (SingleCse) o;
+        return ranges.equals(cse.ranges);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(ranges);
     }
 }

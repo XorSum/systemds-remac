@@ -199,11 +199,23 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //            Hop hop = createHop(multiCse, template);
 //            pairs.add(Pair.of(hop, singleCse));
 //        }
+        System.out.println("blockRanges:"+blockRanges);
+        for (int i=0;i<leaves.size();i++) {
+            Hop h = leaves.get(i).hop;
+            System.out.println("("+i+","+h.getDim1()+","+h.getDim2()+")");
+        }
+
+
         ArrayList<Pair<SingleCse, Hop>> list = genHopFromSingleCses(singleCses, template, blockRanges);
-        list.add(Pair.of(new SingleCse(),template));
+        SingleCse emptyCse = new SingleCse();
+        emptyCse.hash = HashKey.of(0L, 0L);
+        Hop emptyHop = createHop(emptyCse,template,blockRanges);
+
+        Pair<SingleCse,Hop> pair=Pair.of(emptyCse,emptyHop);
+        list.add(pair);
         CostTree costTree = new CostTree(variablesUpdated);
 //        costTree.testCostTree(list);
-        costTree.testOperatorGraph(list,leaves);
+        costTree.testOperatorGraph(list,pair,blockRanges ,leaves);
         System.exit(0);
         return new MySolution();
     }
