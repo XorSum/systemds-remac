@@ -7,7 +7,7 @@ import java.util.*;
 
 public class ACNode {
 
-    Pair<Integer, Integer> range = null;
+    public Pair<Integer, Integer> range = null;
     // ArrayList<OperatorNode> operatorNodes = new ArrayList<>();
 
     //todo: HashMap< ,ArrayList<OperatorNode> > drange2operatornodes =new HashMap<>();
@@ -43,25 +43,25 @@ public class ACNode {
         ArrayList<OperatorNode> ops = new ArrayList<>(uncertainACs.values());
         if (certainAC != null) ops.add(certainAC);
         for (HashMap<HashSet<SingleCse>, OperatorNode> x : drange2operatornodes.values()) {
-           for (OperatorNode node:x.values()) {
-                if (node.accCost<Double.MAX_VALUE/2) {
+            for (OperatorNode node : x.values()) {
+                if (node.accCost < Double.MAX_VALUE / 2) {
                     if (!maintainer.hasUselessCse(node.dependencies))
                         ops.add(node);
                 }
-           }
+            }
         }
         return ops;
     }
 
 
-    OperatorNode minAC = null;
-    OperatorNode certainAC = null;
-    HashMap<HashSet<SingleCse>, OperatorNode> certainACs = new HashMap<>();
+    public OperatorNode minAC = null;
+    public OperatorNode certainAC = null;
+    public HashMap<HashSet<SingleCse>, OperatorNode> certainACs = new HashMap<>();
     // todo: certainACs
 
 //    ArrayList<OperatorNode> uncertainACs = new ArrayList<>();
 
-    HashMap<HashSet<SingleCse>, OperatorNode> uncertainACs = new HashMap<>();
+    public HashMap<HashSet<SingleCse>, OperatorNode> uncertainACs = new HashMap<>();
 
     void addUncertainAC(OperatorNode node) {
         if (uncertainACs.containsKey(node.dependencies)) {

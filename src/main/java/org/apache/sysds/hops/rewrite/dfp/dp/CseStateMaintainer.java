@@ -11,8 +11,8 @@ import java.util.Map;
 public class CseStateMaintainer {
 
 
-     Counter<Pair<Integer, Integer>> rangeCounter = new Counter<>();
-     Counter<SingleCse> cseCounter = new Counter<>();
+    Counter<Pair<Integer, Integer>> rangeCounter = new Counter<>();
+    Counter<SingleCse> cseCounter = new Counter<>();
 
     enum CseState {
         certainlyUseful, certainlyUseless, uncertain, constant
@@ -20,13 +20,18 @@ public class CseStateMaintainer {
 
     HashMap<SingleCse, CseState> map = new HashMap<>();
 
-    void initCseState(ArrayList<SingleCse> allCses, ArrayList<SingleCse> certainlyUsefulCses) {
+    void initCseState(ArrayList<SinglePlan> allCses) {
         map.clear();
-        for (SingleCse cse : allCses) {
-            map.put(cse, CseState.uncertain);
-        }
-        for (SingleCse cse : certainlyUsefulCses) {
-            map.put(cse, CseState.certainlyUseful);
+        for (SinglePlan p : allCses) {
+            if (p.tag == SinglePlan.SinglePlanTag.Useful) {
+                map.put(p.singleCse, CseState.certainlyUseful);
+            } else if (p.tag == SinglePlan.SinglePlanTag.Useless) {
+                map.put(p.singleCse, CseState.certainlyUseless);
+            } else if (p.tag == SinglePlan.SinglePlanTag.constant) {
+                map.put(p.singleCse, CseState.constant);
+            } else {
+                map.put(p.singleCse, CseState.uncertain);
+            }
         }
     }
 
@@ -47,7 +52,7 @@ public class CseStateMaintainer {
     }
 
     void setCseState(SingleCse cse, CseState state) {
-        System.out.println("update cse state "+state+" "+cse);
+        System.out.println("update cse state " + state + " " + cse);
         map.put(cse, state);
     }
 
@@ -77,7 +82,7 @@ public class CseStateMaintainer {
                     if (acNode1.minAC != null) {
                         for (SingleCse cse : acNode1.minAC.dependencies) {
                             cseCounter.decrement(cse);
-                            if (cseCounter.getValue(cse) == 0 && getCseState(cse)==CseState.uncertain) {
+                            if (cseCounter.getValue(cse) == 0 && getCseState(cse) == CseState.uncertain) {
                                 setCseState(cse, CseState.certainlyUseless);
                             }
                         }
@@ -91,7 +96,7 @@ public class CseStateMaintainer {
                     if (acNode1.minAC != null) {
                         for (SingleCse cse : acNode1.minAC.dependencies) {
                             cseCounter.decrement(cse);
-                            if (cseCounter.getValue(cse) == 0 && getCseState(cse)==CseState.uncertain) {
+                            if (cseCounter.getValue(cse) == 0 && getCseState(cse) == CseState.uncertain) {
                                 setCseState(cse, CseState.certainlyUseless);
                             }
                         }
@@ -143,21 +148,25 @@ public class CseStateMaintainer {
     }
 
     void printCseNumStats() {
-        int uncertainNum=0,usefulNum=0,uselessNum=0,constantNum=0;
+        int uncertainNum = 0, usefulNum = 0, uselessNum = 0, constantNum = 0;
 
-        for (Map.Entry<SingleCse,CseState>  entry: map.entrySet()) {
+        for (Map.Entry<SingleCse, CseState> entry : map.entrySet()) {
             switch (entry.getValue()) {
                 case uncertain:
-                    uncertainNum++;break;
+                    uncertainNum++;
+                    break;
                 case certainlyUseful:
-                    usefulNum++;break;
+                    usefulNum++;
+                    break;
                 case certainlyUseless:
-                    uselessNum++;break;
+                    uselessNum++;
+                    break;
                 case constant:
-                    constantNum++;break;
+                    constantNum++;
+                    break;
             }
         }
-        System.out.println("uncertain: "+uncertainNum+" useful: "+usefulNum+" useless: "+uselessNum);
+        System.out.println("uncertain: " + uncertainNum + " useful: " + usefulNum + " useless: " + uselessNum);
     }
 
 }

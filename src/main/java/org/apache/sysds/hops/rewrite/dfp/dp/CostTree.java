@@ -2,6 +2,7 @@ package org.apache.sysds.hops.rewrite.dfp.dp;
 
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.hadoop.yarn.webapp.hamlet.Hamlet;
 import org.apache.sysds.common.Types;
 import org.apache.sysds.hops.BinaryOp;
 import org.apache.sysds.hops.Hop;
@@ -18,143 +19,63 @@ import java.util.*;
 
 public class CostTree {
 
-    public CostTree(VariableSet variablesUpdated) {
+    public CostTree(VariableSet variablesUpdated, long iterationNumber) {
         this.variablesUpdated = variablesUpdated;
+        this.iterationNumber = iterationNumber;
     }
 
+    long iterationNumber = 2;
     public VariableSet variablesUpdated = null;
 
-    // HashMap<Pair<Integer, Integer>, ArrayList<OperatorNode>> range2OperatoeNode = new HashMap<>();
 
+    public ACNode testOperatorGraph(ArrayList<SinglePlan> pairs, Pair<SingleCse, Hop> emptyPair, ArrayList<Range> blockRanges, ArrayList<Leaf> leaves) {
 
-    public void testOperatorGraph(ArrayList<Pair<SingleCse, Hop>> pairs, Pair<SingleCse, Hop> emptyPair, ArrayList<Range> blockRanges, ArrayList<Leaf> leaves) {
-
-        ArrayList<OperatorNode> list = new ArrayList<>();
         int maxIndex = 0;
-        ArrayList<SingleCse> allCses = new ArrayList<>();
-        ArrayList<SingleCse> uncertainCses = new ArrayList<>();
-        ArrayList<SingleCse> certainusefulCses = new ArrayList<>();
-        ArrayList<SingleCse> certainuselessCses = new ArrayList<>();
-        ArrayList<SingleCse> constantCses = new ArrayList<>();
-//        HashSet<Pair<Integer, Integer>> ranges  = getBestMatrixBranches(blockRanges,leaves);
         HashSet<Pair<Integer, Integer>> ranges = new HashSet<>();
 
         OperatorNode emptyNode = createOperatorGraph(emptyPair.getRight(), false);
         analyzeOperatorRange(emptyNode, emptyPair.getLeft(), new MutableInt(0));
         rGetRanges(emptyNode, ranges);
 
-        for (Pair<SingleCse, Hop> p : pairs) {
-            SingleCse cse = p.getLeft();
-            Hop hop = p.getRight();
+        for (SinglePlan p : pairs) {
+            SingleCse cse = p.singleCse;
+            Hop hop = p.hop;
             System.out.println("========================");
-            allCses.add(cse);
             OperatorNode node = createOperatorGraph(hop, false);
             MutableInt mutableInt = new MutableInt(0);
             analyzeOperatorRange(node, cse, mutableInt);
             boolean certainused = rCheckCertainUsed(cse, ranges);
             if (checkConstant(cse, leaves)) {
-                constantCses.add(cse);
+                p.tag = SinglePlan.SinglePlanTag.constant;
                 System.out.println("Constant Cse: " + cse);
             } else {
                 if (certainused) {
-                    certainusefulCses.add(cse);
+                    p.tag = SinglePlan.SinglePlanTag.Useful;
                     System.out.println("Certainly Useful: " + cse);
                     // continue;
                 } else {
-                    uncertainCses.add(cse);
+                    p.tag = SinglePlan.SinglePlanTag.uncertain;
                     System.out.println("Uncertain: " + cse);
                 }
             }
-            //  System.out.println("x");
-            //  System.out.println("mutableInt=" + mutableInt.getValue());
             maxIndex = Math.max(maxIndex, mutableInt.getValue() - 1);
             analyzeOperatorConstant(node);
             analyzeOperatorCost(node, new HashSet<>());
-            //  addOperatorNodeToTable(node, new HashSet<>());
-            list.add(node);
-//            explainOperatorNode(node,0);
+            p.node = node;
         }
-        list.sort(Comparator.comparing(node -> node.accCost));
-
-//        for (Map.Entry<Pair<Integer, Integer>, ACNode> e : range2acnode.entrySet()) {
-//            System.out.println(e.getKey());
-//            System.out.println(e.getValue().operatorNodes.size());
-//        }
-
-//        filterOperatorNode0();
-//
-//        showAcnodeGraph();
 
         CseStateMaintainer MAINTAINER = new CseStateMaintainer();
         MAINTAINER.initRangeCounter(range2acnode);
-        MAINTAINER.initCseState(allCses, certainusefulCses);
-
+        MAINTAINER.initCseState(pairs);
         selectBest(MAINTAINER);
 
-//        for (Pair<Integer, Integer> range : range2OperatoeNode.keySet()) {
-//            showBest(range);
-//        }
-
-        showBest(Pair.of(0, maxIndex), list.get(0));
-
-        System.out.println("certainusefulCses: " + certainusefulCses.size());
-        System.out.println(certainusefulCses.stream().map(SingleCse::toString).reduce((x, y) -> x + "\n" + y));
-        System.out.println("============");
-//        System.out.println("uncertainCses:" + uncertainCses.size());
-//        System.out.println(uncertainCses.stream().map(SingleCse::toString).reduce((x, y) -> x + "\n" + y));
-//        System.out.println("============");
-
-        System.out.println("ConstantCses:" + constantCses.size());
-        System.out.println(constantCses.stream().map(SingleCse::toString).reduce((x, y) -> x + "\n" + y));
-        System.out.println("============");
-
-        System.out.println("AllCses:" + allCses.size());
-        System.out.println(allCses.stream().map(SingleCse::toString).reduce((x, y) -> x + "\n" + y));
-        System.out.println("============");
-
-
-//        ArrayList<SingleCse> C = new ArrayList<>();
-//        ArrayList<SingleCse> D = new ArrayList<>();
-//        for (SingleCse cse: uncertainCses) {
-//            boolean a = true,b=true;
-//            for (SingleCse c1: certainusefulCses) {
-//                if ( cse.intersect(c1) && !(cse.contain(c1) || c1.contain(cse))) {
-//                    a=false;break;
-//                }
-//            }
-//            for (SingleCse c1: constantCses) {
-//                if ( cse.intersect(c1) && !(cse.contain(c1) || c1.contain(cse))) {
-//                    b=false;break;
-//                }
-//            }
-//            if (a||b) C.add(cse);
-//            else D.add(cse);
-//        }
-//
-//        System.out.println("CCCCC:" + C.size());
-//        System.out.println(C.stream().map(SingleCse::toString).reduce((x, y) -> x + "\n" + y));
-//        System.out.println("============");
-//
-//        System.out.println("DDDDD:" + D.size());
-//        System.out.println(D.stream().map(SingleCse::toString).reduce((x, y) -> x + "\n" + y));
-//        System.out.println("============");
-
-//        System.out.println("constant cse: "+constantCses.size());
-//        System.out.println(constantCses.stream().map(SingleCse::toString).reduce((x,y)->x+"\n"+y));
+        showBest(Pair.of(0, maxIndex));
 
         System.out.println(Explain.explain(emptyPair.getRight()));
 
         System.out.println("done");
 
-
-//        for (int i = 0; i < 20; i++) {
-//            System.out.println(list.get(i).accCost + " " + list.get(i).dependencies);
-//        }
-//        System.out.println("-------------------");
-//        for (int i = 0; i < 20; i++) {
-//            explainOperatorNode(list.get(i), 0);
-//        }
-
+        return range2acnode.get(Pair.of(0, maxIndex));
     }
 
 
@@ -192,18 +113,6 @@ public class CostTree {
                     }
                 }
             }
-//            for (int i = 0; i < n; i++) {
-//                for (int j = 0; j < n; j++) {
-//                    System.out.printf("%d ", f[i][j]);
-//                }
-//                System.out.println("");
-//            }
-//            for (int i = 0; i < n; i++) {
-//                for (int j = 0; j < n; j++) {
-//                    System.out.printf("%s ", g[i][j]);
-//                }
-//                System.out.println("");
-//            }
             ArrayList<Pair<Integer, Integer>> q = new ArrayList<>();
             q.add(Pair.of(0, n - 1));
             for (int x = 0; x < q.size(); x++) {
@@ -246,23 +155,6 @@ public class CostTree {
         return cons;
     }
 
-//    void showAcnodeGraph() {
-//        ArrayList<Pair<Integer, Integer>> ranges = new ArrayList<>();
-//        ranges.addAll(range2acnode.keySet());
-//        ranges.sort(Comparator.comparingInt((Pair<Integer, Integer> a) -> (a.getRight() - a.getLeft())).thenComparingInt(Pair::getLeft));
-//        System.out.println(ranges);
-//        for (Pair<Integer, Integer> boundery : ranges) {
-//            System.out.println("====================");
-//            ACNode acNode = range2acnode.get(boundery);
-//            System.out.println(boundery + " " + acNode.operatorNodes.size());
-//            for (OperatorNode node : acNode.operatorNodes) {
-//                System.out.println(node);
-//            }
-//        }
-//        System.out.println("x");
-//        //     System.exit(0);
-//    }
-
 
     boolean rCheckCertainUsed(SingleCse cse, HashSet<Pair<Integer, Integer>> ranges) {
         boolean ans = true;
@@ -283,7 +175,7 @@ public class CostTree {
     }
 
 
-    void showBest(Pair<Integer, Integer> range, OperatorNode bestsinglecsenode) {
+    void showBest(Pair<Integer, Integer> range) {
         System.out.println("range: " + range);
         ArrayList<OperatorNode> list2 = new ArrayList<>();
         //            if (e.getValue().dependencies.size() > 2) {
@@ -292,10 +184,9 @@ public class CostTree {
         list2.addAll(range2acnode.get(range).uncertainACs.values());
         list2.sort(Comparator.comparingDouble(a -> a.accCost));
 //        && list2.get(i).accCost <= bestsinglecsenode.accCost
-        for (int i = 0; i < 200 && i < list2.size(); i++) {
+        for (int i = 0; i < 30 && i < list2.size(); i++) {
             System.out.println(list2.get(i));
         }
-
     }
 
 
@@ -448,88 +339,17 @@ public class CostTree {
             //   accCost = accCost / csesize;
         }
         if (node.isConstant) {
-            thisCost /= 1000000;
+            //todo: iterationNumber
+//            thisCost /= iterationNumber;
+            thisCost /= 100;
             //  accCost /= 100;
         }
         //  node.accCost = accCost;
         node.thisCost = thisCost;
         //  System.out.println(node);
         range2acnode.get(node.range).addOperatorNode(node);
-
         visited.add(node);
     }
-
-    /*
-    void addOperatorNodeToTable(OperatorNode node, HashSet<OperatorNode> visited) {
-        // node.accCost = node.thisCost;
-        System.out.println("add node to table: " + node.range);
-        if (node.inputs.size() == 0) {
-            Pair<Integer, Integer> range = node.range;
-            if (!range2acnode.containsKey(range)) {
-                ACNode acNode = new ACNode();
-                acNode.range = range;
-                //acNode.operatorNodes.add(node);
-                range2acnode.put(range, acNode);
-            }
-        } else {
-            for (int i = 0; i < node.inputs.size(); i++) {
-                addOperatorNodeToTable(node.inputs.get(i), visited);
-            }
-            Pair<Integer, Integer> range = node.range;
-            if (range2acnode.containsKey(range)) {
-                ACNode acNode = range2acnode.get(range);
-                acNode.operatorNodes.add(node);
-            } else {
-                ACNode acNode = new ACNode();
-                acNode.range = range;
-                acNode.operatorNodes.add(node);
-                range2acnode.put(range, acNode);
-            }
-        }
-//     if (!visited.contains(node)) {
-//        ArrayList<OperatorNode> nodes;
-//        if (range2OperatoeNode.containsKey(range)) {
-//            nodes = range2OperatoeNode.get(range);
-//        } else {
-//            nodes = new ArrayList<>();
-//        }
-//        nodes.add(node);
-//        range2OperatoeNode.put(range, nodes);
-//    }
-        visited.add(node);
-    }
-
-    void filterOperatorNode0() {
-        for (Pair<Integer, Integer> range : range2acnode.keySet()) {
-            ArrayList<OperatorNode> a1 = range2acnode.get(range).operatorNodes;
-            if (a1.size() < 2) continue;
-            OperatorNode operatorNode = a1.get(0);
-            if (operatorNode.hops.size() < 1) continue;
-            Hop hop = operatorNode.hops.get(0);
-            if (hop instanceof BinaryOp) {
-                operatorNode.dependencies = new HashSet<>();
-                range2acnode.get(range).operatorNodes.clear();
-                range2acnode.get(range).operatorNodes.add(operatorNode);
-                continue;
-            }
-            ArrayList<OperatorNode> a2 = new ArrayList<>();
-            for (OperatorNode node1 : a1) {
-                boolean ok = true;
-                for (OperatorNode node2 : a2) {
-                    if (node1.dependencies.equals(node2.dependencies)) { // todo: check dRange
-                        ok = false;
-                        break;
-                    }
-                }
-                if (ok) a2.add(node1);
-            }
-            System.out.println("range=" + range + " size(a1)=" + a1.size() + " size(a2)=" + a2.size());
-            a2.sort(Comparator.comparing(c -> c.accCost));
-            range2acnode.get(range).operatorNodes = a2;
-        }
-        //  System.exit(0);
-    }
-    */
 
 
     HashMap<Pair<Integer, Integer>, ACNode> range2acnode = new HashMap<>();
@@ -537,20 +357,8 @@ public class CostTree {
 
     void classifyOperatorNode(CseStateMaintainer MAINTAINER, ArrayList<OperatorNode> allResults, ACNode acNode) {
         acNode.uncertainACs = new HashMap<>();
-//        acNode.uncertainACs = new ArrayList<>();
         int removed1 = 0, removed2 = 0;
         for (OperatorNode node : allResults) {
-//            boolean hasUselessCse = false;
-//            boolean hasUncertainCse = false;
-//            for (SingleCse cse : node.dependencies) {
-//                CseStateMaintainer.CseState state = MAINTAINER.getCseState(cse);
-//                if (state == CseStateMaintainer.CseState.certainlyUseless) {
-//                    hasUselessCse = true;
-//                }
-//                if (state == CseStateMaintainer.CseState.uncertain) {
-//                    hasUncertainCse = true;
-//                }
-//            }
             boolean hasUselessCse = MAINTAINER.hasUselessCse(node.dependencies);
             boolean hasUncertainCse = MAINTAINER.hasUncertain(node.dependencies);
             if (hasUselessCse) {
@@ -586,7 +394,7 @@ public class CostTree {
         sortedRanges.sort(Comparator.comparingInt((Pair<Integer, Integer> a) -> (a.getRight() - a.getLeft())).thenComparingInt(Pair::getLeft));
         System.out.println(sortedRanges);
         for (Pair<Integer, Integer> boundery : sortedRanges) {
-
+            System.out.println("boundery: " + boundery);
 //            if (boundery.getRight()-boundery.getLeft()>2) break;
             if (boundery.getLeft() == 1 && boundery.getRight() == 19) {
                 System.out.println("x");
@@ -624,86 +432,7 @@ public class CostTree {
                     }
                 }
             }
-            /*
-            ArrayList<OperatorNode> operatorNodes = acNode.operatorNodes;
-            ArrayList<OperatorNode> allResults = new ArrayList<>();
-
-            boolean first = true;
-
-            for (OperatorNode operatorNode : operatorNodes) {
-                //  System.out.println("Operator Node " + operatorNode.range);
-                if (operatorNode.inputs.size() == 2) {
-                    Pair<Integer, Integer> lRange = operatorNode.inputs.get(0).range;
-                    Pair<Integer, Integer> rRange = operatorNode.inputs.get(1).range;
-                    // if (lRange.getRight() + 1 != rRange.getLeft()) continue;
-                    if (lRange == null || rRange == null) continue;
-                    if (lRange.equals(boundery) || rRange.equals(boundery)) continue;
-                    ACNode lac = range2acnode.get(lRange);
-                    ACNode rac = range2acnode.get(rRange);
-                    if (lac == null || rac == null) continue;
-                    OperatorNode tmp = createOperatorNode(lac.certainAC, lRange, rac.certainAC, rRange, operatorNode, operatorNode.range);
-                    if (tmp != null) allResults.add(tmp);  // && testttt(tmp.dependencies)
-                    ArrayList<OperatorNode> lops = new ArrayList<>();
-                    ArrayList<OperatorNode> rops = new ArrayList<>();
-                    lops.addAll(lac.uncertainACs.values());
-                    lops.addAll(lac.operatorNodes);
-                    lops.add(lac.certainAC);
-                    rops.addAll(rac.uncertainACs.values());
-                    rops.addAll(rac.operatorNodes);
-                    rops.add(rac.certainAC);
-
-//                    if (first) {
-//                        System.out.println("bounderyyyy: "+boundery);
-//                        System.out.println(lops);
-//                        System.out.println("----");
-//                        System.out.println(rops);
-//                        System.out.println("----");
-//                        first = false;
-//                    }
-//                    if (boundery.getLeft()==14&&boundery.getRight()==19) {
-//                        System.out.println(lops);
-//                        System.out.println("----");
-//                        System.out.println(rops);
-//                        System.out.println("----");
-//                    }
-
-                      System.out.println("lRange:" + lRange + " rRange:" + rRange + " lops:" + lops.size() + " rops:" + rops.size());
-                    for (OperatorNode operatorNode1 : lops) {
-                        if (operatorNode1 == null) continue;
-                        for (OperatorNode operatorNode2 : rops) {
-                            if (operatorNode2 == null) continue;
-
-//                            if (testttt(operatorNode1.dependencies)&&testttt(operatorNode2.dependencies)&&check(operatorNode1, operatorNode2, operatorNode.dependencies)) {
-////                                System.out.println(operatorNode1.dependencies);
-////                                System.out.println(operatorNode2.dependencies);
-////                                System.out.println("x");
-//                                    has15 = true;
-//                            }
-
-                            if (check(operatorNode1, operatorNode2, operatorNode.dependencies)) {
-                                tmp = createOperatorNode(operatorNode1, lRange, operatorNode2, rRange, operatorNode, boundery);
-                                if (tmp != null ) {  // && testttt(tmp.dependencies)
-                                    allResults.add(tmp);
-                                    //  System.out.println(tmp);
-                                }
-                            }
-                        }
-                    }
-                    System.out.println("0.1 " + lRange + " " + rRange + " " + lops.size() + " " + rops.size() + " " + acNode.operatorNodes.size());
-                    System.out.println("0.2 " + allResults.size());
-                }
-//                if (operatorNode.range.getLeft()==6 && operatorNode.range.getRight()==10) {
-//                    System.out.println("size="+allResults.size());
-//                    System.out.println(allResults);
-//                    System.out.println("size="+acNode.operatorNodes.size());
-//                    System.out.println(acNode.operatorNodes);
-//                    System.out.println("x");
-//                }
-            }
-             */
             System.out.println("1. " + allResults.size());
-//            System.out.println("2. " + acNode.operatorNodes.size());
-//            allResults.addAll(acNode.operatorNodes);
 
             classifyOperatorNode(MAINTAINER, allResults, acNode);
 
@@ -724,9 +453,6 @@ public class CostTree {
                         MAINTAINER.setCseState(singleCse, CseStateMaintainer.CseState.certainlyUseless);
                     }
                 }
-//                if (singleCse.name.equals("{h t(a) a h g }")) {
-//                    System.out.println(MAINTAINER.getCseState(singleCse)+" "+singleCse);
-//                }
             }
 
             if (!range2acnode.containsKey(boundery)) {
@@ -739,19 +465,10 @@ public class CostTree {
             MAINTAINER.printCseNumStats();
 
 
-            int has23 = 0;
-            for (OperatorNode node : acNode.uncertainACs.values()) {
-                if (testttt(node.dependencies)) {
-                    has23++;
-                }
-            }
-
-            System.out.println(boundery + " has23 " + has23);
-
-            if (boundery.getLeft() == 1 && boundery.getRight() == 10) {
-                ACNode acNode1 = range2acnode.get(boundery);
-                System.out.println("x");
-            }
+//            if (boundery.getLeft() == 1 && boundery.getRight() == 10) {
+//                ACNode acNode1 = range2acnode.get(boundery);
+//                System.out.println("x");
+//            }
 
 
         }
@@ -764,17 +481,6 @@ public class CostTree {
             }
         }
 
-    }
-
-    boolean testttt(HashSet<SingleCse> cses) {
-        for (SingleCse cse : cses) {
-            for (Range range : cse.ranges) {
-                if (range.left == 2 && range.right == 3) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
 

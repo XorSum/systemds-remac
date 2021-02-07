@@ -22,10 +22,13 @@ package org.apache.sysds.runtime.controlprogram;
 import java.util.ArrayList;
 
 import org.apache.sysds.conf.ConfigurationManager;
+import org.apache.sysds.hops.DataOp;
 import org.apache.sysds.hops.Hop;
+import org.apache.sysds.hops.LiteralOp;
 import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
 import org.apache.sysds.hops.rewrite.ProgramRewriter;
 import org.apache.sysds.hops.rewrite.dfp.RewriteLoopConstant;
+import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
 import org.apache.sysds.parser.*;
 import org.apache.sysds.api.DMLScript;
 import org.apache.sysds.common.Types.ValueType;
@@ -35,7 +38,9 @@ import org.apache.sysds.runtime.controlprogram.caching.MatrixObject.UpdateType;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
 import org.apache.sysds.runtime.instructions.Instruction;
 import org.apache.sysds.runtime.instructions.cp.BooleanObject;
+import org.apache.sysds.runtime.instructions.cp.Data;
 import org.apache.sysds.runtime.lineage.LineageDedupUtils;
+import org.apache.sysds.utils.Explain;
 
 
 public class WhileProgramBlock extends ProgramBlock
@@ -94,6 +99,33 @@ public class WhileProgramBlock extends ProgramBlock
 		return result;
 	}
 
+	void rGetLiteral(Hop hop, ArrayList<Long> literals) {
+		System.out.println(hop.getHopID()+" "+hop.getName());
+		if (hop instanceof LiteralOp) {
+			LiteralOp literalOp = (LiteralOp) hop;
+			long value =	literalOp.getLongValue();
+			if (value>0) literals.add(value);
+		}
+		for (Hop i: hop.getInput()) {
+			rGetLiteral(i,literals);
+		}
+	}
+
+	long getInerationNumber() {
+		WhileStatementBlock wsb = (WhileStatementBlock)_sb;
+		Hop predicateOp = wsb.getPredicateHops();
+		System.out.println(Explain.explain(predicateOp));
+		ArrayList<Long> literals = new ArrayList<>();
+		rGetLiteral(predicateOp,literals);
+		long max = 2;
+		for (long i: literals) {
+			max = Math.max(max,i);
+		}
+		LOG.info("iterationNumber="+max);
+		return max;
+	}
+
+
 	@Override
 	public void execute(ExecutionContext ec)
 	{
@@ -104,7 +136,8 @@ public class WhileProgramBlock extends ProgramBlock
 			try {
 			//	System.out.println("Reducer Number: "+ OptimizerUtils.getNumReducers(false));
 			    VariableSet variablesUpdated = _sb.variablesUpdated();
-				ProgramRewriter rewriter = new ProgramRewriter(new RewriteLoopConstant(ec,variablesUpdated));
+			    long iterationNumber = getInerationNumber();
+				ProgramRewriter rewriter = new ProgramRewriter(new RewriteLoopConstant(ec,variablesUpdated,iterationNumber));
 				ArrayList<StatementBlock> sbs = new ArrayList<>();
 				sbs.add(_sb);
 				sbs = rewriter.rRewriteStatementBlocks(sbs, new ProgramRewriteStatus(), false);

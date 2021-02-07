@@ -11,13 +11,15 @@ import org.apache.sysds.hops.rewrite.dfp.Leaf;
 import org.apache.sysds.hops.rewrite.dfp.MySolution;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
+import org.apache.sysds.hops.rewrite.dfp.dp.ACNode;
 import org.apache.sysds.hops.rewrite.dfp.dp.CostTree;
-import org.apache.sysds.hops.rewrite.dfp.dp.HopCostEstimator;
+import org.apache.sysds.hops.rewrite.dfp.dp.SinglePlan;
 import org.apache.sysds.hops.rewrite.dfp.utils.*;
 import org.apache.sysds.parser.*;
 import org.apache.sysds.runtime.controlprogram.Program;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
 import org.apache.sysds.utils.Explain;
+
 import java.util.*;
 
 import static org.apache.sysds.hops.rewrite.dfp.utils.CreateRuntimeProgram.constructProgramBlocks;
@@ -43,6 +45,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     public boolean onlySearchConstantSubExp = false;
     public VariableSet variablesUpdated = null;
     public ConstantUtil constantUtil = null; // new ConstantUtil(variablesUpdated);
+    public long iterationNumber = 2;
 
     // <configuration>
     private boolean showBlock = false;
@@ -85,7 +88,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             template = reorder(template);
 
             template.resetVisitStatusForced(new HashSet<>());
-            LOG.debug("template: \n"+Explain.explain(template));
+            LOG.debug("template: \n" + Explain.explain(template));
 
             LOG.debug("start coordinate " + MyExplain.myExplain(root));
 
@@ -102,9 +105,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             // 找到所有的叶子节点
             findAllLeaf(template, new ArrayList<>(), 0, hopId2LeafIndex, djs);
             if (leaves.size() < 4) return originalSolution;
-            System.out.println("leaves.size:"+leaves.size());
-            for (int i=0;i<leaves.size();i++) {
-                System.out.println("leavesID: "+i);
+            System.out.println("leaves.size:" + leaves.size());
+            for (int i = 0; i < leaves.size(); i++) {
+                System.out.println("leavesID: " + i);
                 System.out.println(Explain.explain(leaves.get(i).hop));
             }
 
@@ -118,15 +121,22 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             }
 
             MySolution mySolution = null;
-            if (useDirectPolicy) {
-                mySolution = testDirectSolution(template, blockRanges);
-            } else if (useDynamicProgramPolicy) {
-                mySolution = testCostTree(singleCses, template, blockRanges);
-            } else if (useBruceForcePolicy) {
-                mySolution = testBruteForce(singleCses, template, blockRanges);
+            try {
+                if (useDirectPolicy) {
+                    mySolution = testDirectSolution(template, blockRanges);
+                } else if (useDynamicProgramPolicy) {
+                    mySolution = testCostTree(singleCses, template, blockRanges);
+                } else if (useBruceForcePolicy) {
+                    mySolution = testBruteForce(singleCses, template, blockRanges);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                mySolution = null;
+                System.out.println("x");
             }
-
-            if (mySolution != null) return mySolution;
+            if (mySolution != null) {
+                return mySolution;
+            }
 
 //            testusefulCse(singleCses, template);
 
@@ -199,34 +209,52 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //            Hop hop = createHop(multiCse, template);
 //            pairs.add(Pair.of(hop, singleCse));
 //        }
-        System.out.println("blockRanges:"+blockRanges);
-        for (int i=0;i<leaves.size();i++) {
+        System.out.println("blockRanges:" + blockRanges);
+        for (int i = 0; i < leaves.size(); i++) {
             Hop h = leaves.get(i).hop;
-            System.out.println("("+i+","+h.getDim1()+","+h.getDim2()+")");
+            System.out.println("(" + i + "," + h.getDim1() + "," + h.getDim2() + ")");
         }
 
 
         ArrayList<Pair<SingleCse, Hop>> list = genHopFromSingleCses(singleCses, template, blockRanges);
         SingleCse emptyCse = new SingleCse();
         emptyCse.hash = HashKey.of(0L, 0L);
-        Hop emptyHop = createHop(emptyCse,template,blockRanges);
-
-        Pair<SingleCse,Hop> pair=Pair.of(emptyCse,emptyHop);
+        Hop emptyHop = createHop(emptyCse, template, blockRanges);
+        Pair<SingleCse, Hop> pair = Pair.of(emptyCse, emptyHop);
         list.add(pair);
-        CostTree costTree = new CostTree(variablesUpdated);
+
+        ArrayList<SinglePlan> singlePlans = new ArrayList<>();
+        for (Pair<SingleCse, Hop> p : list) {
+            SinglePlan singlePlan = new SinglePlan();
+            singlePlan.hop = p.getRight();
+            singlePlan.singleCse = p.getLeft();
+            singlePlans.add(singlePlan);
+        }
+
+        CostTree costTree = new CostTree(variablesUpdated, iterationNumber);
 //        costTree.testCostTree(list);
-        costTree.testOperatorGraph(list,pair,blockRanges ,leaves);
-        System.exit(0);
-        return new MySolution();
+        ACNode bestacnode = costTree.testOperatorGraph(singlePlans, pair, blockRanges, leaves);
+        MultiCse multiCse = new MultiCse();
+        multiCse.cses = new ArrayList<>(bestacnode.minAC.dependencies);
+        multiCse.cses.addAll(bestacnode.minAC.oldDependencies);
+
+        Hop hop = createHop(multiCse, template, blockRanges);
+        Hop copy = deepCopyHopsDag(hop);
+        MySolution mySolution = constantUtil.liftLoopConstant(copy);
+        mySolution.cost = bestacnode.minAC.accCost;
+        LOG.info("dynamic programming: ");
+        LOG.info(multiCse);
+        LOG.info(mySolution);
+        return mySolution;
     }
 
 
     private int findAllLeaf(Hop hop, ArrayList<Integer> path, int depth, HashMap<Long, Integer> hopId2LeafIndex, DisjointSet djs) {
-        System.out.println("findAllLeaf visit: "+hop.getHopID()+" "+hop.getName());
+        System.out.println("findAllLeaf visit: " + hop.getHopID() + " " + hop.getName());
         if (isLeafMatrix(hop)
                 || (HopRewriteUtils.isTransposeOperation(hop) && isLeafMatrix(hop.getInput().get(0)))
-               // || hop.getParent().size() > 1)
-        ){
+            // || hop.getParent().size() > 1)
+        ) {
             int index = leaves.size();
             hopId2LeafIndex.put(hop.getHopID(), index);
             Leaf leaf = new Leaf(hop, path, depth);
@@ -605,12 +633,12 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 FakeCostEstimator2.ec = ec;
                 double preCost = 0;
                 for (Hop h : solution.preLoopConstants) {
-                    Program program = constructProgramBlocks(h,statementBlock);
+                    Program program = constructProgramBlocks(h, statementBlock);
                     if (showDetails)
                         LOG.debug(Explain.explain(program));
                     preCost += FakeCostEstimator2.estimate(program);
                 }
-                Program programBlocks = constructProgramBlocks(solution.body,statementBlock);
+                Program programBlocks = constructProgramBlocks(solution.body, statementBlock);
                 if (showDetails)
                     LOG.debug(Explain.explain(programBlocks));
                 //cost = CostEstimationWrapper.getTimeEstimate(programBlocks, ec);
@@ -1023,7 +1051,6 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     public List<StatementBlock> rewriteStatementBlocks(List<StatementBlock> sbs, ProgramRewriteStatus state) {
         return sbs;
     }
-
 
 
 }

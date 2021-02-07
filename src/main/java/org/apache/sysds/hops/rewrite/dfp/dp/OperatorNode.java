@@ -13,12 +13,12 @@ public class OperatorNode {
     //    ArrayList<RangeNode> operands = new ArrayList<>();
     Pair<Integer, Integer> range = null;
     //    ArrayList<Pair<Integer, Integer>> ranges = new ArrayList<>();
-    HashSet<SingleCse> dependencies = new HashSet<>();
-    HashSet<SingleCse> oldDependencies = new HashSet<>();
+    public HashSet<SingleCse> dependencies = new HashSet<>();
+    public HashSet<SingleCse> oldDependencies = new HashSet<>();
     //Hop hop = null;
     ArrayList<Hop> hops = new ArrayList<>();
     double thisCost = Double.MAX_VALUE;
-    double accCost = Double.MAX_VALUE;
+    public double accCost = Double.MAX_VALUE;
     ArrayList<OperatorNode> inputs = new ArrayList<>();
     boolean isConstant = false;
 
