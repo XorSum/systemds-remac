@@ -641,20 +641,25 @@ public class AggBinaryOp extends MultiThreadedHop
 		
 		//right vector transpose
 		Lop lY = Y.constructLops();
+		lY.shouldPersist = Y.shouldPersist;
 		Lop tY = (lY instanceof Transform && ((Transform)lY).getOp()==ReOrgOp.TRANS ) ?
 				lY.getInputs().get(0) : //if input is already a transpose, avoid redundant transpose ops
 				new Transform(lY, ReOrgOp.TRANS, getDataType(), getValueType(), ExecType.CP, k);
 		tY.getOutputParameters().setDimensions(Y.getDim2(), Y.getDim1(), getBlocksize(), Y.getNnz());
+		tY.shouldPersist = Y.shouldPersist;
 		setLineNumbers(tY);
-		
+		Lop lX = X.constructLops();
+		lX.shouldPersist = X.shouldPersist  || getInput().get(0).shouldPersist ;
+
 		//matrix mult
-		Lop mult = new MatMultCP(tY, X.constructLops(), getDataType(), getValueType(), ExecType.CP, k);
+		Lop mult = new MatMultCP(tY, lX, getDataType(), getValueType(), ExecType.CP, k);
 		mult.getOutputParameters().setDimensions(Y.getDim2(), X.getDim2(), getBlocksize(), getNnz());
+		mult.shouldPersist = shouldPersist;
 		setLineNumbers(mult);
 		
 		//result transpose (dimensions set outside)
 		Lop out = new Transform(mult, ReOrgOp.TRANS, getDataType(), getValueType(), ExecType.CP, k);
-		
+		out.shouldPersist = shouldPersist;
 		return out;
 	}
 	
@@ -700,25 +705,29 @@ public class AggBinaryOp extends MultiThreadedHop
 	{
 		Hop X = getInput().get(0).getInput().get(0); //guaranteed to exists
 		Hop Y = getInput().get(1);
-		
+		Lop lY = Y.constructLops();
+		lY.shouldPersist = Y.shouldPersist;
 		//right vector transpose
 		Lop tY = new Transform(Y.constructLops(), ReOrgOp.TRANS, getDataType(), getValueType(), ExecType.CP);
+		tY.shouldPersist = Y.shouldPersist;
 		tY.getOutputParameters().setDimensions(Y.getDim2(), Y.getDim1(), getBlocksize(), Y.getNnz());
 		setLineNumbers(tY);
 		
 		//matrix mult spark
 		boolean needAgg = requiresAggregation(MMultMethod.MAPMM_R); 
 		SparkAggType aggtype = getSparkMMAggregationType(needAgg);
-		_outputEmptyBlocks = !OptimizerUtils.allowsToFilterEmptyBlockOutputs(this); 
-		
-		Lop mult = new MapMult( tY, X.constructLops(), getDataType(), getValueType(), 
+		_outputEmptyBlocks = !OptimizerUtils.allowsToFilterEmptyBlockOutputs(this);
+		Lop lX = X.constructLops();
+		lX.shouldPersist = X.shouldPersist || getInput().get(0).shouldPersist ;
+		Lop mult = new MapMult( tY, lX, getDataType(), getValueType(),
 				      false, false, _outputEmptyBlocks, aggtype);	
 		mult.getOutputParameters().setDimensions(Y.getDim2(), X.getDim2(), getBlocksize(), getNnz());
+		mult.shouldPersist = shouldPersist;
 		setLineNumbers(mult);
 		
 		//result transpose (dimensions set outside)
 		Lop out = new Transform(mult, ReOrgOp.TRANS, getDataType(), getValueType(), ExecType.CP);
-		
+		out.shouldPersist = shouldPersist;
 		return out;
 	}
 
@@ -772,22 +781,27 @@ public class AggBinaryOp extends MultiThreadedHop
 		
 		Hop X = getInput().get(0).getInput().get(0); //guaranteed to exists
 		Hop Y = getInput().get(1);
-		
+		Lop lY = Y.constructLops();
+		lY.shouldPersist = Y.shouldPersist;
 		//right vector transpose CP
 		Lop tY = new Transform(Y.constructLops(), ReOrgOp.TRANS, getDataType(), getValueType(), ExecType.CP);
+		tY.shouldPersist = Y.shouldPersist;
 		tY.getOutputParameters().setDimensions(Y.getDim2(), Y.getDim1(), Y.getBlocksize(), Y.getNnz());
 		setLineNumbers(tY);
-		
+
+		Lop lX = X.constructLops();
+		lX.shouldPersist = X.shouldPersist || getInput().get(0).shouldPersist ;
 		//matrix multiply
 		_outputEmptyBlocks = !OptimizerUtils.allowsToFilterEmptyBlockOutputs(this); 
-		MMCJ mmcj = new MMCJ(tY, X.constructLops(), getDataType(), getValueType(), _outputEmptyBlocks, aggtype, ExecType.SPARK);
+		MMCJ mmcj = new MMCJ(tY, lX, getDataType(), getValueType(), _outputEmptyBlocks, aggtype, ExecType.SPARK);
+		mmcj.shouldPersist = shouldPersist;
 		mmcj.getOutputParameters().setDimensions(getDim1(), getDim2(), getBlocksize(), getNnz());
 		setLineNumbers(mmcj);
 
 		//result transpose CP 
 		Lop out = new Transform(mmcj, ReOrgOp.TRANS, getDataType(), getValueType(), ExecType.CP);
 		out.getOutputParameters().setDimensions(X.getDim2(), Y.getDim2(), getBlocksize(), getNnz());
-		
+		out.shouldPersist = shouldPersist;
 		return out;
 	}
 

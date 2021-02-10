@@ -34,7 +34,7 @@ import org.apache.sysds.runtime.privacy.PrivacyConstraint;
 
 public abstract class Lop 
 {
-	
+	public boolean shouldPersist = false;
 	public enum Type {
 		Data, DataGen,                                      //CP/MR read/write/datagen 
 		ReBlock, CSVReBlock,                                //MR reblock operations
@@ -148,7 +148,7 @@ public abstract class Lop
 		outParams = new OutputParameters();
 		lps = new LopProperties();
 	}
-	
+
 	/**
 	 * get visit status of node
 	 * 

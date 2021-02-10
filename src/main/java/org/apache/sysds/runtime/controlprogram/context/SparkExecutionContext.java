@@ -43,6 +43,7 @@ import org.apache.sysds.lops.Checkpoint;
 import org.apache.sysds.runtime.DMLRuntimeException;
 import org.apache.sysds.runtime.compress.CompressedMatrixBlock;
 import org.apache.sysds.runtime.controlprogram.Program;
+import org.apache.sysds.runtime.controlprogram.TempPersist;
 import org.apache.sysds.runtime.controlprogram.caching.CacheBlock;
 import org.apache.sysds.runtime.controlprogram.caching.CacheableData;
 import org.apache.sysds.runtime.controlprogram.caching.FrameObject;
@@ -836,6 +837,11 @@ public class SparkExecutionContext extends ExecutionContext
 	 */
 	public void setRDDHandleForVariable(String varname, JavaPairRDD<?,?> rdd) {
 		rdd.setName(varname);
+		if (TempPersist.shouldPersist(varname)) {
+			System.out.println("Persist RDD with label "+varname);
+			rdd.persist(StorageLevel.MEMORY_AND_DISK_SER());
+			TempPersist.addRdd(rdd);
+		}
 		CacheableData<?> obj = getCacheableData(varname);
 		RDDObject rddhandle = new RDDObject(rdd);
 		obj.setRDDHandle( rddhandle );
@@ -1461,7 +1467,8 @@ public class SparkExecutionContext extends ExecutionContext
 	public static void cleanupRDDVariable(JavaPairRDD<?,?> rvar)
 	{
 		if( rvar.getStorageLevel()!=StorageLevel.NONE() ) {
-			rvar.unpersist( !ASYNCHRONOUS_VAR_DESTROY );
+			if (!TempPersist.shouldPersist(rvar.name()))
+				rvar.unpersist( !ASYNCHRONOUS_VAR_DESTROY );
 		}
 	}
 

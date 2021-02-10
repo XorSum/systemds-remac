@@ -161,8 +161,6 @@ public abstract class BinarySPInstruction extends ComputationSPInstruction {
 		DataCharacteristics mc2 = sec.getDataCharacteristics(input2.getName());
 		DataCharacteristics mcOut = sec.getDataCharacteristics(output.getName());
 
-		System.out.println("processMatrixMatrixBinaryInstruction  "+ input1.getName()+" "+input2.getName()+" "+output.getName() );
-
 		BinaryOperator bop = (BinaryOperator) _optr;
 	
 		//vector replication if required (mv or outer operations)
@@ -183,11 +181,6 @@ public abstract class BinarySPInstruction extends ComputationSPInstruction {
 			.join(in2, numPrefPart)
 			.mapValues(new MatrixMatrixBinaryOpFunction(bop));
 
-		if ( TempPersist.rddName!=null && TempPersist.rddName.equals(output.getName())) {
-			System.out.println("Persist "+output.getName());
-			out = out.persist(StorageLevel.MEMORY_AND_DISK());
-			TempPersist.rdds.add(out);
-		}
 
 		//set output RDD
 		sec.setRDDHandleForVariable(output.getName(), out);

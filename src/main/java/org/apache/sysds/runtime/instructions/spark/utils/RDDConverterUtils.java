@@ -57,6 +57,7 @@ import org.apache.sysds.common.Types.ValueType;
 import org.apache.sysds.conf.ConfigurationManager;
 import org.apache.sysds.hops.OptimizerUtils;
 import org.apache.sysds.runtime.DMLRuntimeException;
+import org.apache.sysds.runtime.controlprogram.TempPersist;
 import org.apache.sysds.runtime.instructions.spark.data.ReblockBuffer;
 import org.apache.sysds.runtime.instructions.spark.data.SerLongWritable;
 import org.apache.sysds.runtime.instructions.spark.data.SerText;
@@ -337,7 +338,8 @@ public class RDDConverterUtils {
 			HDFSTool.writeMetaDataFile(pathX+".mtd", ValueType.FP64, mc2, FileFormat.BINARY);
 			
 			//asynchronous cleanup of cached intermediates
-			ilpoints.unpersist(false);
+			if (!TempPersist.shouldPersist(ilpoints.name()))
+				ilpoints.unpersist(false);
 		}
 		catch(IOException ex) {
 			throw new DMLRuntimeException(ex);

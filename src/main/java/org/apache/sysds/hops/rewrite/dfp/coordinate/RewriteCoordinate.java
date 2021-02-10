@@ -601,10 +601,14 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 solution.cost = estimate(solution, false);
                 if (showCost)
                     LOG.debug("cost=" + solution.cost);
-                if (bestSolution.body == null || bestSolution.cost >= solution.cost) {
+                if (bestSolution.body == null
+                        || bestSolution.cost > solution.cost
+                        || (Math.abs(bestSolution.cost - solution.cost) < 0.0001
+                        && bestSolution.multiCse.cses.size() < solution.multiCse.cses.size())) {
                     bestSolution = solution;
                     id = i;
                 }
+
             } catch (Exception e) {
                 LOG.error("estimate error");
             }
@@ -838,6 +842,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //            return leaves.get(rt.left).hop;
         }
         if (rt.singleCse.prototype != null) {
+            rt.singleCse.prototype.shouldPersist = true;
             if (rt.transpose == rt.singleCse.protoRange.transpose) {
                 return rt.singleCse.prototype;
             } else {

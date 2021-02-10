@@ -600,6 +600,9 @@ public class Explain
 		if (hop.getExecType() != null)
 			sb.append(", " + hop.getExecType());
 
+		if (hop.shouldPersist) sb.append(", persist");
+		else sb.append(", notPersist");
+
 		sb.append('\n');
 
 		hop.setVisited();

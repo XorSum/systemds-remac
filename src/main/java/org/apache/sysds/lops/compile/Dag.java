@@ -36,6 +36,7 @@ import org.apache.sysds.lops.OutputParameters;
 import org.apache.sysds.parser.DataExpression;
 import org.apache.sysds.parser.StatementBlock;
 import org.apache.sysds.runtime.DMLRuntimeException;
+import org.apache.sysds.runtime.controlprogram.TempPersist;
 import org.apache.sysds.runtime.controlprogram.parfor.util.IDSequence;
 import org.apache.sysds.runtime.instructions.CPInstructionParser;
 import org.apache.sysds.runtime.instructions.Instruction;
@@ -466,6 +467,9 @@ public class Dag<N extends Lop>
 					// go into Temporary Files (temp0, temp1, etc.)
 					
 					NodeOutput out = setupNodeOutputs(node, ExecType.CP, false, false);
+					if (node.shouldPersist) {
+						TempPersist.addCseLabel(node.getOutputParameters().getLabel());
+					}
 					inst.addAll(out.getPreInstructions());
 					
 					boolean hasTransientWriteParent = false;

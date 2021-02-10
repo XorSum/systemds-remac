@@ -110,13 +110,23 @@ public class RewriteCommonSubexpressionElimination extends HopRewriteRule
 		{
 			if( hop instanceof LiteralOp ) {
 				LiteralKey key = new LiteralKey(hop.getValueType(), hop.getName());
-				if( !literalops.containsKey(key) )
+				if( !literalops.containsKey(key) ) {
 					literalops.put(key, hop);
+				} else {
+					Hop h1 = literalops.get(key);
+					h1.shouldPersist = h1.shouldPersist || hop.shouldPersist;
+					literalops.put(key,h1);
+				}
 			}
-			else if( hop instanceof DataOp && ((DataOp)hop).isRead()
-				&& !dataops.containsKey(hop.getName())) {
-				dataops.put(hop.getName(), hop);
-			} 
+			else if( hop instanceof DataOp && ((DataOp)hop).isRead()) {
+				if (!dataops.containsKey(hop.getName())) {
+					dataops.put(hop.getName(), hop);
+				} else {
+					Hop h1 = dataops.get(hop.getName());
+					h1.shouldPersist = h1.shouldPersist || hop.shouldPersist;
+					dataops.put(hop.getName(),h1);
+				}
+			}
 		}
 		else //INNER NODE
 		{
@@ -129,6 +139,7 @@ public class RewriteCommonSubexpressionElimination extends HopRewriteRule
 					//replace child node ref
 					Hop tmp = dataops.get(hi.getName());
 					if( tmp != hi ) { //if required
+						tmp.shouldPersist = tmp.shouldPersist||hi.shouldPersist;
 						tmp.getParent().add(hop);
 						tmp.setVisited();
 						hop.getInput().set(i, tmp);
@@ -139,6 +150,7 @@ public class RewriteCommonSubexpressionElimination extends HopRewriteRule
 					Hop tmp = literalops.get(litKey);
 					//replace child node ref
 					if( tmp != hi ){ //if required
+						tmp.shouldPersist = tmp.shouldPersist||hi.shouldPersist;
 						tmp.getParent().add(hop);
 						tmp.setVisited();
 						hop.getInput().set(i, tmp);
@@ -184,7 +196,7 @@ public class RewriteCommonSubexpressionElimination extends HopRewriteRule
 					else if( h1.compare(h2) ) { //merge h2 into h1
 						//remove h2 from parent list
 						hop.getParent().remove(j);
-						
+						h1.shouldPersist = h1.shouldPersist || h2.shouldPersist;
 						//replace h2 w/ h1 in h2-parent inputs
 						ArrayList<Hop> parent = h2.getParent();
 						for( Hop p : parent )
