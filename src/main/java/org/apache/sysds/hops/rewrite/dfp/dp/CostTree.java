@@ -60,6 +60,7 @@ public class CostTree {
             }
             maxIndex = Math.max(maxIndex, mutableInt.getValue() - 1);
             analyzeOperatorConstant(node);
+            System.out.println(cse);
             analyzeOperatorCost(node, new HashSet<>());
             p.node = node;
         }
@@ -300,9 +301,9 @@ public class CostTree {
         if (visited.contains(node)) return;
         //double accCost = 0;
         double thisCost = 0;
-        if (node.hops.get(0) instanceof BinaryOp) {
-            System.out.println("x");
-        }
+//        if (node.hops.get(0) instanceof BinaryOp) {
+//            System.out.println("x");
+//        }
         if (node.inputs.size() == 0) {
             node.accCost = 0;
         }
@@ -341,7 +342,7 @@ public class CostTree {
         if (node.isConstant) {
             //todo: iterationNumber
 //            thisCost /= iterationNumber;
-            thisCost /= 100;
+            thisCost /= 2;
             //  accCost /= 100;
         }
         //  node.accCost = accCost;
@@ -396,9 +397,9 @@ public class CostTree {
         for (Pair<Integer, Integer> boundery : sortedRanges) {
             System.out.println("boundery: " + boundery);
 //            if (boundery.getRight()-boundery.getLeft()>2) break;
-            if (boundery.getLeft() == 1 && boundery.getRight() == 19) {
-                System.out.println("x");
-            }
+//            if (boundery.getLeft() == 1 && boundery.getRight() == 19) {
+//                System.out.println("x");
+//            }
 
             ACNode acNode = range2acnode.get(boundery);
             ArrayList<OperatorNode> allResults = new ArrayList<>();

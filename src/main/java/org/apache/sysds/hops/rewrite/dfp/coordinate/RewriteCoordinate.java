@@ -77,9 +77,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         try {
             LOG.trace(ec.getVariables().keySet());
             originalSolution.cost = estimate(originalSolution, true);
-            if (!"h".equals(root.getName())) {
-                return originalSolution;
-            }
+//            if (!"h".equals(root.getName())) {
+//                return originalSolution;
+//            }
 
             LOG.info("original cost = " + originalSolution.cost);
 
@@ -202,6 +202,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
 
     MySolution testCostTree(ArrayList<SingleCse> singleCses, Hop template, ArrayList<Range> blockRanges) {
+        try {
 //        ArrayList<Pair<Hop, SingleCse>> pairs = new ArrayList<>();
 //        for (SingleCse singleCse : singleCses) {
 //            MultiCse multiCse = new MultiCse();
@@ -209,43 +210,49 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //            Hop hop = createHop(multiCse, template);
 //            pairs.add(Pair.of(hop, singleCse));
 //        }
-        System.out.println("blockRanges:" + blockRanges);
-        for (int i = 0; i < leaves.size(); i++) {
-            Hop h = leaves.get(i).hop;
-            System.out.println("(" + i + "," + h.getDim1() + "," + h.getDim2() + ")");
-        }
+            System.out.println("blockRanges:" + blockRanges);
+            for (int i = 0; i < leaves.size(); i++) {
+                Hop h = leaves.get(i).hop;
+                System.out.println("(" + i + "," + h.getDim1() + "," + h.getDim2() + ")");
+            }
 
 
-        ArrayList<Pair<SingleCse, Hop>> list = genHopFromSingleCses(singleCses, template, blockRanges);
-        SingleCse emptyCse = new SingleCse();
-        emptyCse.hash = HashKey.of(0L, 0L);
-        Hop emptyHop = createHop(emptyCse, template, blockRanges);
-        Pair<SingleCse, Hop> pair = Pair.of(emptyCse, emptyHop);
-        list.add(pair);
+            ArrayList<Pair<SingleCse, Hop>> list = genHopFromSingleCses(singleCses, template, blockRanges);
+            SingleCse emptyCse = new SingleCse();
+            emptyCse.hash = HashKey.of(0L, 0L);
+            Hop emptyHop = createHop(emptyCse, template, blockRanges);
+            Pair<SingleCse, Hop> pair = Pair.of(emptyCse, emptyHop);
+            list.add(pair);
 
-        ArrayList<SinglePlan> singlePlans = new ArrayList<>();
-        for (Pair<SingleCse, Hop> p : list) {
-            SinglePlan singlePlan = new SinglePlan();
-            singlePlan.hop = p.getRight();
-            singlePlan.singleCse = p.getLeft();
-            singlePlans.add(singlePlan);
-        }
+            ArrayList<SinglePlan> singlePlans = new ArrayList<>();
+            for (Pair<SingleCse, Hop> p : list) {
+                SinglePlan singlePlan = new SinglePlan();
+                singlePlan.hop = p.getRight();
+                singlePlan.singleCse = p.getLeft();
+                singlePlans.add(singlePlan);
+            }
 
-        CostTree costTree = new CostTree(variablesUpdated, iterationNumber);
+            CostTree costTree = new CostTree(variablesUpdated, iterationNumber);
 //        costTree.testCostTree(list);
-        ACNode bestacnode = costTree.testOperatorGraph(singlePlans, pair, blockRanges, leaves);
-        MultiCse multiCse = new MultiCse();
-        multiCse.cses = new ArrayList<>(bestacnode.minAC.dependencies);
-        multiCse.cses.addAll(bestacnode.minAC.oldDependencies);
-
-        Hop hop = createHop(multiCse, template, blockRanges);
-        Hop copy = deepCopyHopsDag(hop);
-        MySolution mySolution = constantUtil.liftLoopConstant(copy);
-        mySolution.cost = bestacnode.minAC.accCost;
-        LOG.info("dynamic programming: ");
-        LOG.info(multiCse);
-        LOG.info(mySolution);
-        return mySolution;
+            ACNode bestacnode = costTree.testOperatorGraph(singlePlans, pair, blockRanges, leaves);
+            MultiCse multiCse = new MultiCse();
+            if (bestacnode.minAC!=null) {
+                multiCse.cses = new ArrayList<>(bestacnode.minAC.dependencies);
+                multiCse.cses.addAll(bestacnode.minAC.oldDependencies);
+            }
+            Hop hop = createHop(multiCse, template, blockRanges);
+            Hop copy = deepCopyHopsDag(hop);
+//            MySolution mySolution  = new MySolution(copy);
+            MySolution mySolution = constantUtil.liftLoopConstant(copy);
+            mySolution.cost = bestacnode.minAC.accCost;
+            LOG.info("dynamic programming: ");
+            LOG.info(multiCse);
+            LOG.info(mySolution);
+            return mySolution;
+        }catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
 

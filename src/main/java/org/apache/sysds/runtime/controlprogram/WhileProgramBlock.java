@@ -21,6 +21,8 @@ package org.apache.sysds.runtime.controlprogram;
 
 import java.util.ArrayList;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.sysds.conf.ConfigurationManager;
 import org.apache.sysds.hops.DataOp;
 import org.apache.sysds.hops.Hop;
@@ -47,6 +49,8 @@ public class WhileProgramBlock extends ProgramBlock
 {
 	private ArrayList<Instruction> _predicate;
 	private ArrayList<ProgramBlock> _childBlocks;
+
+	protected static final Log LOG = LogFactory.getLog(WhileProgramBlock.class.getName());
 
 	public WhileProgramBlock(Program prog, ArrayList<Instruction> predicate) {
 		super(prog);
@@ -142,22 +146,25 @@ public class WhileProgramBlock extends ProgramBlock
 				sbs.add(_sb);
 				sbs = rewriter.rRewriteStatementBlocks(sbs, new ProgramRewriteStatus(), false);
 
-				if (sbs.size()>1) {
-					for (int i = 0; i + 1 < sbs.size(); i++) {
-						System.out.println("execute pre loop statement block");
+				LOG.info(RewriteLoopConstant.preLoop);
+
+//				if (RewriteLoopConstant.preLoop.size()>0) {
+					for (int i = 0; i  < RewriteLoopConstant.preLoop.size(); i++) {
+						LOG.info("execute pre loop statement block");
+						LOG.info(Explain.explain(RewriteLoopConstant.preLoop.get(i)));
 						DMLProgram dmlProg = new DMLProgram();
-						StatementBlock preLoop = sbs.get(0);
+						StatementBlock preLoop = RewriteLoopConstant.preLoop.get(i);
 						dmlProg.addStatementBlock(preLoop);
 						DMLTranslator dmlt = new DMLTranslator(dmlProg);
 						dmlt.constructLops(dmlProg);
 						Program rtProg = dmlt.getRuntimeProgram(dmlProg, ConfigurationManager.getDMLConfig());
 						rtProg.execute(ec);
+						LOG.info("pre execute done");
 					}
-				}
+//				}
 			}catch (Exception e) {
-				System.out.println("e");
+				LOG.debug("while program optimize error");
 				e.printStackTrace();
-				System.out.println("e");
 			}
 
 

@@ -37,6 +37,8 @@ public class RewriteLoopConstant extends StatementBlockRewriteRule {
         return false;
     }
 
+    public static ArrayList<StatementBlock> preLoop = new ArrayList<>();
+
     @Override
     public List<StatementBlock> rewriteStatementBlock(StatementBlock sb, ProgramRewriteStatus state) {
 
@@ -52,6 +54,7 @@ public class RewriteLoopConstant extends StatementBlockRewriteRule {
         LOG.info("end normal search");
         LOG.info("normal cost = " + cost2);
         FakeCostEstimator2.cleanUnusedScratchMMNode();
+        LOG.info(res);
         return res;
 
     }
@@ -73,14 +76,14 @@ public class RewriteLoopConstant extends StatementBlockRewriteRule {
             sb.getHops().set(k, mySolution.body);
             twriteHops.addAll(mySolution.preLoopConstants);
         }
-        res.clear();
         if (twriteHops.size() > 0) {
             StatementBlock preStatmentBlock = new StatementBlock();
             preStatmentBlock.setLiveIn(sb.liveIn());
             preStatmentBlock.setLiveOut(sb.liveIn());  // 这里没写错,就该这样写
             preStatmentBlock.setHops(twriteHops);
-            res.add(preStatmentBlock);
+            preLoop.add(preStatmentBlock);
         }
+        res.clear();
         res.add(sb);
         return cost;
     }
