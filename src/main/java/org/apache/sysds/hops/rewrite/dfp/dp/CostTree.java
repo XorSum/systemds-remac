@@ -2,9 +2,7 @@ package org.apache.sysds.hops.rewrite.dfp.dp;
 
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.hadoop.yarn.webapp.hamlet.Hamlet;
 import org.apache.sysds.common.Types;
-import org.apache.sysds.hops.BinaryOp;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.LiteralOp;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
@@ -22,8 +20,10 @@ public class CostTree {
     public CostTree(VariableSet variablesUpdated, long iterationNumber) {
         this.variablesUpdated = variablesUpdated;
         this.iterationNumber = iterationNumber;
+        this.nodeCostEstimator = new NodeCostEstimator();
     }
 
+    NodeCostEstimator nodeCostEstimator;
     long iterationNumber = 2;
     public VariableSet variablesUpdated = null;
 
@@ -191,7 +191,7 @@ public class CostTree {
     }
 
 
-    void explainOperatorNode(OperatorNode node, int d) {
+    static void explainOperatorNode(OperatorNode node, int d) {
         for (int i = 0; i < d; i++) System.out.print(" ");
         System.out.print("{");
         System.out.print(node);
@@ -311,7 +311,7 @@ public class CostTree {
             analyzeOperatorCost(node.inputs.get(i), visited);
             //  accCost += node.inputs.get(i).accCost;
         }
-        thisCost = NodeCostEstimator.getNodeCost(node);
+        thisCost = this.nodeCostEstimator.getNodeCost(node);
 
         if (!range2acnode.containsKey(node.range)) {
             ACNode acNode = new ACNode();
@@ -341,8 +341,8 @@ public class CostTree {
         }
         if (node.isConstant) {
             //todo: iterationNumber
-//            thisCost /= iterationNumber;
-            thisCost /= 2;
+            thisCost /= iterationNumber;
+//            thisCost /= 100;
             //  accCost /= 100;
         }
         //  node.accCost = accCost;
@@ -381,7 +381,10 @@ public class CostTree {
                     acNode.certainAC = node;
                 }
             }
-            if (acNode.minAC == null || acNode.minAC.accCost > node.accCost) {
+            if (acNode.minAC == null
+                    || acNode.minAC.accCost > node.accCost
+                    || ((Math.abs(acNode.minAC.accCost - node.accCost) < 0.001)
+                    && acNode.minAC.dependencies.size() + acNode.minAC.oldDependencies.size() < node.dependencies.size() + node.oldDependencies.size())) {
                 acNode.minAC = node;
             }
         }

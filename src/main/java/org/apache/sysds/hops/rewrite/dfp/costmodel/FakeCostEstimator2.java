@@ -28,11 +28,11 @@ import static org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch.get
 public class FakeCostEstimator2 {
     protected static final Log LOG = LogFactory.getLog(FakeCostEstimator2.class.getName());
 
-    private static double CpuSpeed = 1.0;
-    private static double ShuffleSpeed = 5.0;
-    private static double BroadCaseSpeed = 3.0;
+    public static double CpuSpeed = 1.0;
+    public static double ShuffleSpeed = 5.0;
+    public static double BroadCaseSpeed = 3.0;
 
-    private static long defaultBlockSize = 1000;
+    public static long defaultBlockSize = 1000;
     public static ExecutionContext ec = null;
 
     private static SparsityEstimator estimator = new EstimatorBasicAvg();

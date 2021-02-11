@@ -27,7 +27,7 @@ h = diag(matrix(1,rows=m,cols=1))
 
 i = 1
 end = FALSE
-while((i<500)&(!end)) {
+while((i<100)&(!end)) {
     g = 2 * t(a) %*% (a %*% x -  b)
     loss = sum(t(g)%*%g)
     print("i="+toString(i)+"  loss="+toString(loss))

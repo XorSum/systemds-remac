@@ -13,10 +13,12 @@ import org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
 import org.apache.sysds.hops.rewrite.dfp.dp.ACNode;
 import org.apache.sysds.hops.rewrite.dfp.dp.CostTree;
+import org.apache.sysds.hops.rewrite.dfp.dp.OperatorNode;
 import org.apache.sysds.hops.rewrite.dfp.dp.SinglePlan;
 import org.apache.sysds.hops.rewrite.dfp.utils.*;
 import org.apache.sysds.parser.*;
 import org.apache.sysds.runtime.controlprogram.Program;
+import org.apache.sysds.runtime.controlprogram.WhileProgramBlock;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
 import org.apache.sysds.utils.Explain;
 
@@ -59,7 +61,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     private int maxMultiCseNumber = 100000; // 设为-1,则生成所有的；设为正数，则最多生成那么多个
 
-    private static long epoch = 100;
+   // private static long epoch = 100;
 
     private boolean useDirectPolicy = false;
     private boolean useDynamicProgramPolicy = true;
@@ -235,26 +237,41 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             CostTree costTree = new CostTree(variablesUpdated, iterationNumber);
 //        costTree.testCostTree(list);
             ACNode bestacnode = costTree.testOperatorGraph(singlePlans, pair, blockRanges, leaves);
-            MultiCse multiCse = new MultiCse();
-            if (bestacnode.minAC!=null) {
-                multiCse.cses = new ArrayList<>(bestacnode.minAC.dependencies);
-                multiCse.cses.addAll(bestacnode.minAC.oldDependencies);
+
+            ArrayList<MultiCse> multiCseArrayList = new ArrayList<>();
+            MultiCse multiCse = createMultiCseFromOperatorNode(bestacnode.minAC);
+            if (multiCse != null) multiCseArrayList.add(multiCse);
+            multiCse = createMultiCseFromOperatorNode(bestacnode.certainAC);
+            if (multiCse != null) multiCseArrayList.add(multiCse);
+            for (OperatorNode node : bestacnode.uncertainACs.values()) {
+                multiCse = createMultiCseFromOperatorNode(node);
+                if (multiCse != null) multiCseArrayList.add(multiCse);
             }
-            Hop hop = createHop(multiCse, template, blockRanges);
-            Hop copy = deepCopyHopsDag(hop);
-//            MySolution mySolution  = new MySolution(copy);
-            MySolution mySolution = constantUtil.liftLoopConstant(copy);
-            mySolution.cost = bestacnode.minAC.accCost;
+
+//            Hop hop = createHop(multiCse, template, blockRanges);
+//            Hop copy = deepCopyHopsDag(hop);
+////            MySolution mySolution  = new MySolution(copy);
+//            MySolution mySolution = constantUtil.liftLoopConstant(copy);
+//            mySolution.cost = bestacnode.minAC.accCost;
+            ArrayList<MySolution> mySolutions = genSolutions(multiCseArrayList, template, blockRanges);
+            MySolution mySolution = selectSolution(mySolutions);
+
             LOG.info("dynamic programming: ");
-            LOG.info(multiCse);
             LOG.info(mySolution);
             return mySolution;
-        }catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return null;
     }
 
+    private MultiCse createMultiCseFromOperatorNode(OperatorNode node) {
+        if (node == null) return null;
+        MultiCse multiCse = new MultiCse();
+        multiCse.cses = new ArrayList<>(node.dependencies);
+        multiCse.cses.addAll(node.oldDependencies);
+        return multiCse;
+    }
 
     private int findAllLeaf(Hop hop, ArrayList<Integer> path, int depth, HashMap<Long, Integer> hopId2LeafIndex, DisjointSet djs) {
         System.out.println("findAllLeaf visit: " + hop.getHopID() + " " + hop.getName());
@@ -656,7 +673,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 double bodyCost = FakeCostEstimator2.estimate(programBlocks);
                 if (showDetails)
                     LOG.debug("preCOst=" + preCost + " bodyCost=" + bodyCost);
-                cost = preCost + bodyCost * epoch;
+                cost = preCost + bodyCost * iterationNumber;
             }
         } catch (Exception e) {
             //  e.printStackTrace();

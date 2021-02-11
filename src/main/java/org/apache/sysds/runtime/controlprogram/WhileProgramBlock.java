@@ -167,7 +167,6 @@ public class WhileProgramBlock extends ProgramBlock
 				e.printStackTrace();
 			}
 
-
 			// prepare update in-place variables
 			UpdateType[] flags = prepareUpdateInPlaceVariables(ec, _tid);
 
