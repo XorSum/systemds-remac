@@ -12,17 +12,12 @@ import org.apache.sysds.hops.estim.EstimatorMatrixHistogram;
 import org.apache.sysds.hops.estim.MMNode;
 import org.apache.sysds.hops.estim.SparsityEstimator;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
-import org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch;
-import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
 import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
-import org.apache.sysds.lops.Data;
 import org.apache.sysds.lops.LopProperties;
 import org.apache.sysds.runtime.matrix.data.MatrixBlock;
 import org.apache.sysds.runtime.meta.DataCharacteristics;
-import org.apache.sysds.runtime.meta.MatrixCharacteristics;
 
 import java.util.HashMap;
-import java.util.HashSet;
 
 import static org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch.createFullHistogram;
 import static org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch.getMatrixHistogram;
@@ -47,6 +42,7 @@ public class NodeCostEstimator {
         }
         MMNode ans = null;
         Hop hop = opnode.hops.get(0);
+        if (hop.isScalar()) return null;
         if (Judge.isLeafMatrix(hop)) {
             DataCharacteristics dc = hop.getDataCharacteristics();
 //            if (estimator instanceof EstimatorMatrixHistogram) {
@@ -60,6 +56,7 @@ public class NodeCostEstimator {
             }
             ans = new MMNode(dc);
             ans.setSynopsis(histogram);
+            if (opnode.isTranspose) ans = new MMNode(ans, SparsityEstimator.OpCode.TRANS);
 //            } else {
 //                if (dc.getNonZeros() < 0) {
 //                    dc.setNonZeros(dc.getRows() * dc.getCols());
@@ -98,11 +95,17 @@ public class NodeCostEstimator {
             System.out.println(tmp);
         }
         if (ans != null) {
-            for (int i = 1; i < opnode.hops.size(); i++) {
-                if (HopRewriteUtils.isTransposeOperation(opnode.hops.get(i))) {
-                    ans = new MMNode(ans, SparsityEstimator.OpCode.TRANS);
-                }
-            }
+//            if (!Judge.isLeafMatrix(hop)) {
+//                for (int i = 1; i < opnode.hops.size(); i++) {
+//                    if (HopRewriteUtils.isTransposeOperation(opnode.hops.get(i))) {
+//                        if (ans.getOp() == SparsityEstimator.OpCode.TRANS) {
+//                            ans = ans.getLeft();
+//                        } else {
+//                            ans = new MMNode(ans, SparsityEstimator.OpCode.TRANS);
+//                        }
+//                    }
+//                }
+//            }
             if (!range2mmnode.containsKey(opnode.range)) {
                 range2mmnode.put(opnode.range, ans);
             }
@@ -148,15 +151,17 @@ public class NodeCostEstimator {
                 DataCharacteristics dc = getDC(opnode);
                 ans += dc.getNonZeros() * CpuSpeed;
             } else if (hop instanceof BinaryOp) {
-                DataCharacteristics dc = getDC(opnode);
-                ans += dc.getNonZeros() * CpuSpeed;
+                if (hop.isMatrix()) {
+                    DataCharacteristics dc = getDC(opnode);
+                    ans += dc.getNonZeros() * CpuSpeed;
+                }
             } else {
                 System.out.println("unhandled operator type " + hop.getOpString());
             }
         }
         ans += eCollectCost(opnode);
-        if (ans > Double.MAX_VALUE / 2||ans<0) {
-            LOG.error("cost infinate "+opnode);
+        if (ans > Double.MAX_VALUE / 2 || ans < 0) {
+            LOG.error("cost infinate " + opnode);
             System.exit(-1);
         }
         return ans;
@@ -172,6 +177,7 @@ public class NodeCostEstimator {
             e.printStackTrace();
             CostTree.explainOperatorNode(opNode, 0);
             LOG.error("get dc error" + opNode);
+            //throw e;
             System.exit(-1);
             //  dc = new MatrixCharacteristics(mmNode.getRows(), mmNode.getCols(), mmNode.getRows() * mmNode.getCols());
         }

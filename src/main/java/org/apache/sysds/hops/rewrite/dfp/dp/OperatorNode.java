@@ -21,7 +21,7 @@ public class OperatorNode {
     public double accCost = Double.MAX_VALUE;
     ArrayList<OperatorNode> inputs = new ArrayList<>();
     boolean isConstant = false;
-
+    boolean isTranspose = false;
     MMNode mmNode = null;
 //    SparsityEstimator.OpCode opCode = null;
 
@@ -52,13 +52,17 @@ public class OperatorNode {
             sb.append(",");
         }
         sb.append("],");
+        if (mmNode!=null) {
+            sb.append(mmNode.getDataCharacteristics());
+            sb.append(",");
+        }
         sb.append(thisCost);
         sb.append(",");
         sb.append(accCost);
         sb.append(",");
         sb.append(range);
-        sb.append(",");
-        sb.append(isConstant);
+        if (isConstant) sb.append(",constant");
+        if (isTranspose) sb.append(",transpose");
         sb.append(",[");
         for (SingleCse singleCse : dependencies) {
             sb.append(singleCse.name);

@@ -31,6 +31,10 @@ public class DistributedScratch {
 
 
    public static EstimatorMatrixHistogram.MatrixHistogram createFullHistogram(int row, int col) {
+        if (row<=0||col<=0) {
+            System.out.println(row+" "+col);
+            System.exit(-1);
+        }
         int[] r = new int[row];
         for (int i = 0; i < row; i++) r[i] = col;
         int[] c = new int[col];
@@ -71,7 +75,7 @@ public class DistributedScratch {
 
 
     private static Program getScrtchRtProg(String name) {
-        Data data = ec.getVariable(name);
+        MatrixObject data =(MatrixObject) ec.getVariable(name);
         System.out.println(data);
         DataCharacteristics dc = data.getMetaData().getDataCharacteristics();
         Hop a = HopRewriteUtils.createTransientRead(name, new DataOp("l", Types.DataType.MATRIX, Types.ValueType.FP64,

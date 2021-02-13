@@ -41,6 +41,8 @@ public class CostTree {
             SingleCse cse = p.singleCse;
             Hop hop = p.hop;
             System.out.println("========================");
+//            System.out.println(cse);
+//            System.out.println(Explain.explain(hop));
             OperatorNode node = createOperatorGraph(hop, false);
             MutableInt mutableInt = new MutableInt(0);
             analyzeOperatorRange(node, cse, mutableInt);
@@ -60,8 +62,12 @@ public class CostTree {
             }
             maxIndex = Math.max(maxIndex, mutableInt.getValue() - 1);
             analyzeOperatorConstant(node);
-            System.out.println(cse);
-            analyzeOperatorCost(node, new HashSet<>());
+//            explainOperatorNode(node,0);
+//            try {
+                analyzeOperatorCost(node, new HashSet<>());
+//            }catch (Exception e) {
+//                e.printStackTrace();
+//            }
             p.node = node;
         }
 
@@ -214,6 +220,7 @@ public class CostTree {
             node = createOperatorGraph(hop.getInput().get(0), transpose);
         } else if (Judge.isLeafMatrix(hop)) {
             node = new OperatorNode();
+            node.isTranspose = transpose;
         } else if (HopRewriteUtils.isTransposeOperation(hop)) {
             node = createOperatorGraph(hop.getInput().get(0), !transpose);
         } else if (hop instanceof LiteralOp) {
@@ -245,6 +252,7 @@ public class CostTree {
             } else {
                 return null;
             }
+            node.isTranspose = transpose;
         }
 //        node.thisCost = NodeCostEstimator.getNodeCost(node);
         // System.out.println("put " + node);
