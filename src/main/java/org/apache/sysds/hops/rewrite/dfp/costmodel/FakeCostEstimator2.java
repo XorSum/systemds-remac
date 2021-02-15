@@ -29,7 +29,7 @@ public class FakeCostEstimator2 {
     protected static final Log LOG = LogFactory.getLog(FakeCostEstimator2.class.getName());
 
     public static double CpuSpeed = 1.0;
-    public static double ShuffleSpeed = 5.0;
+    public static double ShuffleSpeed = 30.0;
     public static double BroadCaseSpeed = 3.0;
 
     public static long defaultBlockSize = 1000;
@@ -216,6 +216,9 @@ public class FakeCostEstimator2 {
     private static DataCharacteristics getDC(MMNode mmNode) throws Exception {
         DataCharacteristics dc = estimator.estim(mmNode);
         if (dc.getRows() < 0 || dc.getCols() < 0) throw new Exception("dc<0");
+        if (MMShowCostFlag) {
+            LOG.info("dc "+dc);
+        }
         return dc;
     }
 
@@ -692,6 +695,8 @@ public class FakeCostEstimator2 {
             cost += eBinaryMatrixMatrixSPInstruction((BinaryMatrixMatrixSPInstruction) inst);
         } else if (inst instanceof RmmSPInstruction) {
             cost += eRmmSPInstruction((RmmSPInstruction) inst);
+        } else if (inst instanceof ZipmmSPInstruction) {
+           cost += eZipmmSPInstruction((ZipmmSPInstruction)inst);
         } else {
             throw new UnhandledOperatorException(inst);
         }
@@ -715,7 +720,9 @@ public class FakeCostEstimator2 {
 
     private static double eMapmmSPInstruction(MapmmSPInstruction t) throws Exception {
         //  System.out.println("MPMM " + t.input1.getName() + " %*% " + t.input2.getName() + " -> " + t.output.getName());
-
+        if (MMShowCostFlag) {
+            LOG.info("begin<<< " + t);
+        }
         MMNode m1 = getMMNode(t.input1.getName());
         MMNode m2 = getMMNode(t.input2.getName());
         MMNode out = new MMNode(m1, m2, SparsityEstimator.OpCode.MM);
@@ -739,7 +746,6 @@ public class FakeCostEstimator2 {
             computeCost = computeCostSPMM(dc1, dc2, dc3);
         }
         if (MMShowCostFlag) {
-            LOG.info("begin<<< " + t);
             LOG.info("mapmm broadcast cost = " + broadcastCost);
             LOG.info("mapmm compute cost = " + computeCost);
             LOG.info("mapmm shuffle cost = " + shuffleCost);
@@ -752,6 +758,9 @@ public class FakeCostEstimator2 {
 
     private static double eCpmmSPInstruction(CpmmSPInstruction t) throws Exception {
         //  System.out.println("CPMM " + t.input1.getName() + " %*% " + t.input2.getName() + " -> " + t.output.getName());
+        if (MMShowCostFlag) {
+            LOG.info("begin<<< " + t);
+        }
         MMNode m1 = getMMNode(t.input1.getName());
         MMNode m2 = getMMNode(t.input2.getName());
         MMNode out = new MMNode(m1, m2, SparsityEstimator.OpCode.MM);
@@ -768,7 +777,6 @@ public class FakeCostEstimator2 {
         double computeCost = computeCostSPMM(dc1, dc2, dc3);
 
         if (MMShowCostFlag) {
-            LOG.info("begin<<< " + t);
             LOG.info("cpmm shuffle cost 1 = " + shuffleCost1);
             LOG.info("cpmm shuffle cost 2 = " + shuffleCost2);
             LOG.info("cpmm compute cost = " + computeCost);
@@ -778,7 +786,9 @@ public class FakeCostEstimator2 {
     }
 
     private static double eRmmSPInstruction(RmmSPInstruction t) throws Exception {
-
+        if (MMShowCostFlag) {
+            LOG.info("begin<<< " + t);
+        }
         //  System.out.println("CPMM " + t.input1.getName() + " %*% " + t.input2.getName() + " -> " + t.output.getName());
         MMNode m1 = getMMNode(t.input1.getName());
         MMNode m2 = getMMNode(t.input2.getName());
@@ -800,7 +810,6 @@ public class FakeCostEstimator2 {
         double computeCost = computeCostSPMM(dc1, dc2, dc3);
 
         if (MMShowCostFlag) {
-            LOG.info("begin<<< " + t);
             LOG.info("rmm shuffle cost 1 = " + shuffleCost1);
             LOG.info("rmm shuffle cost 2 = " + shuffleCost2);
             LOG.info("rmm compute cost = " + computeCost);
@@ -810,6 +819,32 @@ public class FakeCostEstimator2 {
 
     }
 
+    private static double eZipmmSPInstruction(ZipmmSPInstruction t) throws Exception {
+        if (MMShowCostFlag) {
+            LOG.info("begin<<< " + t);
+        }
+        //  System.out.println("CPMM " + t.input1.getName() + " %*% " + t.input2.getName() + " -> " + t.output.getName());
+        MMNode m1 = getMMNode(t.input1.getName());
+        MMNode m2 = getMMNode(t.input2.getName());
+        MMNode out = new MMNode(m1, m2, SparsityEstimator.OpCode.MM);
+        setMMNode(t.output.getName(), out, Types.ExecType.SPARK);
+        DataCharacteristics dc1 = getDC(m1);
+        DataCharacteristics dc2 = getDC(m2);
+        DataCharacteristics dc3 = getDC(out);
+
+        long reducer = (long) Math.ceil(Math.max(dc1.getRows(), dc1.getCols()) * 1.0 / defaultBlockSize);
+        reducer = Math.min(reducer, OptimizerUtils.getNumReducers(false));
+        reducer = Math.max(reducer,1);
+        double computeCost = CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc1.getSparsity() / reducer;
+        double reduceCost = BroadCaseSpeed * MatrixBlock.estimateSizeInMemory(dc3.getRows(), dc3.getRows(), dc3.getSparsity()) * reducer;
+
+        if (MMShowCostFlag) {
+            LOG.info("zipmm reduce cost = " + reduceCost);
+            LOG.info("zipmm compute cost = " + computeCost);
+            LOG.info(t + "  end>>>");
+        }
+        return reduceCost + computeCost;
+    }
 
     private static double eBinaryMatrixBVectorSPInstruction(BinaryMatrixBVectorSPInstruction t) throws Exception {
         //   System.out.println("BinaryMatrixBVectorSP " + t.input1.getName() + " " + t.input2.getName() + " -> " + t.output.getName());
@@ -926,16 +961,29 @@ public class FakeCostEstimator2 {
 //            r = Math.max(r, 1);
             //     cost = sumTableCost(dc.getRows(), dc.getCols(), defaultBlockSize, r, dc.getSparsity());
         } else if (inst.get_chainType() == MapMultChain.ChainType.XtXv) {
+            if (MMShowCostFlag) {
+                LOG.info("begin<<< " + inst);
+            }
             MMNode X = getMMNode(inst.get_input1().getName());
-            DataCharacteristics dcX = getDC(X);
+            DataCharacteristics dc1 = getDC(X);
             MMNode v = getMMNode(inst.get_input2().getName());
+            DataCharacteristics dc2 = getDC(v);
             MMNode Xv = new MMNode(X, v, SparsityEstimator.OpCode.MM);
             MMNode Xt = new MMNode(X, SparsityEstimator.OpCode.TRANS);
             out = new MMNode(Xt, Xv, SparsityEstimator.OpCode.MM);
-            DataCharacteristics dc = getDC(out);
-//            long r = (long) Math.ceil((double) dcX.getNonZeros() / defaultBlockSize);
-//            r = Math.max(r, 1);
-            //    cost = sumTableCost(dc.getRows(), dc.getCols(), defaultBlockSize, r, dc.getSparsity());
+            DataCharacteristics dc3 = getDC(out);
+            long reducer = reducerNumber(dc1.getRows(),dc1.getCols());
+            reducer = Math.min(reducer, OptimizerUtils.getNumReducers(false));
+            double computeCost = 1.5 * CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols() * (dc1.getSparsity() * dc2.getSparsity() + dc1.getSparsity()) / reducer;
+            double broadcastCost = BroadCaseSpeed * MatrixBlock.estimateSizeInMemory(dc2.getRows(), dc2.getCols(), dc2.getSparsity()) * Math.ceil(Math.log(reducer));
+            double reduceCost = BroadCaseSpeed * MatrixBlock.estimateSizeInMemory(dc3.getRows(), dc3.getRows(), dc3.getSparsity());
+            if (MMShowCostFlag) {
+                LOG.info("mapmmchain broad cost = " + broadcastCost);
+                LOG.info("mapmmchain reduce cost = " + reduceCost);
+                LOG.info("mapmmchain compute cost = " + computeCost);
+                LOG.info(inst + "  end>>>");
+            }
+            return computeCost + reduceCost + broadcastCost;
         } else {
             System.out.println(inst.get_chainType());
             throw new UnhandledOperatorException(inst);

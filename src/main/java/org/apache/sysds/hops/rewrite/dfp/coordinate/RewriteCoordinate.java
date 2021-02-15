@@ -44,7 +44,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     private RewriteCommonSubexpressionElimination rewriteCommonSubexpressionElimination = new RewriteCommonSubexpressionElimination();
     //  private  final Log LOG = LogFactory.getLog(RewriteCoordinate.class.getName());
 
-    public boolean onlySearchConstantSubExp = false;
+   // public boolean onlySearchConstantSubExp = false;
     public VariableSet variablesUpdated = null;
     public ConstantUtil constantUtil = null; // new ConstantUtil(variablesUpdated);
     public long iterationNumber = 2;
@@ -136,8 +136,11 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 mySolution = null;
                 System.out.println("x");
             }
-            if (mySolution != null) {
+            if (mySolution != null && mySolution.cost < originalSolution.cost) {
+                LOG.info("return rewrited solution");
                 return mySolution;
+            } else {
+                LOG.info("return original solution");
             }
 
 //            testusefulCse(singleCses, template);
@@ -173,7 +176,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         if (multiCses.size() == 0) return null;
 
         // 构造计划
-        ArrayList<MySolution> solutions = genSolutions(multiCses, template, blockRanges);
+        ArrayList<MySolution> solutions = genSolutions(multiCses,false, template, blockRanges);
 
         // 估代价并返回代价最小的计划
         MySolution solution = selectSolution(solutions);
@@ -246,6 +249,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             for (OperatorNode node : bestacnode.uncertainACs.values()) {
                 multiCse = createMultiCseFromOperatorNode(node);
                 if (multiCse != null) multiCseArrayList.add(multiCse);
+              //  if (multiCseArrayList.size()>=30) break;
+            }
+            for (MultiCse cse: multiCseArrayList) {
+                LOG.info("candidate multi cse"+cse);
             }
 
 //            Hop hop = createHop(multiCse, template, blockRanges);
@@ -253,11 +260,12 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 ////            MySolution mySolution  = new MySolution(copy);
 //            MySolution mySolution = constantUtil.liftLoopConstant(copy);
 //            mySolution.cost = bestacnode.minAC.accCost;
-            ArrayList<MySolution> mySolutions = genSolutions(multiCseArrayList, template, blockRanges);
+            ArrayList<MySolution> mySolutions = genSolutions(multiCseArrayList,true, template, blockRanges);
             MySolution mySolution = selectSolution(mySolutions);
 
             LOG.info("dynamic programming: ");
             LOG.info(mySolution);
+           // if (mySolution.body.getName().equals("h")) System.exit(-1);
             return mySolution;
         } catch (Exception e) {
             e.printStackTrace();
@@ -322,11 +330,11 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         for (Range block : blockRanges) {
             for (int l = block.left; l <= block.right; l++) {
                 //    LOG.debug("i=" + l + " name=" + leaves.get(l).hop.getName() + " updated=" + variablesUpdated.containsVariable(leaves.get(l).hop.getName()));
-                if (onlySearchConstantSubExp && notConstant(l)) continue;
+              //  if (onlySearchConstantSubExp && notConstant(l)) continue;
                 // int r = onlySearchConstantSubExp ? l + 1 : l + 2;
                 int r = l + 1;
                 for (; r <= block.right; r++) {
-                    if (onlySearchConstantSubExp && notConstant(r)) break;
+                  //  if (onlySearchConstantSubExp && notConstant(r)) break;
                     long first = rangeHash1(l, r);
                     long second = rangeHash2(l, r);
                     boolean transpose = false;
@@ -549,7 +557,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     }
 
 
-    private ArrayList<MySolution> genSolutions(ArrayList<MultiCse> multiCses, Hop template, ArrayList<Range> blockRanges) {
+    private ArrayList<MySolution> genSolutions(ArrayList<MultiCse> multiCses,boolean liftConstant,
+                                               Hop template, ArrayList<Range> blockRanges) {
         long constructHopTime = 0;
         long start = System.nanoTime();
         ArrayList<MySolution> solutions = new ArrayList<>();
@@ -584,9 +593,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     filter.put(key, arrayList);
                 }
                 if (hop != null) {
-                    if (onlySearchConstantSubExp) {
+                    if (liftConstant) {
                         Hop copy = deepCopyHopsDag(hop);
                         MySolution mySolution = constantUtil.liftLoopConstant(copy);
+                        mySolution.multiCse=c;
                         solutions.add(mySolution);
                     } else {
                         MySolution solution = new MySolution(c, hop);
@@ -615,7 +625,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         for (int i = 0; i < solutions.size(); i++) {
             try {
                 MySolution solution = solutions.get(i);
-                solution.cost = estimate(solution, false);
+                solution.cost = estimate(solution, true);
                 if (showCost)
                     LOG.debug("cost=" + solution.cost);
                 if (bestSolution.body == null
@@ -632,14 +642,14 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         }
         LOG.info("minium cost = " + bestSolution.cost);
         if (bestSolution.body != null) {
-            estimate(bestSolution, true);
+           bestSolution.cost = estimate(bestSolution, true);
         } else {
             return null;
         }
         end = System.nanoTime();
         estimateCostTime += end - start;
         LOG.info("estimate cost time =" + (estimateCostTime / 1e6) + "ms");
-        LOG.info("use rewrited hop, multicse id = " + id);
+        LOG.info("minium cost multicse id = " + id);
         if (bestSolution.multiCse != null) {
             LOG.info(bestSolution.multiCse);
         }
@@ -671,9 +681,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     LOG.debug(Explain.explain(programBlocks));
                 //cost = CostEstimationWrapper.getTimeEstimate(programBlocks, ec);
                 double bodyCost = FakeCostEstimator2.estimate(programBlocks);
-                if (showDetails)
-                    LOG.debug("preCOst=" + preCost + " bodyCost=" + bodyCost);
                 cost = preCost + bodyCost * iterationNumber;
+                solution.cost = cost;
+                if (showDetails)
+                    LOG.debug("preCOst=" + preCost + " bodyCost=" + bodyCost+ " allcost="+cost +" cse="+solution.multiCse);
             }
         } catch (Exception e) {
             //  e.printStackTrace();
@@ -1037,7 +1048,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         this.statementBlock = statementBlock;
         FakeCostEstimator2.ec = executionContext;
         DistributedScratch.ec = executionContext;
-        onlySearchConstantSubExp = false;
+     //   onlySearchConstantSubExp = false;
     }
 
     public RewriteCoordinate(ExecutionContext executionContext, StatementBlock statementBlock, VariableSet variablesUpdated) {
@@ -1046,7 +1057,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         this.variablesUpdated = variablesUpdated;
         FakeCostEstimator2.ec = executionContext;
         DistributedScratch.ec = executionContext;
-        onlySearchConstantSubExp = true;
+       // onlySearchConstantSubExp = true;
         constantUtil = new ConstantUtil(variablesUpdated);
     }
 
