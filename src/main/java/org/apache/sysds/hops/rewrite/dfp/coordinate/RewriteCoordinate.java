@@ -78,6 +78,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
         try {
             LOG.trace(ec.getVariables().keySet());
+            FakeCostEstimator2.miniumCostBoundery=Double.MAX_VALUE;
             originalSolution.cost = estimate(originalSolution, true);
 //            if (!"h".equals(root.getName())) {
 //                return originalSolution;
@@ -240,32 +241,28 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             CostTree costTree = new CostTree(variablesUpdated, iterationNumber);
 //        costTree.testCostTree(list);
             ACNode bestacnode = costTree.testOperatorGraph(singlePlans, pair, blockRanges, leaves);
+            ArrayList<OperatorNode> operatorNodeArrayList = new ArrayList<>();
+            if (bestacnode.minAC!=null) operatorNodeArrayList.add(bestacnode.minAC);
+            if (bestacnode.certainAC!=null) operatorNodeArrayList.add(bestacnode.certainAC);
+            operatorNodeArrayList.addAll(bestacnode.uncertainACs.values());
+            operatorNodeArrayList.sort(Comparator.comparingDouble(a -> a.accCost));
 
             ArrayList<MultiCse> multiCseArrayList = new ArrayList<>();
-            MultiCse multiCse = createMultiCseFromOperatorNode(bestacnode.minAC);
-            if (multiCse != null) multiCseArrayList.add(multiCse);
-            multiCse = createMultiCseFromOperatorNode(bestacnode.certainAC);
-            if (multiCse != null) multiCseArrayList.add(multiCse);
-            for (OperatorNode node : bestacnode.uncertainACs.values()) {
-                multiCse = createMultiCseFromOperatorNode(node);
+            for (int i=0;i<operatorNodeArrayList.size();i++) {
+                MultiCse multiCse = createMultiCseFromOperatorNode(operatorNodeArrayList.get(i));
                 if (multiCse != null) multiCseArrayList.add(multiCse);
-              //  if (multiCseArrayList.size()>=30) break;
             }
+            LOG.info("candidate muti cse size = "+multiCseArrayList.size());
             for (MultiCse cse: multiCseArrayList) {
                 LOG.info("candidate multi cse"+cse);
             }
 
-//            Hop hop = createHop(multiCse, template, blockRanges);
-//            Hop copy = deepCopyHopsDag(hop);
-////            MySolution mySolution  = new MySolution(copy);
-//            MySolution mySolution = constantUtil.liftLoopConstant(copy);
-//            mySolution.cost = bestacnode.minAC.accCost;
             ArrayList<MySolution> mySolutions = genSolutions(multiCseArrayList,true, template, blockRanges);
             MySolution mySolution = selectSolution(mySolutions);
 
             LOG.info("dynamic programming: ");
             LOG.info(mySolution);
-           // if (mySolution.body.getName().equals("h")) System.exit(-1);
+//            if (mySolution.body.getName().equals("h")) System.exit(-1);
             return mySolution;
         } catch (Exception e) {
             e.printStackTrace();
@@ -622,6 +619,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         start = System.nanoTime();
         MySolution bestSolution = new MySolution();
 
+        FakeCostEstimator2.miniumCostBoundery=Double.MAX_VALUE;
         for (int i = 0; i < solutions.size(); i++) {
             try {
                 MySolution solution = solutions.get(i);
@@ -642,7 +640,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         }
         LOG.info("minium cost = " + bestSolution.cost);
         if (bestSolution.body != null) {
-           bestSolution.cost = estimate(bestSolution, true);
+            FakeCostEstimator2.miniumCostBoundery=Double.MAX_VALUE;
+            bestSolution.cost = estimate(bestSolution, true);
         } else {
             return null;
         }
@@ -675,14 +674,18 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     if (showDetails)
                         LOG.debug(Explain.explain(program));
                     preCost += FakeCostEstimator2.estimate(program);
+                    if (preCost>FakeCostEstimator2.miniumCostBoundery) break;
                 }
                 Program programBlocks = constructProgramBlocks(solution.body, statementBlock);
                 if (showDetails)
                     LOG.debug(Explain.explain(programBlocks));
                 //cost = CostEstimationWrapper.getTimeEstimate(programBlocks, ec);
-                double bodyCost = FakeCostEstimator2.estimate(programBlocks);
+                double bodyCost = Double.MAX_VALUE;
+                if (preCost<=FakeCostEstimator2.miniumCostBoundery)
+                    bodyCost =  FakeCostEstimator2.estimate(programBlocks);
                 cost = preCost + bodyCost * iterationNumber;
                 solution.cost = cost;
+            //    FakeCostEstimator2.miniumCostBoundery = Math.min(FakeCostEstimator2.miniumCostBoundery,cost);
                 if (showDetails)
                     LOG.debug("preCOst=" + preCost + " bodyCost=" + bodyCost+ " allcost="+cost +" cse="+solution.multiCse);
             }

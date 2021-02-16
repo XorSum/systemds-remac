@@ -23,21 +23,23 @@ import org.apache.sysds.runtime.meta.DataCharacteristics;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import static org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch.createFullHistogram;
 import static org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch.getMatrixHistogram;
 
 public class FakeCostEstimator2 {
     protected static final Log LOG = LogFactory.getLog(FakeCostEstimator2.class.getName());
 
     public static double CpuSpeed = 1.0;
-    public static double ShuffleSpeed = 30.0;
+    public static double ShuffleSpeed = 25.0;
     public static double BroadCaseSpeed = 3.0;
 
     public static long defaultBlockSize = 1000;
     public static ExecutionContext ec = null;
 
-    private static SparsityEstimator estimator = new EstimatorBasicAvg();
-//    private static SparsityEstimator estimator = new EstimatorMatrixHistogram();
+//    private static SparsityEstimator estimator = new EstimatorBasicAvg();
+    private static EstimatorMatrixHistogram estimator = new EstimatorMatrixHistogram();
 
+    public static double miniumCostBoundery = Double.MAX_VALUE;
 
     public static double estimate(Program rtprog) {
         //  System.out.println(name2MMNode.keySet());
@@ -53,6 +55,10 @@ public class FakeCostEstimator2 {
                     break;
                 }
                 cost += delta;
+                if (cost>miniumCostBoundery) {
+                    cost = Double.MAX_VALUE;
+                    break;
+                }
             } catch (Exception e) {
                 //  LOG.error("delta error");
                 e.printStackTrace();
@@ -162,8 +168,10 @@ public class FakeCostEstimator2 {
     private static MMNode getMMNode(String name) {
         //   LOG.trace("get mmnode " + name);
         // 先不获取matrix block, 直接用data characristic
-        if (name == null || name.startsWith("_Var")) return null;
-        if (ec != null && ec.containsVariable(name)) {
+        MMNode ans = null;
+        if (name == null || name.startsWith("_Var")) {
+            ans = null;
+        } else if (ec != null && ec.containsVariable(name)) {
             try {
                 Data data = ec.getVariable(name);
                 if (data.getDataType() == Types.DataType.MATRIX) {
@@ -173,16 +181,20 @@ public class FakeCostEstimator2 {
                     if (estimator instanceof EstimatorMatrixHistogram) {
                         DistributedScratch.ec = ec;
                         EstimatorMatrixHistogram.MatrixHistogram histogram = getMatrixHistogram(name);
+                        if (histogram == null) {
+                            characteristics.setNonZeros(characteristics.getRows() * characteristics.getCols());
+                            histogram = createFullHistogram((int) characteristics.getRows(), (int) characteristics.getCols());
+                        }
                         mmNode.setSynopsis(histogram);
                     }
                     setMMNode(name, mmNode, Types.ExecType.SPARK);
-                    return mmNode;
+                    ans = mmNode;
                 }
             } catch (Exception e) {
 //                e.printStackTrace();
             }
         } else if (name2MMNode.containsKey(name)) {
-            return name2MMNode.get(name).mmNode;
+            ans = name2MMNode.get(name).mmNode;
         }
 //            Data dat = ec.getVariables().get(name);
 //            MatrixObject mobj = (MatrixObject) dat;
@@ -197,9 +209,10 @@ public class FakeCostEstimator2 {
 //                e.printStackTrace();
 //            }
 //        }
-        if (!name.startsWith("_Var"))
+        LOG.info("get mmnode " + name + " -> " + ans);
+        if (ans==null && !name.startsWith("_Var"))
             LOG.error("get mmnode failed " + name);
-        return null;
+        return ans;
     }
 
     private static void setMMNode(String name, MMNode mmNode, Types.ExecType execType) {
@@ -207,14 +220,15 @@ public class FakeCostEstimator2 {
         if ("g".equals(name)) {
             LOG.debug("set g = " + mmNode.getDataCharacteristics() + " " + execType);
         }
-        // if (execType== Types.ExecType.SPARK)
-        //    LOG.info("set mmnode " + name + " -> " + mmNode);
+//         if (execType== Types.ExecType.SPARK)
+            LOG.info("set mmnode " + name + " -> " + mmNode);
         name2MMNode.put(name, new Node(mmNode, execType));
         names.add(name);
     }
 
     private static DataCharacteristics getDC(MMNode mmNode) throws Exception {
-        DataCharacteristics dc = estimator.estim(mmNode);
+      DataCharacteristics dc = estimator.estim(mmNode, false);
+//        DataCharacteristics dc = estimator.estim(mmNode);
         if (dc.getRows() < 0 || dc.getCols() < 0) throw new Exception("dc<0");
         if (MMShowCostFlag) {
             LOG.info("dc "+dc);
@@ -226,7 +240,7 @@ public class FakeCostEstimator2 {
         double cost = 0;
         for (Instruction inst : instructions) {
             //  System.out.println(inst);
-            //  LOG.trace(inst);
+              LOG.trace(inst);
             double delta = 0;
             try {
                 if (inst instanceof CPInstruction) {
@@ -238,6 +252,10 @@ public class FakeCostEstimator2 {
                 System.out.println(e);
                 e.printStackTrace();
                 delta = Double.MAX_VALUE;
+            }
+            if (cost>miniumCostBoundery) {
+                cost = Double.MAX_VALUE;
+                break;
             }
             if (delta < 0 || delta >= Double.MAX_VALUE) {
                 LOG.error("error instruction: " + inst.toString());
@@ -648,7 +666,7 @@ public class FakeCostEstimator2 {
         long executor = reducerNumber(d1m, d1n);
         if (inst.getMMTSJType() == MMTSJ.MMTSJType.LEFT) {
             out = new MMNode(tmp, in, SparsityEstimator.OpCode.MM);
-            DataCharacteristics dcout = estimator.estim(out);
+            DataCharacteristics dcout = getDC(out);
             if (sparse) {
                 computeCost = CpuSpeed * d1m * d1n * d1s * d1n / (2.0 * executor);
                 shuffleCost = ShuffleSpeed * MatrixBlock.estimateSizeInMemory(d1n, d1n, dcout.getSparsity()) * executor;
@@ -658,7 +676,7 @@ public class FakeCostEstimator2 {
             }
         } else if (inst.getMMTSJType() == MMTSJ.MMTSJType.RIGHT) {
             out = new MMNode(in, tmp, SparsityEstimator.OpCode.MM);
-            DataCharacteristics dcout = estimator.estim(out);
+            DataCharacteristics dcout = getDC(out);
             if (sparse) {
                 computeCost = CpuSpeed * ((double) d1m * d1n * d1s + d1m * d1n * d1s * d1n * d1s / (2.0 * executor));
                 shuffleCost = ShuffleSpeed * MatrixBlock.estimateSizeInMemory(d1n, d1n, dcout.getSparsity()) * executor;
@@ -683,6 +701,9 @@ public class FakeCostEstimator2 {
 
     private static double eBinarySPInstruction(BinarySPInstruction inst) throws Exception {
         double cost = 0;
+//        if (inst.getOpcode().equals("map-")) {
+//            System.out.println("x");
+//        }
         if (inst instanceof MapmmSPInstruction) {// matrix multiply
             cost += eMapmmSPInstruction((MapmmSPInstruction) inst);
         } else if (inst instanceof CpmmSPInstruction) { // matrix multiply
@@ -983,7 +1004,7 @@ public class FakeCostEstimator2 {
                 LOG.info("mapmmchain compute cost = " + computeCost);
                 LOG.info(inst + "  end>>>");
             }
-            return computeCost + reduceCost + broadcastCost;
+            cost = computeCost + reduceCost + broadcastCost;
         } else {
             System.out.println(inst.get_chainType());
             throw new UnhandledOperatorException(inst);

@@ -8,6 +8,7 @@ import org.apache.sysds.hops.AggBinaryOp;
 import org.apache.sysds.hops.BinaryOp;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.OptimizerUtils;
+import org.apache.sysds.hops.estim.EstimatorBasicAvg;
 import org.apache.sysds.hops.estim.EstimatorMatrixHistogram;
 import org.apache.sysds.hops.estim.MMNode;
 import org.apache.sysds.hops.estim.SparsityEstimator;
@@ -29,7 +30,7 @@ public class NodeCostEstimator {
     protected static final Log LOG = LogFactory.getLog(NodeCostEstimator.class.getName());
 
 
-    // private static SparsityEstimator estimator = new EstimatorBasicAvg();
+//     private static SparsityEstimator estimator = new EstimatorBasicAvg();
     private static EstimatorMatrixHistogram estimator = new EstimatorMatrixHistogram();
 
     HashMap<Pair<Integer, Integer>, MMNode> range2mmnode = new HashMap<>();
@@ -173,6 +174,7 @@ public class NodeCostEstimator {
         MMNode mmNode = addOpnode2Mmnode(opNode);
         try {
             dc = estimator.estim(mmNode, false);
+//            dc = estimator.estim(mmNode);
         } catch (Exception e) {
             e.printStackTrace();
             CostTree.explainOperatorNode(opNode, 0);
