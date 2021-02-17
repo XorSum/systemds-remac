@@ -137,6 +137,7 @@ public class WhileProgramBlock extends ProgramBlock
 		try
 		{
 //			System.out.println( "StatementBlock = " +  _sb);
+			long start1 = System.nanoTime();
 			try {
 			//	System.out.println("Reducer Number: "+ OptimizerUtils.getNumReducers(false));
 			    VariableSet variablesUpdated = _sb.variablesUpdated();
@@ -166,6 +167,9 @@ public class WhileProgramBlock extends ProgramBlock
 				LOG.debug("while program optimize error");
 				e.printStackTrace();
 			}
+			long end1 = System.nanoTime();
+			System.out.println("remac optimize time = "+((end1-start1)/1e9)+"s");
+			LOG.info("remac optimize time = "+((end1-start1)/1e9)+"s");
 
 			// prepare update in-place variables
 			UpdateType[] flags = prepareUpdateInPlaceVariables(ec, _tid);

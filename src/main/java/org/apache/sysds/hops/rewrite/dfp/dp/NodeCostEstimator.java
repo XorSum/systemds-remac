@@ -49,7 +49,7 @@ public class NodeCostEstimator {
 //            if (estimator instanceof EstimatorMatrixHistogram) {
             EstimatorMatrixHistogram.MatrixHistogram histogram = getMatrixHistogram(hop.getName());
             if (histogram == null) {
-                System.out.println("histogram=null " + hop.getOpString());
+             //   System.out.println("histogram=null " + hop.getOpString());
                 dc.setNonZeros(dc.getRows() * dc.getCols());
                 histogram = createFullHistogram((int) dc.getRows(), (int) dc.getCols());
             } else {
@@ -76,7 +76,7 @@ public class NodeCostEstimator {
                     ans = addOpnode2Mmnode(opnode.inputs.get(1));
                 }
             } else if (hop.getInput().get(0).isScalar() && hop.getInput().get(1).isScalar()) {
-                System.out.println("scalar scalar operation");
+             //   System.out.println("scalar scalar operation");
                 ans = addOpnode2Mmnode(opnode.inputs.get(0));
                 addOpnode2Mmnode(opnode.inputs.get(1));
             } else {
@@ -87,13 +87,13 @@ public class NodeCostEstimator {
                 } else if (hop.getOpString().equals("b(*)") || hop.getOpString().equals("b(/)")) {
                     ans = new MMNode(m0, m1, SparsityEstimator.OpCode.MULT);
                 } else {
-                    System.out.println("un handled hop type: " + hop.getOpString());
+                 //   System.out.println("un handled hop type: " + hop.getOpString());
                 }
             }
         } else {
-            System.out.println("un handled hop type: " + hop.getOpString());
-            boolean tmp = HopRewriteUtils.isBinaryMatrixMatrixOperation(hop);
-            System.out.println(tmp);
+           // System.out.println("un handled hop type: " + hop.getOpString());
+           // boolean tmp = HopRewriteUtils.isBinaryMatrixMatrixOperation(hop);
+          //  System.out.println(tmp);
         }
         if (ans != null) {
 //            if (!Judge.isLeafMatrix(hop)) {
@@ -112,7 +112,7 @@ public class NodeCostEstimator {
             }
             opnode.mmNode = ans;
         } else {
-            System.out.println("mmnode == null");
+         //   System.out.println("mmnode == null");
             System.exit(0);
         }
         // System.out.println("RANGE2NODE SIZE = " +range2mmnode.size());
@@ -139,7 +139,7 @@ public class NodeCostEstimator {
         } else if (Judge.isLeafMatrix(hop)) {
             ans = 0;
         } else {
-            System.out.println("unhandled operator type " + hop.getOpString());
+           // System.out.println("unhandled operator type " + hop.getOpString());
             //  System.out.println("x");
         }
         for (int i = 1; i < opnode.hops.size(); i++) {
@@ -157,7 +157,7 @@ public class NodeCostEstimator {
                     ans += dc.getNonZeros() * CpuSpeed;
                 }
             } else {
-                System.out.println("unhandled operator type " + hop.getOpString());
+              //  System.out.println("unhandled operator type " + hop.getOpString());
             }
         }
         ans += eCollectCost(opnode);
@@ -177,7 +177,7 @@ public class NodeCostEstimator {
             dc = estimator.estim(mmNode);
         } catch (Exception e) {
             e.printStackTrace();
-            CostGraph.explainOperatorNode(opNode, 0);
+//            CostGraph.explainOperatorNode(opNode, 0);
             LOG.error("get dc error" + opNode);
             //throw e;
             System.exit(-1);

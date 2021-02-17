@@ -838,7 +838,7 @@ public class SparkExecutionContext extends ExecutionContext
 	public void setRDDHandleForVariable(String varname, JavaPairRDD<?,?> rdd) {
 		rdd.setName(varname);
 		if (TempPersist.shouldPersist(varname)) {
-			System.out.println("Persist RDD with label "+varname);
+//			System.out.println("Persist RDD with label "+varname);
 			rdd.persist(StorageLevel.MEMORY_AND_DISK_SER());
 			TempPersist.addRdd(rdd);
 		}
