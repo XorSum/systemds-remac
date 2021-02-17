@@ -298,7 +298,7 @@ public class FakeCostEstimator2 {
                     delta = eSPInstruction((SPInstruction) inst);
                 }
             } catch (Exception e) {
-                System.out.println(e);
+             //   System.out.println(e);
                 e.printStackTrace();
                 delta = Double.MAX_VALUE;
             }
@@ -648,17 +648,17 @@ public class FakeCostEstimator2 {
     }
 
     private static double eFunctionCallCPInstruction(FunctionCallCPInstruction fcp) throws Exception {
-        System.out.print("FunctionCallCP " + fcp.getFunctionName());
-        System.out.print(" [");
-        for (CPOperand cpOperand : fcp.getInputs()) {
-            System.out.print(cpOperand.getName() + ",");
-        }
-        System.out.print("] -> [");
+//        System.out.print("FunctionCallCP " + fcp.getFunctionName());
+//        System.out.print(" [");
+//        for (CPOperand cpOperand : fcp.getInputs()) {
+//            System.out.print(cpOperand.getName() + ",");
+//        }
+//        System.out.print("] -> [");
         for (String name : fcp.getBoundOutputParamNames()) {
-            System.out.print(name + ",");
+//            System.out.print(name + ",");
             setMMNode(name, null, Types.ExecType.CP);
         }
-        System.out.println("]");
+//        System.out.println("]");
         return 0;
     }
 
@@ -1063,7 +1063,7 @@ public class FakeCostEstimator2 {
             }
             cost = computeCost + reduceCost + broadcastCost;
         } else {
-            System.out.println(inst.get_chainType());
+          //  System.out.println(inst.get_chainType());
             throw new UnhandledOperatorException(inst);
         }
         setMMNode(inst.get_output().getName(), out, Types.ExecType.SPARK);

@@ -32,7 +32,7 @@ public class DistributedScratch {
 
    public static EstimatorMatrixHistogram.MatrixHistogram createFullHistogram(int row, int col) {
         if (row<=0||col<=0) {
-            System.out.println(row+" "+col);
+//            System.out.println(row+" "+col);
             System.exit(-1);
         }
         int[] r = new int[row];
@@ -45,11 +45,11 @@ public class DistributedScratch {
     public static EstimatorMatrixHistogram.MatrixHistogram getMatrixHistogram(String name) {
         if (map.containsKey(name)) return map.get(name);
         if (ec == null) {
-            System.out.println("ec == null");
+//            System.out.println("ec == null");
             return null;
         }
         if (!ec.containsVariable(name)) {
-            System.out.println("!ec.containsVariable(name)");
+//            System.out.println("!ec.containsVariable(name)");
             return null;
         }
         EstimatorMatrixHistogram.MatrixHistogram histogram = null;
@@ -58,13 +58,13 @@ public class DistributedScratch {
             if (ec != null) {
                 Program rtprog = getScrtchRtProg(name);
                 rtprog.execute(ec);
-                System.out.println("execute succ");
+//                System.out.println("execute succ");
                 histogram = getScrtchMatrixes(name);
                 map.put(name, histogram);
             }
         } catch (Exception e) {
             e.printStackTrace();
-            System.out.println("fail");
+//            System.out.println("fail");
         }
         recompileFlag = true;
 
@@ -76,7 +76,7 @@ public class DistributedScratch {
 
     private static Program getScrtchRtProg(String name) {
         MatrixObject data =(MatrixObject) ec.getVariable(name);
-        System.out.println(data);
+//        System.out.println(data);
         DataCharacteristics dc = data.getMetaData().getDataCharacteristics();
         Hop a = HopRewriteUtils.createTransientRead(name, new DataOp("l", Types.DataType.MATRIX, Types.ValueType.FP64,
                 Types.OpOpData.TRANSIENTREAD, "", dc.getRows(), dc.getCols(), dc.getNonZeros(), dc.getBlocksize()));

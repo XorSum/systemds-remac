@@ -106,11 +106,11 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             // 找到所有的叶子节点
             findAllLeaf(template, new ArrayList<>(), 0, hopId2LeafIndex, djs);
             if (leaves.size() < 4) return originalSolution;
-            System.out.println("leaves.size:" + leaves.size());
-            for (int i = 0; i < leaves.size(); i++) {
-                System.out.println("leavesID: " + i);
-                System.out.println(Explain.explain(leaves.get(i).hop));
-            }
+//            System.out.println("leaves.size:" + leaves.size());
+//            for (int i = 0; i < leaves.size(); i++) {
+//                System.out.println("leavesID: " + i);
+//                System.out.println(Explain.explain(leaves.get(i).hop));
+//            }
 
             // 生成singleCes
             ArrayList<SingleCse> singleCses = genSingleCse(djs, blockRanges);
@@ -133,7 +133,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             } catch (Exception e) {
                 e.printStackTrace();
                 mySolution = null;
-                System.out.println("x");
+              //  System.out.println("x");
             }
             if (mySolution != null && mySolution.cost < originalSolution.cost) {
                 LOG.info("return rewrited solution");
@@ -214,11 +214,11 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //            Hop hop = createHop(multiCse, template);
 //            pairs.add(Pair.of(hop, singleCse));
 //        }
-            System.out.println("blockRanges:" + blockRanges);
-            for (int i = 0; i < leaves.size(); i++) {
-                Hop h = leaves.get(i).hop;
-                System.out.println("(" + i + "," + h.getDim1() + "," + h.getDim2() + ")");
-            }
+//            System.out.println("blockRanges:" + blockRanges);
+//            for (int i = 0; i < leaves.size(); i++) {
+//                Hop h = leaves.get(i).hop;
+//                System.out.println("(" + i + "," + h.getDim1() + "," + h.getDim2() + ")");
+//            }
 
 
             ArrayList<Pair<SingleCse, Hop>> list = genHopFromSingleCses(singleCses, template, blockRanges);
@@ -265,7 +265,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             System.out.println("dynamic programming: ");
             System.out.println(mySolution);
 
-          //  if (mySolution.body.getName().equals("h")) System.exit(-1);
+//            if (mySolution.body.getName().equals("h")) System.exit(-1);
             return mySolution;
         } catch (Exception e) {
             e.printStackTrace();
@@ -282,7 +282,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     }
 
     private int findAllLeaf(Hop hop, ArrayList<Integer> path, int depth, HashMap<Long, Integer> hopId2LeafIndex, DisjointSet djs) {
-        System.out.println("findAllLeaf visit: " + hop.getHopID() + " " + hop.getName());
+      //  System.out.println("findAllLeaf visit: " + hop.getHopID() + " " + hop.getName());
         if (isLeafMatrix(hop)
                 || (HopRewriteUtils.isTransposeOperation(hop) && isLeafMatrix(hop.getInput().get(0)))
             // || hop.getParent().size() > 1)
@@ -570,9 +570,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             Hop hop;
             try {
                 c = multiCses.get(i);
-                if (i == 5) {
-                    System.out.println("x");
-                }
+//                if (i == 5) {
+//                    System.out.println("x");
+//                }
                 hop = createHop(c, template, blockRanges);
 //                LOG.debug("hop:");
 //                MyExplain.explain_iter2(hop);

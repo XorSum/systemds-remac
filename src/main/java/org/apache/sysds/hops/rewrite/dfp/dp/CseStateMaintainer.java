@@ -52,7 +52,7 @@ public class CseStateMaintainer {
     }
 
     void setCseState(SingleCse cse, CseState state) {
-        System.out.println("update cse state " + state + " " + cse);
+//        System.out.println("update cse state " + state + " " + cse);
         map.put(cse, state);
     }
 
@@ -166,7 +166,7 @@ public class CseStateMaintainer {
                     break;
             }
         }
-        System.out.println("uncertain: " + uncertainNum + " useful: " + usefulNum + " useless: " + uselessNum);
+//        System.out.println("uncertain: " + uncertainNum + " useful: " + usefulNum + " useless: " + uselessNum);
     }
 
 }

@@ -12,13 +12,13 @@ public class TempPersist {
         private final ArrayList<JavaPairRDD<?, ?>> javaPairRDDS = new ArrayList<>();
 
         public void addCseLabel(String rddLabel) {
-            System.out.println("Add variable label " + rddLabel);
+//            System.out.println("Add variable label " + rddLabel);
             rddLabels.add(rddLabel);
         }
 
         public boolean shouldPersist(String rddLabel) {
             boolean ans = rddLabels.contains(rddLabel);
-           // System.out.println(ans + ", check " + rddLabel + " in " + rddLabels);
+//            System.out.println(ans + ", check " + rddLabel + " in " + rddLabels);
             return ans;
         }
 
@@ -28,8 +28,8 @@ public class TempPersist {
 
         public void cleanPersistedCses() {
             for (JavaPairRDD rdd : javaPairRDDS) rdd.unpersist();
-            System.out.println("Unpersist " + javaPairRDDS.size() + " rdds");
-            System.out.println("Clear labels " + rddLabels);
+//            System.out.println("Unpersist " + javaPairRDDS.size() + " rdds");
+//            System.out.println("Clear labels " + rddLabels);
             javaPairRDDS.clear();
             rddLabels.clear();
         }
@@ -61,7 +61,7 @@ public class TempPersist {
                 break;
             }
         }
-        System.out.println(ans + ", check " + rddLabel + " in " + frames.stream().map(x->x.rddLabels.toString()).reduce((x,y)->x+","+y).get());
+//        System.out.println(ans + ", check " + rddLabel + " in " + frames.stream().map(x->x.rddLabels.toString()).reduce((x,y)->x+","+y).get());
         return ans;
     }
 
