@@ -30,8 +30,8 @@ public class NodeCostEstimator {
     protected static final Log LOG = LogFactory.getLog(NodeCostEstimator.class.getName());
 
 
-//     private static SparsityEstimator estimator = new EstimatorBasicAvg();
-    private static EstimatorMatrixHistogram estimator = new EstimatorMatrixHistogram();
+     private static SparsityEstimator estimator = new EstimatorBasicAvg();
+//    private static EstimatorMatrixHistogram estimator = new EstimatorMatrixHistogram();
 
     HashMap<Pair<Integer, Integer>, MMNode> range2mmnode = new HashMap<>();
 
@@ -173,8 +173,8 @@ public class NodeCostEstimator {
         DataCharacteristics dc = null;
         MMNode mmNode = addOpnode2Mmnode(opNode);
         try {
-            dc = estimator.estim(mmNode, false);
-//            dc = estimator.estim(mmNode);
+//            dc = estimator.estim(mmNode, false);
+            dc = estimator.estim(mmNode);
         } catch (Exception e) {
             e.printStackTrace();
             CostGraph.explainOperatorNode(opNode, 0);
