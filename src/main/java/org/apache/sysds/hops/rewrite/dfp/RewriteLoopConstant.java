@@ -6,8 +6,6 @@ import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
 import org.apache.sysds.hops.rewrite.StatementBlockRewriteRule;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
-import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
-import org.apache.sysds.hops.rewrite.dfp.dp.CostTree;
 import org.apache.sysds.hops.rewrite.dfp.utils.ConstantUtil;
 import org.apache.sysds.parser.*;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
@@ -53,7 +51,7 @@ public class RewriteLoopConstant extends StatementBlockRewriteRule {
         double cost2 = func1(sb, res);
         LOG.info("end normal search");
         LOG.info("normal cost = " + cost2);
-        FakeCostEstimator2.cleanUnusedScratchMMNode();
+      //  FakeCostEstimator2.cleanUnusedScratchMMNode();
         LOG.info(res);
         return res;
 

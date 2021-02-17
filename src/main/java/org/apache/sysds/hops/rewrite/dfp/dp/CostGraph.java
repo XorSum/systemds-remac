@@ -15,9 +15,9 @@ import org.apache.sysds.utils.Explain;
 
 import java.util.*;
 
-public class CostTree {
+public class CostGraph {
 
-    public CostTree(VariableSet variablesUpdated, long iterationNumber) {
+    public CostGraph(VariableSet variablesUpdated, long iterationNumber) {
         this.variablesUpdated = variablesUpdated;
         this.iterationNumber = iterationNumber;
         this.nodeCostEstimator = new NodeCostEstimator();
@@ -28,7 +28,7 @@ public class CostTree {
     public VariableSet variablesUpdated = null;
 
 
-    public ACNode testOperatorGraph(ArrayList<SinglePlan> pairs, Pair<SingleCse, Hop> emptyPair, ArrayList<Range> blockRanges, ArrayList<Leaf> leaves) {
+    public ArrayList<OperatorNode> testOperatorGraph(ArrayList<SinglePlan> pairs, Pair<SingleCse, Hop> emptyPair, ArrayList<Range> blockRanges, ArrayList<Leaf> leaves) {
 
         int maxIndex = 0;
         HashSet<Pair<Integer, Integer>> ranges = new HashSet<>();
@@ -74,15 +74,21 @@ public class CostTree {
         CseStateMaintainer MAINTAINER = new CseStateMaintainer();
         MAINTAINER.initRangeCounter(range2acnode);
         MAINTAINER.initCseState(pairs);
-        selectBest(MAINTAINER);
+        ArrayList<OperatorNode> result =  selectBest(MAINTAINER);
 
-        showBest(Pair.of(0, maxIndex));
+        //showBest(Pair.of(0, maxIndex));
+        result.sort(Comparator.comparingDouble(a -> a.accCost));
+//        && list2.get(i).accCost <= bestsinglecsenode.accCost
+        for (int i = 0; i < 30 && i < result.size(); i++) {
+            System.out.println(result.get(i));
+        }
 
-        System.out.println(Explain.explain(emptyPair.getRight()));
+//        System.out.println(Explain.explain(emptyPair.getRight()));
 
         System.out.println("done");
 
-        return range2acnode.get(Pair.of(0, maxIndex));
+//        return range2acnode.get(Pair.of(0, maxIndex));
+        return result;
     }
 
 
@@ -399,7 +405,7 @@ public class CostTree {
         System.out.println(acNode.range + " remove " + removed1 + " " + removed2);
     }
 
-    void selectBest(CseStateMaintainer MAINTAINER) {
+    ArrayList<OperatorNode> selectBest(CseStateMaintainer MAINTAINER) {
 //        dp = new HashMap<>();
         ArrayList<Pair<Integer, Integer>> sortedRanges = new ArrayList<>(range2acnode.keySet());
 //        ranges.sort(Comparator.comparingInt((Pair<Integer,Integer> a)->(a.getRight()-a.getLeft())));
@@ -492,7 +498,12 @@ public class CostTree {
                 System.out.println(range + " " + range2acnode.get(range).uncertainACs.size());
             }
         }
-
+        if (sortedRanges.size()>0) {
+            ArrayList<OperatorNode> opnodess = range2acnode.get(sortedRanges.get(sortedRanges.size()-1)).getOperatorNodes(MAINTAINER);
+            return opnodess;
+        }else {
+            return null;
+        }
     }
 
 

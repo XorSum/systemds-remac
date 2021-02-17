@@ -21,11 +21,13 @@ package org.apache.sysds.hops.estim;
 
 import org.apache.sysds.hops.estim.SparsityEstimator.OpCode;
 import org.apache.sysds.runtime.DMLRuntimeException;
+import org.apache.sysds.runtime.controlprogram.parfor.util.IDSequence;
 import org.apache.sysds.runtime.matrix.data.MatrixBlock;
 import org.apache.sysds.runtime.meta.DataCharacteristics;
 import org.apache.sysds.runtime.meta.MatrixCharacteristics;
 
 import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * Helper class to represent matrix multiply operators in a DAG
@@ -33,6 +35,7 @@ import java.util.Arrays;
  */
 public class MMNode
 {
+	private static IDSequence _seqHopID = new IDSequence();
 	private final MMNode _m1;
 	private final MMNode _m2;
 	private final MatrixBlock _data;
@@ -40,6 +43,7 @@ public class MMNode
 	private Object _synops = null;
 	private final OpCode _op;
 	private final long[] _misc;
+	public final long id;
 
 	public boolean estimated = false;
 
@@ -50,6 +54,7 @@ public class MMNode
 		_mc = in.getDataCharacteristics();
 		_op = null;
 		_misc = null;
+		id = _seqHopID.getNextID();
 	}
 
 	public MMNode(DataCharacteristics dataCharacteristics) {
@@ -59,6 +64,7 @@ public class MMNode
 		_mc = dataCharacteristics;
 		_op = null;
 		_misc = null;
+		id = _seqHopID.getNextID();
 	}
 
 	public MMNode(MMNode left, MMNode right, OpCode op, long[] misc) {
@@ -68,6 +74,7 @@ public class MMNode
 		_mc = new MatrixCharacteristics(-1, -1, -1, -1);
 		_op = op;
 		_misc = misc;
+		id = _seqHopID.getNextID();
 	}
 
 	public MMNode(MMNode left, MMNode right, OpCode op) {
@@ -146,7 +153,7 @@ public class MMNode
 
 	@Override
 	public String toString() {
-		return "MMNode{" +
+		return "MMNode{id=" + id +
 //				(_m1 != null ? "_m1=" + _m1 : "") +
 //				(_m2 != null ? ", _m2=" + _m2 : "") +
 			//	(_data != null ? ", _data=" + _data : "") +
@@ -155,5 +162,18 @@ public class MMNode
 				(_op != null ? ", _op=" + _op : "") +
 				//	", _misc=" + Arrays.toString(_misc) +
 				'}';
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) return true;
+		if (o == null || getClass() != o.getClass()) return false;
+		MMNode mmNode = (MMNode) o;
+		return id == mmNode.id;
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(id);
 	}
 }

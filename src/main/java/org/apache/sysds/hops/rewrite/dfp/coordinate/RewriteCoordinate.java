@@ -11,14 +11,12 @@ import org.apache.sysds.hops.rewrite.dfp.Leaf;
 import org.apache.sysds.hops.rewrite.dfp.MySolution;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
-import org.apache.sysds.hops.rewrite.dfp.dp.ACNode;
-import org.apache.sysds.hops.rewrite.dfp.dp.CostTree;
+import org.apache.sysds.hops.rewrite.dfp.dp.CostGraph;
 import org.apache.sysds.hops.rewrite.dfp.dp.OperatorNode;
 import org.apache.sysds.hops.rewrite.dfp.dp.SinglePlan;
 import org.apache.sysds.hops.rewrite.dfp.utils.*;
 import org.apache.sysds.parser.*;
 import org.apache.sysds.runtime.controlprogram.Program;
-import org.apache.sysds.runtime.controlprogram.WhileProgramBlock;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
 import org.apache.sysds.utils.Explain;
 
@@ -238,14 +236,16 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 singlePlans.add(singlePlan);
             }
 
-            CostTree costTree = new CostTree(variablesUpdated, iterationNumber);
-//        costTree.testCostTree(list);
-            ACNode bestacnode = costTree.testOperatorGraph(singlePlans, pair, blockRanges, leaves);
-            ArrayList<OperatorNode> operatorNodeArrayList = new ArrayList<>();
-            if (bestacnode.minAC!=null) operatorNodeArrayList.add(bestacnode.minAC);
-            if (bestacnode.certainAC!=null) operatorNodeArrayList.add(bestacnode.certainAC);
-            operatorNodeArrayList.addAll(bestacnode.uncertainACs.values());
-            operatorNodeArrayList.sort(Comparator.comparingDouble(a -> a.accCost));
+            CostGraph costGraph = new CostGraph(variablesUpdated, iterationNumber);
+//        costGraph.testCostTree(list);
+//            ACNode bestacnode = costGraph.testOperatorGraph(singlePlans, pair, blockRanges, leaves);
+//            ArrayList<OperatorNode> operatorNodeArrayList = new ArrayList<>();
+//            if (bestacnode.minAC!=null) operatorNodeArrayList.add(bestacnode.minAC);
+//            if (bestacnode.certainAC!=null) operatorNodeArrayList.add(bestacnode.certainAC);
+//            operatorNodeArrayList.addAll(bestacnode.uncertainACs.values());
+//            operatorNodeArrayList.sort(Comparator.comparingDouble(a -> a.accCost));
+
+            ArrayList<OperatorNode> operatorNodeArrayList = costGraph.testOperatorGraph(singlePlans, pair, blockRanges, leaves);
 
             ArrayList<MultiCse> multiCseArrayList = new ArrayList<>();
             for (int i=0;i<operatorNodeArrayList.size();i++) {
@@ -262,7 +262,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
             LOG.info("dynamic programming: ");
             LOG.info(mySolution);
-//            if (mySolution.body.getName().equals("h")) System.exit(-1);
+            System.out.println("dynamic programming: ");
+            System.out.println(mySolution);
+
+          //  if (mySolution.body.getName().equals("h")) System.exit(-1);
             return mySolution;
         } catch (Exception e) {
             e.printStackTrace();
@@ -697,7 +700,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             LOG.debug("runtime program>>>");
             FakeCostEstimator2.MMShowCostFlag = false;
         }
-        FakeCostEstimator2.cleanUnusedMMNode();
+      //  FakeCostEstimator2.cleanUnusedMMNode();
         return cost;
     }
 

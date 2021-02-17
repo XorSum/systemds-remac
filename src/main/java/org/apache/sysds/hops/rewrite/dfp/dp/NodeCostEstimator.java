@@ -177,7 +177,7 @@ public class NodeCostEstimator {
 //            dc = estimator.estim(mmNode);
         } catch (Exception e) {
             e.printStackTrace();
-            CostTree.explainOperatorNode(opNode, 0);
+            CostGraph.explainOperatorNode(opNode, 0);
             LOG.error("get dc error" + opNode);
             //throw e;
             System.exit(-1);
