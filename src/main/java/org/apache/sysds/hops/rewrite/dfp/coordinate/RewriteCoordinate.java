@@ -18,6 +18,7 @@ import org.apache.sysds.hops.rewrite.dfp.utils.*;
 import org.apache.sysds.parser.*;
 import org.apache.sysds.runtime.controlprogram.Program;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
+import org.apache.sysds.runtime.util.SortUtils;
 import org.apache.sysds.utils.Explain;
 
 import java.util.*;
@@ -72,6 +73,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //        System.out.println("rootname"+root.getName());
 //        System.out.println("xx");
 
+
         MySolution originalSolution = new MySolution(root);
 
         try {
@@ -81,7 +83,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //            if (!"h".equals(root.getName())) {
 //                return originalSolution;
 //            }
-
+            long start = System.nanoTime();
             LOG.info("original cost = " + originalSolution.cost);
 
             // 1. 深拷贝，格式化
@@ -121,6 +123,11 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 LOG.debug(Explain.explain(root));
             }
 
+            long end = System.nanoTime();
+            LOG.info("generate single cse time = "+((end-start)/1e9)+"s");
+            System.out.println("generate single cse time = "+((end-start)/1e9)+"s");
+
+            start = System.nanoTime();
             MySolution mySolution = null;
             try {
                 if (useDirectPolicy) {
@@ -135,11 +142,17 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 mySolution = null;
               //  System.out.println("x");
             }
+            end = System.nanoTime();
+            LOG.info("generate multi cse time = "+((end-start)/1e9)+"s");
+            System.out.println("generate multi cse time = "+((end-start)/1e9)+"s");
+
             if (mySolution != null && mySolution.cost < originalSolution.cost) {
                 LOG.info("return rewrited solution");
+                System.out.println("return rewrited solution");
                 return mySolution;
             } else {
                 LOG.info("return original solution");
+                System.out.println("return original solution");
             }
 
 //            testusefulCse(singleCses, template);
