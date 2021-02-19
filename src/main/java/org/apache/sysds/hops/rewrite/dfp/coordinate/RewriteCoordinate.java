@@ -368,12 +368,25 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         for (Iterator<Map.Entry<HashKey, ArrayList<Range>>> it = hash2Ranges.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<HashKey, ArrayList<Range>> e = it.next();
             ArrayList<Range> list = e.getValue();
-            if (list.size() < 2 || list.get(0).right >= list.get(list.size() - 1).left) {
-                it.remove();
+            if (list.size()<2) {
+                if (!isConstant(list.get(0).left,list.get(0).right)) {
+                    it.remove();
+                }
+            } else {
+                if (list.get(0).right >= list.get(list.size() - 1).left) {
+                    it.remove();
+                }
             }
         }
         LOG.info("number of commom exp = " + hash2Ranges.size());
 
+    }
+
+    private boolean isConstant(int left,int right) {
+        for (int i=left;i<=right;i++) {
+            if (notConstant(i)) return false;
+        }
+        return true;
     }
 
     private boolean notConstant(int index) {
@@ -394,7 +407,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             ArrayList<SingleCse> singleCses = genSingleCseFromRanges(e.getKey(), e.getValue());
             result.addAll(singleCses);
         }
-        if (true) {
+        if (showSingleCse) {
             for (int i = 0; i < result.size(); i++) {
                 LOG.info(i + " " + result.get(i));
             }
@@ -434,11 +447,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             }
         }
         if (ranges.size() < 1) return result;
-        boolean constant = true;
-        for (int i = ranges.get(0).left; i <= ranges.get(0).right; i++) {
-            if (notConstant(i)) constant = false;
-        }
-        if (!constant) {
+        if (!isConstant(ranges.get(0).left,ranges.get(0).right)) {
             if (ranges.size() > 0) {
                 result.subList(0, ranges.size()).clear();
             }
