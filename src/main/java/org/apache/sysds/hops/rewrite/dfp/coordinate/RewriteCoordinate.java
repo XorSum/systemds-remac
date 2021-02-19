@@ -43,7 +43,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     private RewriteCommonSubexpressionElimination rewriteCommonSubexpressionElimination = new RewriteCommonSubexpressionElimination();
     //  private  final Log LOG = LogFactory.getLog(RewriteCoordinate.class.getName());
 
-   // public boolean onlySearchConstantSubExp = false;
+    // public boolean onlySearchConstantSubExp = false;
     public VariableSet variablesUpdated = null;
     public ConstantUtil constantUtil = null; // new ConstantUtil(variablesUpdated);
     public long iterationNumber = 2;
@@ -60,7 +60,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     private int maxMultiCseNumber = 100000; // 设为-1,则生成所有的；设为正数，则最多生成那么多个
 
-   // private static long epoch = 100;
+    // private static long epoch = 100;
 
     private boolean useDirectPolicy = false;
     private boolean useDynamicProgramPolicy = true;
@@ -78,7 +78,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
         try {
             LOG.trace(ec.getVariables().keySet());
-            FakeCostEstimator2.miniumCostBoundery=Double.MAX_VALUE;
+            FakeCostEstimator2.miniumCostBoundery = Double.MAX_VALUE;
             originalSolution.cost = estimate(originalSolution, true);
 //            if (!"h".equals(root.getName())) {
 //                return originalSolution;
@@ -124,8 +124,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             }
 
             long end = System.nanoTime();
-            LOG.info("generate single cse time = "+((end-start)/1e9)+"s");
-            System.out.println("generate single cse time = "+((end-start)/1e9)+"s");
+            LOG.info("generate options time = " + ((end - start) / 1e9) + "s");
+            System.out.println("generate options time = " + ((end - start) / 1e9) + "s");
 
             start = System.nanoTime();
             MySolution mySolution = null;
@@ -140,11 +140,11 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             } catch (Exception e) {
                 e.printStackTrace();
                 mySolution = null;
-              //  System.out.println("x");
+                //  System.out.println("x");
             }
             end = System.nanoTime();
-            LOG.info("generate multi cse time = "+((end-start)/1e9)+"s");
-            System.out.println("generate multi cse time = "+((end-start)/1e9)+"s");
+            LOG.info("generate combinations time = " + ((end - start) / 1e9) + "s");
+            System.out.println("generate combinations time = " + ((end - start) / 1e9) + "s");
 
             if (mySolution != null && mySolution.cost < originalSolution.cost) {
                 LOG.info("return rewrited solution");
@@ -188,7 +188,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         if (multiCses.size() == 0) return null;
 
         // 构造计划
-        ArrayList<MySolution> solutions = genSolutions(multiCses,false, template, blockRanges);
+        ArrayList<MySolution> solutions = genSolutions(multiCses, false, template, blockRanges);
 
         // 估代价并返回代价最小的计划
         MySolution solution = selectSolution(solutions);
@@ -261,16 +261,16 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             ArrayList<OperatorNode> operatorNodeArrayList = costGraph.testOperatorGraph(singlePlans, pair, blockRanges, leaves);
 
             ArrayList<MultiCse> multiCseArrayList = new ArrayList<>();
-            for (int i=0;i<operatorNodeArrayList.size();i++) {
+            for (int i = 0; i < operatorNodeArrayList.size(); i++) {
                 MultiCse multiCse = createMultiCseFromOperatorNode(operatorNodeArrayList.get(i));
                 if (multiCse != null) multiCseArrayList.add(multiCse);
             }
-            LOG.info("candidate muti cse size = "+multiCseArrayList.size());
-            for (MultiCse cse: multiCseArrayList) {
-                LOG.info("candidate multi cse"+cse);
+            LOG.info("candidate muti cse size = " + multiCseArrayList.size());
+            for (MultiCse cse : multiCseArrayList) {
+                LOG.info("candidate multi cse" + cse);
             }
 
-            ArrayList<MySolution> mySolutions = genSolutions(multiCseArrayList,true, template, blockRanges);
+            ArrayList<MySolution> mySolutions = genSolutions(multiCseArrayList, true, template, blockRanges);
             MySolution mySolution = selectSolution(mySolutions);
 
             LOG.info("dynamic programming: ");
@@ -295,7 +295,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     }
 
     private int findAllLeaf(Hop hop, ArrayList<Integer> path, int depth, HashMap<Long, Integer> hopId2LeafIndex, DisjointSet djs) {
-      //  System.out.println("findAllLeaf visit: " + hop.getHopID() + " " + hop.getName());
+        //  System.out.println("findAllLeaf visit: " + hop.getHopID() + " " + hop.getName());
         if (isLeafMatrix(hop)
                 || (HopRewriteUtils.isTransposeOperation(hop) && isLeafMatrix(hop.getInput().get(0)))
             // || hop.getParent().size() > 1)
@@ -343,11 +343,11 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         for (Range block : blockRanges) {
             for (int l = block.left; l <= block.right; l++) {
                 //    LOG.debug("i=" + l + " name=" + leaves.get(l).hop.getName() + " updated=" + variablesUpdated.containsVariable(leaves.get(l).hop.getName()));
-              //  if (onlySearchConstantSubExp && notConstant(l)) continue;
+                //  if (onlySearchConstantSubExp && notConstant(l)) continue;
                 // int r = onlySearchConstantSubExp ? l + 1 : l + 2;
                 int r = l + 1;
                 for (; r <= block.right; r++) {
-                  //  if (onlySearchConstantSubExp && notConstant(r)) break;
+                    //  if (onlySearchConstantSubExp && notConstant(r)) break;
                     long first = rangeHash1(l, r);
                     long second = rangeHash2(l, r);
                     boolean transpose = false;
@@ -394,7 +394,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             ArrayList<SingleCse> singleCses = genSingleCseFromRanges(e.getKey(), e.getValue());
             result.addAll(singleCses);
         }
-        if (showSingleCse) {
+        if (true) {
             for (int i = 0; i < result.size(); i++) {
                 LOG.info(i + " " + result.get(i));
             }
@@ -433,8 +433,15 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 }
             }
         }
-        if (ranges.size() > 0) {
-            result.subList(0, ranges.size()).clear();
+        if (ranges.size() < 1) return result;
+        boolean constant = true;
+        for (int i = ranges.get(0).left; i <= ranges.get(0).right; i++) {
+            if (notConstant(i)) constant = false;
+        }
+        if (!constant) {
+            if (ranges.size() > 0) {
+                result.subList(0, ranges.size()).clear();
+            }
         }
         return result;
     }
@@ -570,7 +577,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     }
 
 
-    private ArrayList<MySolution> genSolutions(ArrayList<MultiCse> multiCses,boolean liftConstant,
+    private ArrayList<MySolution> genSolutions(ArrayList<MultiCse> multiCses, boolean liftConstant,
                                                Hop template, ArrayList<Range> blockRanges) {
         long constructHopTime = 0;
         long start = System.nanoTime();
@@ -609,7 +616,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     if (liftConstant) {
                         Hop copy = deepCopyHopsDag(hop);
                         MySolution mySolution = constantUtil.liftLoopConstant(copy);
-                        mySolution.multiCse=c;
+                        mySolution.multiCse = c;
                         solutions.add(mySolution);
                     } else {
                         MySolution solution = new MySolution(c, hop);
@@ -635,7 +642,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         start = System.nanoTime();
         MySolution bestSolution = new MySolution();
 
-        FakeCostEstimator2.miniumCostBoundery=Double.MAX_VALUE;
+        FakeCostEstimator2.miniumCostBoundery = Double.MAX_VALUE;
         for (int i = 0; i < solutions.size(); i++) {
             try {
                 MySolution solution = solutions.get(i);
@@ -656,7 +663,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         }
         LOG.info("minium cost = " + bestSolution.cost);
         if (bestSolution.body != null) {
-            FakeCostEstimator2.miniumCostBoundery=Double.MAX_VALUE;
+            FakeCostEstimator2.miniumCostBoundery = Double.MAX_VALUE;
             bestSolution.cost = estimate(bestSolution, true);
         } else {
             return null;
@@ -690,20 +697,20 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     if (showDetails)
                         LOG.debug(Explain.explain(program));
                     preCost += FakeCostEstimator2.estimate(program);
-                    if (preCost>FakeCostEstimator2.miniumCostBoundery) break;
+                    if (preCost > FakeCostEstimator2.miniumCostBoundery) break;
                 }
                 Program programBlocks = constructProgramBlocks(solution.body, statementBlock);
                 if (showDetails)
                     LOG.debug(Explain.explain(programBlocks));
                 //cost = CostEstimationWrapper.getTimeEstimate(programBlocks, ec);
                 double bodyCost = Double.MAX_VALUE;
-                if (preCost<=FakeCostEstimator2.miniumCostBoundery)
-                    bodyCost =  FakeCostEstimator2.estimate(programBlocks);
+                if (preCost <= FakeCostEstimator2.miniumCostBoundery)
+                    bodyCost = FakeCostEstimator2.estimate(programBlocks);
                 cost = preCost + bodyCost * iterationNumber;
                 solution.cost = cost;
-            //    FakeCostEstimator2.miniumCostBoundery = Math.min(FakeCostEstimator2.miniumCostBoundery,cost);
+                //    FakeCostEstimator2.miniumCostBoundery = Math.min(FakeCostEstimator2.miniumCostBoundery,cost);
                 if (showDetails)
-                    LOG.debug("preCOst=" + preCost + " bodyCost=" + bodyCost+ " allcost="+cost +" cse="+solution.multiCse);
+                    LOG.debug("preCOst=" + preCost + " bodyCost=" + bodyCost + " allcost=" + cost + " cse=" + solution.multiCse);
             }
         } catch (Exception e) {
             //  e.printStackTrace();
@@ -713,7 +720,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             LOG.debug("runtime program>>>");
             FakeCostEstimator2.MMShowCostFlag = false;
         }
-      //  FakeCostEstimator2.cleanUnusedMMNode();
+        //  FakeCostEstimator2.cleanUnusedMMNode();
         return cost;
     }
 
@@ -1067,7 +1074,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         this.statementBlock = statementBlock;
         FakeCostEstimator2.ec = executionContext;
         DistributedScratch.ec = executionContext;
-     //   onlySearchConstantSubExp = false;
+        //   onlySearchConstantSubExp = false;
     }
 
     public RewriteCoordinate(ExecutionContext executionContext, StatementBlock statementBlock, VariableSet variablesUpdated) {
@@ -1076,7 +1083,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         this.variablesUpdated = variablesUpdated;
         FakeCostEstimator2.ec = executionContext;
         DistributedScratch.ec = executionContext;
-       // onlySearchConstantSubExp = true;
+        // onlySearchConstantSubExp = true;
         constantUtil = new ConstantUtil(variablesUpdated);
     }
 
