@@ -15,6 +15,7 @@ import org.apache.sysds.lops.MapMult;
 import org.apache.sysds.lops.MapMultChain;
 import org.apache.sysds.runtime.controlprogram.*;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
+import org.apache.sysds.runtime.controlprogram.context.SparkExecutionContext;
 import org.apache.sysds.runtime.instructions.Instruction;
 import org.apache.sysds.runtime.instructions.cp.*;
 import org.apache.sysds.runtime.instructions.spark.*;
@@ -32,7 +33,7 @@ public class FakeCostEstimator2 {
     protected static final Log LOG = LogFactory.getLog(FakeCostEstimator2.class.getName());
 
     public static double CpuSpeed = 1.0;
-    public static double ShuffleSpeed = 25.0;
+    public static double ShuffleSpeed = 5.0;
     public static double BroadCaseSpeed = 3.0;
 
     public static long defaultBlockSize = 1000;
@@ -812,12 +813,12 @@ public class FakeCostEstimator2 {
         long r2 = reducerNumber(dc3.getRows(), dc3.getCols());
         if (t.getCacheType() == MapMult.CacheType.LEFT) {
             long r1 = Math.min(OptimizerUtils.getNumReducers(false), (long) Math.ceil((double) dc2.getRows() / defaultBlockSize));
-            broadcastCost = BroadCaseSpeed * matrixSize(dc1) * Math.ceil(Math.log(r1));
+            broadcastCost = BroadCaseSpeed * matrixSize(dc1) * Math.ceil(Math.log(Math.min(r1,SparkExecutionContext.getNumExecutors())));
             shuffleCost = ShuffleSpeed * matrixSize(dc3) * r1 / r2;
             computeCost = computeCostSPMM(dc1, dc2, dc3);
         } else if (t.getCacheType() == MapMult.CacheType.RIGHT) {
             long r1 = Math.min(OptimizerUtils.getNumReducers(false), (long) Math.ceil((double) dc1.getCols() / defaultBlockSize));
-            broadcastCost = BroadCaseSpeed * matrixSize(dc2) * Math.ceil(Math.log(r1));
+            broadcastCost = BroadCaseSpeed * matrixSize(dc2) * Math.ceil(Math.log(Math.min(r1,SparkExecutionContext.getNumExecutors())));
             shuffleCost = ShuffleSpeed * matrixSize(dc3) * r1 / r2;
             computeCost = computeCostSPMM(dc1, dc2, dc3);
         }
@@ -1052,8 +1053,9 @@ public class FakeCostEstimator2 {
             DataCharacteristics dc3 = getDC(out);
             long reducer = reducerNumber(dc1.getRows(), dc1.getCols());
             reducer = Math.min(reducer, OptimizerUtils.getNumReducers(false));
+            long executor = Math.min(reducer, SparkExecutionContext.getNumExecutors());
             double computeCost = 1.5 * CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols() * (dc1.getSparsity() * dc2.getSparsity() + dc1.getSparsity()) / reducer;
-            double broadcastCost = BroadCaseSpeed * MatrixBlock.estimateSizeInMemory(dc2.getRows(), dc2.getCols(), dc2.getSparsity()) * Math.ceil(Math.log(reducer));
+            double broadcastCost = BroadCaseSpeed * MatrixBlock.estimateSizeInMemory(dc2.getRows(), dc2.getCols(), dc2.getSparsity()) * Math.ceil(Math.log(executor));
             double reduceCost = BroadCaseSpeed * MatrixBlock.estimateSizeInMemory(dc3.getRows(), dc3.getRows(), dc3.getSparsity());
             if (MMShowCostFlag) {
                 LOG.info("mapmmchain broad cost = " + broadcastCost);
