@@ -12,6 +12,17 @@ public class MySolution {
     public ArrayList<Hop> preLoopConstants = new ArrayList<>();
     public double cost = Double.MAX_VALUE;
 
+    public  double preCost = 0;
+    public  double bodyCost = 0;
+    public double preloopShuffleCost = 0;
+    public double preloopBroadcastCost = 0;
+    public double preloopComputeCost = 0;
+    public  double preloopCollectCost = 0;
+    public double bodyShuffleCost = 0;
+    public double bodyBroadcastCost = 0;
+    public double bodyComputeCost = 0;
+    public  double bodyCollectCost = 0;
+
     public MySolution() {
     }
 
@@ -44,7 +55,18 @@ public class MySolution {
             }
             sb.append("},");
         }
-        sb.append("cost=" + cost + '}');
+//        sb.append("cost=" + cost + "\n");
+        sb.append("allCost=" + cost+ "\n");
+        sb.append("preCost=" + preCost+ "\n");
+        sb.append("bodyCost=" + bodyCost+ "\n");
+        sb.append("preloopShuffleCost=" + preloopShuffleCost+ "\n");
+        sb.append("preloopBroadcastCost=" + preloopBroadcastCost+ "\n");
+        sb.append("preloopComputeCost=" + preloopComputeCost+ "\n");
+        sb.append("preloopCollectCost=" + preloopCollectCost+ "\n");
+        sb.append("bodyShuffleCost=" + bodyShuffleCost+ "\n");
+        sb.append("bodyBroadcastCost=" + bodyBroadcastCost+ "\n");
+        sb.append("bodyComputeCost=" + bodyComputeCost+ "\n");
+        sb.append("bodyCollectCost=" + bodyCollectCost+ "}");
         return sb.toString();
     }
 }
