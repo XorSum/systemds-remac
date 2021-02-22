@@ -5,6 +5,8 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.sysds.common.Types;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.LiteralOp;
+import org.apache.sysds.hops.NaryOp;
+import org.apache.sysds.hops.TernaryOp;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.Leaf;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.Range;
@@ -29,19 +31,23 @@ public class CostGraph {
 
 
     public ArrayList<OperatorNode> testOperatorGraph(ArrayList<SinglePlan> pairs, Pair<SingleCse, Hop> emptyPair, ArrayList<Range> blockRanges, ArrayList<Leaf> leaves) {
-
+        //  System.out.println("begin test Operator Graph");
         int maxIndex = 0;
         HashSet<Pair<Integer, Integer>> ranges = new HashSet<>();
 
         OperatorNode emptyNode = createOperatorGraph(emptyPair.getRight(), false);
+        emptyPair.getRight().resetVisitStatusForced(new HashSet<>());
+        //  System.out.println(Explain.explain(emptyPair.getRight()));
+        //explainOperatorNode(emptyNode,0);
         analyzeOperatorRange(emptyNode, emptyPair.getLeft(), new MutableInt(0));
+        analyzeOperatorCost(emptyNode, new HashSet<>());
         rGetRanges(emptyNode, ranges);
 
         for (SinglePlan p : pairs) {
             SingleCse cse = p.singleCse;
             Hop hop = p.hop;
-//            System.out.println("========================");
-//            System.out.println(cse);
+            //    System.out.println("========================");
+            //    System.out.println(cse);
 //            System.out.println(Explain.explain(hop));
             OperatorNode node = createOperatorGraph(hop, false);
             MutableInt mutableInt = new MutableInt(0);
@@ -49,22 +55,22 @@ public class CostGraph {
             boolean certainused = rCheckCertainUsed(cse, ranges);
             if (checkConstant(cse, leaves)) {
                 p.tag = SinglePlan.SinglePlanTag.constant;
-//                System.out.println("Constant Cse: " + cse);
+                //     System.out.println("Constant Cse: " + cse);
             } else {
                 if (certainused) {
                     p.tag = SinglePlan.SinglePlanTag.Useful;
-//                    System.out.println("Certainly Useful: " + cse);
+                    //        System.out.println("Certainly Useful: " + cse);
                     // continue;
                 } else {
                     p.tag = SinglePlan.SinglePlanTag.uncertain;
-//                    System.out.println("Uncertain: " + cse);
+                    //      System.out.println("Uncertain: " + cse);
                 }
             }
             maxIndex = Math.max(maxIndex, mutableInt.getValue() - 1);
             analyzeOperatorConstant(node);
-//            explainOperatorNode(node,0);
+            // explainOperatorNode(node,0);
 //            try {
-                analyzeOperatorCost(node, new HashSet<>());
+            analyzeOperatorCost(node, new HashSet<>());
 //            }catch (Exception e) {
 //                e.printStackTrace();
 //            }
@@ -74,7 +80,7 @@ public class CostGraph {
         CseStateMaintainer MAINTAINER = new CseStateMaintainer();
         MAINTAINER.initRangeCounter(range2acnode);
         MAINTAINER.initCseState(pairs);
-        ArrayList<OperatorNode> result =  selectBest(MAINTAINER);
+        ArrayList<OperatorNode> result = selectBest(MAINTAINER);
 
         //showBest(Pair.of(0, maxIndex));
         result.sort(Comparator.comparingDouble(a -> a.accCost));
@@ -218,6 +224,7 @@ public class CostGraph {
 
 
     OperatorNode createOperatorGraph(Hop hop, boolean transpose) {
+//        System.out.println(hop.getHopID()+" "+hop.getName()+" "+hop.getOpString());
 //        if (mp.containsKey(hop)) {
 //            return mp.get(hop);
 //        }
@@ -233,6 +240,34 @@ public class CostGraph {
             return null;
         } else if (HopRewriteUtils.isUnary(hop, Types.OpOp1.CAST_AS_SCALAR)) {
             node = createOperatorGraph(hop.getInput().get(0), transpose);
+        } else if (hop instanceof TernaryOp || hop instanceof NaryOp) {
+            ArrayList<OperatorNode> operatorNodes = new ArrayList<>();
+            if (!transpose) {
+                for (int i = 0; i < hop.getInput().size(); i++) {
+                    if (!(hop.getInput().get(i) instanceof LiteralOp)) {
+                        OperatorNode tmp = createOperatorGraph(hop.getInput().get(i), transpose);
+                        operatorNodes.add(tmp);
+                    }
+                }
+            } else {
+                for (int i = hop.getInput().size() - 1; i >= 0; i--) {
+                    if (!(hop.getInput().get(i) instanceof LiteralOp)) {
+                        OperatorNode tmp = createOperatorGraph(hop.getInput().get(i), transpose);
+                        operatorNodes.add(tmp);
+                    }
+                }
+            }
+            if (operatorNodes.size() < 1) return null;
+            node = operatorNodes.get(0);
+            for (int i = 1; i < operatorNodes.size(); i++) {
+                OperatorNode right = operatorNodes.get(i);
+                OperatorNode sum = new OperatorNode();
+                sum.inputs.add(node);
+                sum.inputs.add(right);
+                sum.hops.add(hop);
+                sum.isTranspose = transpose;
+                node = sum;
+            }
         } else {
             ArrayList<OperatorNode> tmpNodes = new ArrayList<>();
             if (!transpose) {
@@ -240,14 +275,12 @@ public class CostGraph {
                     OperatorNode tmp = createOperatorGraph(hop.getInput().get(i), transpose);
                     if (tmp == null) continue;
                     tmpNodes.add(tmp);
-                    // node.accCost += tmp.accCost;
                 }
             } else {
                 for (int i = hop.getInput().size() - 1; i >= 0; i--) {
                     OperatorNode tmp = createOperatorGraph(hop.getInput().get(i), transpose);
                     if (tmp == null) continue;
                     tmpNodes.add(tmp);
-                    //   node.accCost += tmp.accCost;
                 }
             }
             if (tmpNodes.size() == 1) {
@@ -267,11 +300,19 @@ public class CostGraph {
                 node.hops.add(hop);
             }
         }
+//        else {
+//            System.out.println(Explain.explain(hop));
+//           System.exit(-3);
+//        }
         return node;
     }
 
     void analyzeOperatorRange(OperatorNode root, SingleCse cse, MutableInt opIndex) {
         int begin = opIndex.getValue();
+//        if (root==null||root.inputs==null) {
+//            System.out.println(root);
+//            System.exit(-4);
+//        }
         if (root.inputs.size() > 0) {
             for (int i = 0; i < root.inputs.size(); i++) {
                 analyzeOperatorRange(root.inputs.get(i), cse, opIndex);
@@ -328,13 +369,13 @@ public class CostGraph {
         thisCost = this.nodeCostEstimator.getNodeCost(node);
 
         if (!range2acnode.containsKey(node.range)) {
-            ACNode acNode = new ACNode();
-            acNode.range = node.range;
             OperatorNode node1 = node.copyWithoutDependencies();
             node1.thisCost = thisCost;
             //   node1.accCost = accCost;
             //   acNode.operatorNodes.add(node1);
-            acNode.addOperatorNode(node1);
+            ACNode acNode = new ACNode();
+            acNode.range = node.range;
+            acNode.emptyOpnode = node1;
             range2acnode.put(node.range, acNode);
         }
 
@@ -364,6 +405,7 @@ public class CostGraph {
         //  System.out.println(node);
         range2acnode.get(node.range).addOperatorNode(node);
         visited.add(node);
+//        System.out.println("add node "+node.range+" "+node);
     }
 
 
@@ -432,7 +474,11 @@ public class CostGraph {
                 ArrayList<OperatorNode> lops = lac.getOperatorNodes(MAINTAINER);
                 ArrayList<OperatorNode> rops = rac.getOperatorNodes(MAINTAINER);
                 Collection<OperatorNode> mids = acNode.drange2operatornodes.get(drange).values();
+//                System.out.println(lRange+" "+rRange);
 //                System.out.println("0.1 " + lops.size() + " " + rops.size() + " " + mids.size());
+//                System.out.println(lops);
+//                System.out.println(rops);
+//                System.out.println(mids);
 
                 for (OperatorNode operatorNode : mids) {
                     for (OperatorNode operatorNode1 : lops) {
@@ -480,6 +526,9 @@ public class CostGraph {
             }
 //            System.out.println(boundery + " min ac: ");
 //            System.out.println(acNode.minAC);
+//            if (acNode.minAC==null) {
+//                System.out.println(acNode.drange2operatornodes.values());
+//            }
             MAINTAINER.printCseNumStats();
 
 
@@ -498,10 +547,10 @@ public class CostGraph {
 //                System.out.println(range + " " + range2acnode.get(range).uncertainACs.size());
             }
         }
-        if (sortedRanges.size()>0) {
-            ArrayList<OperatorNode> opnodess = range2acnode.get(sortedRanges.get(sortedRanges.size()-1)).getOperatorNodes(MAINTAINER);
+        if (sortedRanges.size() > 0) {
+            ArrayList<OperatorNode> opnodess = range2acnode.get(sortedRanges.get(sortedRanges.size() - 1)).getOperatorNodes(MAINTAINER);
             return opnodess;
-        }else {
+        } else {
             return null;
         }
     }

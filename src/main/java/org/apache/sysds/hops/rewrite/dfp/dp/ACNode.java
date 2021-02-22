@@ -42,6 +42,7 @@ public class ACNode {
         uncertainACs.entrySet().removeIf(entry -> maintainer.hasUselessCse(entry.getKey()));
         ArrayList<OperatorNode> ops = new ArrayList<>(uncertainACs.values());
         if (certainAC != null) ops.add(certainAC);
+        if (emptyOpnode!=null) ops.add(emptyOpnode);
         for (HashMap<HashSet<SingleCse>, OperatorNode> x : drange2operatornodes.values()) {
             for (OperatorNode node : x.values()) {
                 if (node.accCost < Double.MAX_VALUE / 2) {
@@ -53,7 +54,7 @@ public class ACNode {
         return ops;
     }
 
-
+    public OperatorNode emptyOpnode = null;
     public OperatorNode minAC = null;
     public OperatorNode certainAC = null;
     public HashMap<HashSet<SingleCse>, OperatorNode> certainACs = new HashMap<>();

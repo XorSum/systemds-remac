@@ -4,10 +4,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.sysds.common.Types;
-import org.apache.sysds.hops.AggBinaryOp;
-import org.apache.sysds.hops.BinaryOp;
-import org.apache.sysds.hops.Hop;
-import org.apache.sysds.hops.OptimizerUtils;
+import org.apache.sysds.hops.*;
 import org.apache.sysds.hops.estim.EstimatorBasicAvg;
 import org.apache.sysds.hops.estim.EstimatorMatrixHistogram;
 import org.apache.sysds.hops.estim.MMNode;
@@ -90,6 +87,10 @@ public class NodeCostEstimator {
                  //   System.out.println("un handled hop type: " + hop.getOpString());
                 }
             }
+        }else if (hop instanceof NaryOp||hop instanceof TernaryOp){
+            MMNode m0 = addOpnode2Mmnode(opnode.inputs.get(0));
+            MMNode m1 = addOpnode2Mmnode(opnode.inputs.get(1));
+            ans = new MMNode(m0, m1, SparsityEstimator.OpCode.PLUS);
         } else {
            // System.out.println("un handled hop type: " + hop.getOpString());
            // boolean tmp = HopRewriteUtils.isBinaryMatrixMatrixOperation(hop);
@@ -138,7 +139,9 @@ public class NodeCostEstimator {
             }
         } else if (Judge.isLeafMatrix(hop)) {
             ans = 0;
-        } else {
+        } else  if (hop instanceof TernaryOp || hop instanceof NaryOp) {
+            ans = eBinaryMatrixMatrix(opnode,hop);
+        }  else {
            // System.out.println("unhandled operator type " + hop.getOpString());
             //  System.out.println("x");
         }

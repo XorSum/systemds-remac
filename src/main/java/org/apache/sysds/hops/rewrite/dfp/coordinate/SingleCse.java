@@ -1,11 +1,8 @@
 package org.apache.sysds.hops.rewrite.dfp.coordinate;
 
-import org.apache.commons.lang3.builder.EqualsBuilder;
-import org.apache.commons.lang3.builder.HashCodeBuilder;
-import org.apache.spark.sql.catalyst.expressions.Sin;
 import org.apache.sysds.hops.Hop;
-
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Objects;
 
@@ -33,6 +30,14 @@ public class SingleCse {
         this.ranges.add(newRange);
         this.last_index = last_index;
     }
+
+    public SingleCse(HashKey hash, Collection<Range> ranges, int last_index) {
+        this.hash = hash;
+        this.ranges = new ArrayList<>();
+        this.ranges.addAll(ranges);
+        this.last_index = last_index;
+    }
+
 
     public SingleCse(Range range, Hop prototype) {
         this.ranges = new ArrayList<>();

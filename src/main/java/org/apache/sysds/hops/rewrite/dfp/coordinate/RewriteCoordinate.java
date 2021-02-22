@@ -18,7 +18,6 @@ import org.apache.sysds.hops.rewrite.dfp.utils.*;
 import org.apache.sysds.parser.*;
 import org.apache.sysds.runtime.controlprogram.Program;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
-import org.apache.sysds.runtime.util.SortUtils;
 import org.apache.sysds.utils.Explain;
 
 import java.util.*;
@@ -69,6 +68,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     // </configuration>
 
+    public static long allGenerateOptionsTime = 0;
+    public static long allGenerateCombinationsTime = 0;
+
     public MySolution rewiteHopDag(Hop root) {
 //        System.out.println("rootname"+root.getName());
 //        System.out.println("xx");
@@ -78,7 +80,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
         try {
             LOG.trace(ec.getVariables().keySet());
-            FakeCostEstimator2.miniumCostBoundery = Double.MAX_VALUE;
+//            FakeCostEstimator2.miniumCostBoundery = Double.MAX_VALUE;
             originalSolution.cost = estimate(originalSolution, true);
 //            if (!"h".equals(root.getName())) {
 //                return originalSolution;
@@ -108,7 +110,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             // 找到所有的叶子节点
             findAllLeaf(template, new ArrayList<>(), 0, hopId2LeafIndex, djs);
             if (leaves.size() < 4) return originalSolution;
-//            System.out.println("leaves.size:" + leaves.size());
+            LOG.info("number of leaves = " + leaves.size());
 //            for (int i = 0; i < leaves.size(); i++) {
 //                System.out.println("leavesID: " + i);
 //                System.out.println(Explain.explain(leaves.get(i).hop));
@@ -124,8 +126,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             }
 
             long end = System.nanoTime();
-            LOG.info("generate options time = " + ((end - start) / 1e9) + "s");
-            System.out.println("generate options time = " + ((end - start) / 1e9) + "s");
+            allGenerateOptionsTime += end - start;
+//            LOG.info("generate options time = " + ((end - start) / 1e9) + "s");
+//            System.out.println("generate options time = " + ((end - start) / 1e9) + "s");
 
             start = System.nanoTime();
             MySolution mySolution = null;
@@ -143,8 +146,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 //  System.out.println("x");
             }
             end = System.nanoTime();
-            LOG.info("generate combinations time = " + ((end - start) / 1e9) + "s");
-            System.out.println("generate combinations time = " + ((end - start) / 1e9) + "s");
+            allGenerateCombinationsTime += end - start;
+//            LOG.info("generate combinations time = " + ((end - start) / 1e9) + "s");
+//            System.out.println("generate combinations time = " + ((end - start) / 1e9) + "s");
 
             if (mySolution != null && mySolution.cost < originalSolution.cost) {
                 LOG.info("return rewrited solution");
@@ -327,7 +331,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         }
     }
 
-    private void genBlocks(DisjointSet djs, ArrayList<Range> blockRanges, HashMap<HashKey, ArrayList<Range>> hash2Ranges) {
+    private void genBlocks(DisjointSet djs, ArrayList<Range> blockRanges, HashMap<HashKey, ArrayList<HashSet<Range>>> hash2Rangesset) {
         // 3. 把叶子根据并查集分为多个块
         for (int i = 0; i < leaves.size(); i++) {
             if (djs.find(i) == i) {
@@ -339,7 +343,36 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     LOG.info("Range " + l + " " + r + " " + getRangeName(l, r));
             }
         }
+
+        HashMap<HashKey, ArrayList<Range>> hash2blockranges = new HashMap<>();
+        for (Range r : blockRanges) {
+            long first = rangeHash1(r.left, r.right);
+            long second = rangeHash2(r.left, r.right);
+            r.transpose = false;
+            if (first < second) {
+                Long tmp = first;
+                first = second;
+                second = tmp;
+                r.transpose = true;
+            }
+            HashKey hash = HashKey.of(first, second);
+            if (hash2blockranges.containsKey(hash)) {
+                hash2blockranges.get(hash).add(r);
+            } else {
+                ArrayList<Range> ranges1 = new ArrayList<>();
+                ranges1.add(r);
+                hash2blockranges.put(hash, ranges1);
+            }
+        }
+
+//        System.out.println(hash2blockranges.size());
+//        for (ArrayList<Range> ranges: hash2blockranges.values()) {
+//            System.out.println(ranges);
+//        }
+
+
         // 4. 求出每个区间的哈希值，并把哈希值相同的汇聚起来
+        HashMap<HashKey, ArrayList<Range>> hash2Ranges = new HashMap<>();
         for (Range block : blockRanges) {
             for (int l = block.left; l <= block.right; l++) {
                 //    LOG.debug("i=" + l + " name=" + leaves.get(l).hop.getName() + " updated=" + variablesUpdated.containsVariable(leaves.get(l).hop.getName()));
@@ -368,8 +401,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         for (Iterator<Map.Entry<HashKey, ArrayList<Range>>> it = hash2Ranges.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<HashKey, ArrayList<Range>> e = it.next();
             ArrayList<Range> list = e.getValue();
-            if (list.size()<2) {
-                if (!isConstant(list.get(0).left,list.get(0).right)) {
+            if (list.size() < 2) {
+                if (!isConstant(list.get(0).left, list.get(0).right)) {
                     it.remove();
                 }
             } else {
@@ -380,10 +413,36 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         }
         LOG.info("number of commom exp = " + hash2Ranges.size());
 
+        // 根据block分类
+
+        for (Map.Entry<HashKey, ArrayList<Range>> entry : hash2Ranges.entrySet()) {
+            ArrayList<HashSet<Range>> arrayList = new ArrayList<>();
+            for (ArrayList<Range> blocks : hash2blockranges.values()) {
+                HashMap<Long, HashSet<Range>> long2hashSet = new HashMap<>();
+                for (Range block : blocks) {
+                    for (Range range : entry.getValue()) {
+                        if (block.left <= range.left && range.right <= block.right) {
+                            long mask;
+                            if (block.transpose) mask = block.right - range.right;
+                            else mask = range.left - block.left;
+                            if (!long2hashSet.containsKey(mask)) long2hashSet.put(mask, new HashSet<>());
+                            long2hashSet.get(mask).add(range);
+                        }
+                    }
+                }
+                for (HashSet<Range> hashSet : long2hashSet.values()) {
+                    if (!hashSet.isEmpty()) {
+                        //   System.out.println(hashSet.size() + " " + blocks + " " + hashSet);
+                        arrayList.add(hashSet);
+                    }
+                }
+            }
+            hash2Rangesset.put(entry.getKey(), arrayList);
+        }
     }
 
-    private boolean isConstant(int left,int right) {
-        for (int i=left;i<=right;i++) {
+    private boolean isConstant(int left, int right) {
+        for (int i = left; i <= right; i++) {
             if (notConstant(i)) return false;
         }
         return true;
@@ -396,15 +455,15 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     }
 
     private ArrayList<SingleCse> genSingleCse(DisjointSet djs, ArrayList<Range> blockRanges) {
-        HashMap<HashKey, ArrayList<Range>> hash2Ranges = new HashMap<>();
+        HashMap<HashKey, ArrayList<HashSet<Range>>> hash2Ranges = new HashMap<>();
         // 划分 块
         genBlocks(djs, blockRanges, hash2Ranges);
 
         // 构造出所有的SingleCse
         long start = System.nanoTime();
         ArrayList<SingleCse> result = new ArrayList<>();
-        for (Map.Entry<HashKey, ArrayList<Range>> e : hash2Ranges.entrySet()) {
-            ArrayList<SingleCse> singleCses = genSingleCseFromRanges(e.getKey(), e.getValue());
+        for (Map.Entry<HashKey, ArrayList<HashSet<Range>>> e : hash2Ranges.entrySet()) {
+            ArrayList<SingleCse> singleCses = genSingleCseFromRanges1(e.getKey(), e.getValue());
             result.addAll(singleCses);
         }
         if (showSingleCse) {
@@ -418,26 +477,46 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return result;
     }
 
-    private ArrayList<SingleCse> genSingleCseFromRanges(HashKey hash, ArrayList<Range> ranges) {
+
+//    private ArrayList<SingleCse> genSingleCseFromRanges(HashKey hash, ArrayList<HashSet<Range>> ranges, ArrayList<Range> blockRanges) {
+//
+////        ArrayList<Range> ranges2 = new ArrayList<>();
+////        for (ArrayList<Range> ranges1: hash2blockranges.values()) {
+////            Range block = ranges1.get(0);
+////            ranges2.add(block);
+////        }
+////        ArrayList<SingleCse>  singleCses =  genSingleCseFromRanges1( hash, ranges2);
+//
+//        return null;
+//    }
+
+    private ArrayList<SingleCse> genSingleCseFromRanges1(HashKey hash, ArrayList<HashSet<Range>> rangesets) {
         ArrayList<SingleCse> result = new ArrayList<>();
-        for (int index = 0; index < ranges.size(); index++) {
-            SingleCse tmp = new SingleCse(hash, new ArrayList<>(), ranges.get(index), index);
-            tmp.name = getRangeName(ranges.get(index));
+        for (int index = 0; index < rangesets.size(); index++) {
+            SingleCse tmp = new SingleCse(hash, rangesets.get(index), index);
+            for (Range r : rangesets.get(index)) {
+                tmp.name = getRangeName(r);
+                break;
+            }
             result.add(tmp);
         }
         for (int i = 0; i < result.size(); i++) {
             SingleCse frontSC = result.get(i);
-            for (int index = frontSC.last_index + 1; index < ranges.size(); index++) {
-                Range rangeA = ranges.get(index);
+            for (int index = frontSC.last_index + 1; index < rangesets.size(); index++) {
+                HashSet<Range> rangeAset = rangesets.get(index);
                 boolean ok = true;
                 for (int k = 0; ok && k < frontSC.ranges.size(); k++) {
                     Range rangeB = frontSC.ranges.get(k);
-                    if (rangeA.intersect(rangeB)) {
-                        ok = false;
+                    for (Range rangeA : rangeAset) {
+                        if (rangeA.intersect(rangeB)) {
+                            ok = false;
+                            break;
+                        }
                     }
                 }
                 if (ok) {
-                    SingleCse newSC = new SingleCse(hash, frontSC.ranges, rangeA, index);
+                    SingleCse newSC = new SingleCse(hash, frontSC.ranges, index);
+                    newSC.ranges.addAll(rangeAset);
                     newSC.name = frontSC.name;
                     result.add(newSC);
 //                    if (result.size() % 1000 == 0) {
@@ -446,10 +525,17 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 }
             }
         }
-        if (ranges.size() < 1) return result;
-        if (!isConstant(ranges.get(0).left,ranges.get(0).right)) {
-            if (ranges.size() > 0) {
-                result.subList(0, ranges.size()).clear();
+        if (rangesets.size() < 1) return result;
+        boolean isCons = true;
+        for (Range range : rangesets.get(0)) {
+            if (!isConstant(range.left, range.right)) {
+                isCons = false;
+                break;
+            }
+        }
+        if (!isCons) {
+            if (rangesets.size() > 0) {
+                result.subList(0, rangesets.size()).clear();
             }
         }
         return result;
@@ -651,7 +737,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         start = System.nanoTime();
         MySolution bestSolution = new MySolution();
 
-        FakeCostEstimator2.miniumCostBoundery = Double.MAX_VALUE;
+//        FakeCostEstimator2.miniumCostBoundery = Double.MAX_VALUE;
         for (int i = 0; i < solutions.size(); i++) {
             try {
                 MySolution solution = solutions.get(i);
@@ -672,7 +758,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         }
         LOG.info("minium cost = " + bestSolution.cost);
         if (bestSolution.body != null) {
-            FakeCostEstimator2.miniumCostBoundery = Double.MAX_VALUE;
+//            FakeCostEstimator2.miniumCostBoundery = Double.MAX_VALUE;
             bestSolution.cost = estimate(bestSolution, true);
         } else {
             return null;
@@ -698,29 +784,74 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             FakeCostEstimator2.MMShowCostFlag = true;
         }
         try {
-            if (ec != null) {
-                FakeCostEstimator2.ec = ec;
-                double preCost = 0;
-                for (Hop h : solution.preLoopConstants) {
-                    Program program = constructProgramBlocks(h, statementBlock);
-                    if (showDetails)
-                        LOG.debug(Explain.explain(program));
-                    preCost += FakeCostEstimator2.estimate(program);
-                    if (preCost > FakeCostEstimator2.miniumCostBoundery) break;
-                }
-                Program programBlocks = constructProgramBlocks(solution.body, statementBlock);
+            FakeCostEstimator2.ec = ec;
+            double preCost = 0;
+            double bodyCost = 0;
+            double preloopShuffleCost = 0;
+            double preloopBroadcastCost = 0;
+            double preloopComputeCost = 0;
+            double preloopCollectCost = 0;
+            double bodyShuffleCost = 0;
+            double bodyBroadcastCost = 0;
+            double bodyComputeCost = 0;
+            double bodyCollectCost = 0;
+
+            for (Hop h : solution.preLoopConstants) {
+                Program program = constructProgramBlocks(h, statementBlock);
                 if (showDetails)
-                    LOG.debug(Explain.explain(programBlocks));
-                //cost = CostEstimationWrapper.getTimeEstimate(programBlocks, ec);
-                double bodyCost = Double.MAX_VALUE;
-                if (preCost <= FakeCostEstimator2.miniumCostBoundery)
-                    bodyCost = FakeCostEstimator2.estimate(programBlocks);
-                cost = preCost + bodyCost * iterationNumber;
-                solution.cost = cost;
-                //    FakeCostEstimator2.miniumCostBoundery = Math.min(FakeCostEstimator2.miniumCostBoundery,cost);
-                if (showDetails)
-                    LOG.debug("preCOst=" + preCost + " bodyCost=" + bodyCost + " allcost=" + cost + " cse=" + solution.multiCse);
+                    LOG.debug(Explain.explain(program));
+                preCost += FakeCostEstimator2.estimate(program);
+                preloopShuffleCost += FakeCostEstimator2.shuffleCostSummary;
+                preloopBroadcastCost += FakeCostEstimator2.broadcastCostSummary;
+                preloopComputeCost += FakeCostEstimator2.computeCostSummary;
+                preloopCollectCost += FakeCostEstimator2.collectCostSummary;
+//                if (preCost > FakeCostEstimator2.miniumCostBoundery) break;
             }
+            Program programBlocks = constructProgramBlocks(solution.body, statementBlock);
+            if (showDetails)
+                LOG.debug(Explain.explain(programBlocks));
+//            cost = CostEstimationWrapper.getTimeEstimate(programBlocks, ec);
+//            if (preCost <= FakeCostEstimator2.miniumCostBoundery) {
+            bodyCost = FakeCostEstimator2.estimate(programBlocks);
+            bodyShuffleCost += FakeCostEstimator2.shuffleCostSummary;
+            bodyBroadcastCost += FakeCostEstimator2.broadcastCostSummary;
+            bodyComputeCost += FakeCostEstimator2.computeCostSummary;
+            bodyCollectCost += FakeCostEstimator2.collectCostSummary;
+//            }
+            cost = preCost + bodyCost * iterationNumber;
+            solution.cost = cost;
+            solution.preCost = preCost;
+            solution.bodyCost = bodyCost;
+            solution.preloopShuffleCost = preloopShuffleCost;
+            solution.preloopBroadcastCost = preloopBroadcastCost;
+            solution.preloopComputeCost = preloopComputeCost;
+            solution.preloopCollectCost = preloopCollectCost;
+            solution.bodyShuffleCost = bodyShuffleCost;
+            solution.bodyBroadcastCost = bodyBroadcastCost;
+            solution.bodyComputeCost = bodyComputeCost;
+            solution.bodyCollectCost = bodyCollectCost;
+
+//                FakeCostEstimator2.miniumCostBoundery = Math.min(FakeCostEstimator2.miniumCostBoundery,cost);
+            if (showDetails) {
+//                LOG.debug("preCOst=" + preCost + " bodyCost=" + bodyCost + " allcost=" + cost +   " cse=" + solution.multiCse);
+                LOG.debug("multicse=" + solution.multiCse);
+                LOG.debug("allCost=" + cost);
+                LOG.debug("preCost=" + preCost);
+                LOG.debug("bodyCost=" + bodyCost);
+                LOG.debug("allshuffleCost=" + (preloopShuffleCost + bodyShuffleCost * iterationNumber));
+                LOG.debug("allBroadcastCost=" + (preloopBroadcastCost + bodyBroadcastCost * iterationNumber));
+                LOG.debug("allComputeCost=" + (preloopComputeCost + bodyComputeCost * iterationNumber));
+                LOG.debug("allCollectCost=" + (preloopCollectCost + bodyCollectCost * iterationNumber));
+                LOG.debug("preloopShuffleCost=" + preloopShuffleCost);
+                LOG.debug("preloopBroadcastCost=" + preloopBroadcastCost);
+                LOG.debug("preloopComputeCost=" + preloopComputeCost);
+                LOG.debug("preloopCollectCost=" + preloopCollectCost);
+                LOG.debug("bodyShuffleCost=" + bodyShuffleCost);
+                LOG.debug("bodyBroadcastCost=" + bodyBroadcastCost);
+                LOG.debug("bodyComputeCost=" + bodyComputeCost);
+                LOG.debug("bodyCollectCost=" + bodyCollectCost);
+            }
+
         } catch (Exception e) {
             //  e.printStackTrace();
             cost = Double.MAX_VALUE;
