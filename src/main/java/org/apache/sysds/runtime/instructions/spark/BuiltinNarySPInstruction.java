@@ -51,8 +51,8 @@ import java.util.List;
 
 public class BuiltinNarySPInstruction extends SPInstruction implements LineageTraceable
 {
-	private CPOperand[] inputs;
-	private CPOperand output;
+	public CPOperand[] inputs;
+	public CPOperand output;
 	
 	protected BuiltinNarySPInstruction(CPOperand[] in, CPOperand out, String opcode, String istr) {
 		super(SPType.BuiltinNary, opcode, istr);

@@ -39,8 +39,8 @@ import org.apache.sysds.runtime.matrix.operators.SimpleOperator;
  */
 public abstract class BuiltinNaryCPInstruction extends CPInstruction 
 {
-	protected final CPOperand output;
-	protected final CPOperand[] inputs;
+	public final CPOperand output;
+	public final CPOperand[] inputs;
 
 	public BuiltinNaryCPInstruction(Operator op, String opcode, String istr, CPOperand output, CPOperand... inputs) {
 		super(CPType.BuiltinNary, op, opcode, istr);

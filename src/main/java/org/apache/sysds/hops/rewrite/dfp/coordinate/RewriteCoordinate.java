@@ -108,7 +108,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             // 找到所有的叶子节点
             findAllLeaf(template, new ArrayList<>(), 0, hopId2LeafIndex, djs);
             if (leaves.size() < 4) return originalSolution;
-//            System.out.println("leaves.size:" + leaves.size());
+            LOG.info("number of leaves = " + leaves.size());
 //            for (int i = 0; i < leaves.size(); i++) {
 //                System.out.println("leavesID: " + i);
 //                System.out.println(Explain.explain(leaves.get(i).hop));
@@ -327,7 +327,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         }
     }
 
-    private void genBlocks(DisjointSet djs, ArrayList<Range> blockRanges, HashMap<HashKey, ArrayList<Range>> hash2Ranges) {
+    private void genBlocks(DisjointSet djs, ArrayList<Range> blockRanges, HashMap<HashKey, ArrayList<HashSet<Range>>> hash2Rangesset) {
         // 3. 把叶子根据并查集分为多个块
         for (int i = 0; i < leaves.size(); i++) {
             if (djs.find(i) == i) {
@@ -339,7 +339,36 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     LOG.info("Range " + l + " " + r + " " + getRangeName(l, r));
             }
         }
+
+        HashMap<HashKey, ArrayList<Range> > hash2blockranges = new HashMap<>();
+        for (Range r: blockRanges) {
+            long first =  rangeHash1(r.left,r.right);
+            long second = rangeHash2(r.left,r.right);
+            r.transpose = false;
+            if (first < second) {
+                Long tmp = first;
+                first = second;
+                second = tmp;
+                r.transpose = true;
+            }
+            HashKey hash = HashKey.of(first, second);
+            if (hash2blockranges.containsKey(hash)) {
+                hash2blockranges.get(hash).add(r);
+            } else {
+                ArrayList<Range> ranges1 = new ArrayList<>();
+                ranges1.add(r);
+                hash2blockranges.put(hash,ranges1);
+            }
+        }
+
+//        System.out.println(hash2blockranges.size());
+//        for (ArrayList<Range> ranges: hash2blockranges.values()) {
+//            System.out.println(ranges);
+//        }
+
+
         // 4. 求出每个区间的哈希值，并把哈希值相同的汇聚起来
+        HashMap<HashKey,ArrayList<Range>> hash2Ranges = new HashMap<>();
         for (Range block : blockRanges) {
             for (int l = block.left; l <= block.right; l++) {
                 //    LOG.debug("i=" + l + " name=" + leaves.get(l).hop.getName() + " updated=" + variablesUpdated.containsVariable(leaves.get(l).hop.getName()));
@@ -380,6 +409,32 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         }
         LOG.info("number of commom exp = " + hash2Ranges.size());
 
+        // 根据block分类
+
+        for (Map.Entry<HashKey,ArrayList<Range>> entry: hash2Ranges.entrySet()) {
+            ArrayList<HashSet<Range>> arrayList = new ArrayList<>();
+                for (ArrayList<Range> blocks : hash2blockranges.values()) {
+                    HashMap<Long, HashSet<Range>> long2hashSet = new HashMap<>();
+                    for (Range block : blocks) {
+                        for (Range range: entry.getValue()){
+                            if (block.left<=range.left&&range.right<=block.right) {
+                                long mask;
+                                if (block.transpose) mask = block.right - range.right;
+                                else  mask = range.left-block.left;
+                                if (!long2hashSet.containsKey(mask)) long2hashSet.put(mask,new HashSet<>());
+                                long2hashSet.get(mask).add(range);
+                            }
+                        }
+                    }
+                    for (HashSet<Range> hashSet: long2hashSet.values()) {
+                        if (!hashSet.isEmpty()) {
+                         //   System.out.println(hashSet.size() + " " + blocks + " " + hashSet);
+                            arrayList.add(hashSet);
+                        }
+                    }
+                }
+            hash2Rangesset.put(entry.getKey(),arrayList);
+        }
     }
 
     private boolean isConstant(int left,int right) {
@@ -396,15 +451,15 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     }
 
     private ArrayList<SingleCse> genSingleCse(DisjointSet djs, ArrayList<Range> blockRanges) {
-        HashMap<HashKey, ArrayList<Range>> hash2Ranges = new HashMap<>();
+        HashMap<HashKey, ArrayList<HashSet<Range>>> hash2Ranges = new HashMap<>();
         // 划分 块
         genBlocks(djs, blockRanges, hash2Ranges);
 
         // 构造出所有的SingleCse
         long start = System.nanoTime();
         ArrayList<SingleCse> result = new ArrayList<>();
-        for (Map.Entry<HashKey, ArrayList<Range>> e : hash2Ranges.entrySet()) {
-            ArrayList<SingleCse> singleCses = genSingleCseFromRanges(e.getKey(), e.getValue());
+        for (Map.Entry<HashKey, ArrayList<HashSet<Range>>> e : hash2Ranges.entrySet()) {
+            ArrayList<SingleCse> singleCses = genSingleCseFromRanges1(e.getKey(), e.getValue());
             result.addAll(singleCses);
         }
         if (showSingleCse) {
@@ -418,26 +473,46 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return result;
     }
 
-    private ArrayList<SingleCse> genSingleCseFromRanges(HashKey hash, ArrayList<Range> ranges) {
+
+//    private ArrayList<SingleCse> genSingleCseFromRanges(HashKey hash, ArrayList<HashSet<Range>> ranges, ArrayList<Range> blockRanges) {
+//
+////        ArrayList<Range> ranges2 = new ArrayList<>();
+////        for (ArrayList<Range> ranges1: hash2blockranges.values()) {
+////            Range block = ranges1.get(0);
+////            ranges2.add(block);
+////        }
+////        ArrayList<SingleCse>  singleCses =  genSingleCseFromRanges1( hash, ranges2);
+//
+//        return null;
+//    }
+
+    private ArrayList<SingleCse> genSingleCseFromRanges1(HashKey hash, ArrayList<HashSet<Range>> rangesets) {
         ArrayList<SingleCse> result = new ArrayList<>();
-        for (int index = 0; index < ranges.size(); index++) {
-            SingleCse tmp = new SingleCse(hash, new ArrayList<>(), ranges.get(index), index);
-            tmp.name = getRangeName(ranges.get(index));
+        for (int index = 0; index < rangesets.size(); index++) {
+            SingleCse tmp = new SingleCse(hash,  rangesets.get(index), index);
+            for (Range r: rangesets.get(index)) {
+                tmp.name = getRangeName(r);
+                break;
+            }
             result.add(tmp);
         }
         for (int i = 0; i < result.size(); i++) {
             SingleCse frontSC = result.get(i);
-            for (int index = frontSC.last_index + 1; index < ranges.size(); index++) {
-                Range rangeA = ranges.get(index);
+            for (int index = frontSC.last_index + 1; index < rangesets.size(); index++) {
+                HashSet<Range> rangeAset = rangesets.get(index);
                 boolean ok = true;
                 for (int k = 0; ok && k < frontSC.ranges.size(); k++) {
                     Range rangeB = frontSC.ranges.get(k);
-                    if (rangeA.intersect(rangeB)) {
-                        ok = false;
+                    for (Range rangeA: rangeAset){
+                        if (rangeA.intersect(rangeB)) {
+                            ok = false;
+                            break;
+                        }
                     }
                 }
                 if (ok) {
-                    SingleCse newSC = new SingleCse(hash, frontSC.ranges, rangeA, index);
+                    SingleCse newSC = new SingleCse(hash, frontSC.ranges, index);
+                    newSC.ranges.addAll(rangeAset);
                     newSC.name = frontSC.name;
                     result.add(newSC);
 //                    if (result.size() % 1000 == 0) {
@@ -446,10 +521,16 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 }
             }
         }
-        if (ranges.size() < 1) return result;
-        if (!isConstant(ranges.get(0).left,ranges.get(0).right)) {
-            if (ranges.size() > 0) {
-                result.subList(0, ranges.size()).clear();
+        if (rangesets.size() < 1) return result;
+        boolean isCons = true;
+        for (Range range: rangesets.get(0)) {
+            if (!isConstant(range.left,range.right)) {
+                isCons = false;break;
+            }
+        }
+        if (!isCons) {
+            if (rangesets.size() > 0) {
+                result.subList(0, rangesets.size()).clear();
             }
         }
         return result;
