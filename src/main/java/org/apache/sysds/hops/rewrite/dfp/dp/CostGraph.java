@@ -2,6 +2,8 @@ package org.apache.sysds.hops.rewrite.dfp.dp;
 
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.sysds.common.Types;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.LiteralOp;
@@ -11,6 +13,7 @@ import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.Leaf;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.Range;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.SingleCse;
+import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
 import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
 import org.apache.sysds.parser.VariableSet;
 import org.apache.sysds.utils.Explain;
@@ -18,6 +21,7 @@ import org.apache.sysds.utils.Explain;
 import java.util.*;
 
 public class CostGraph {
+    protected static final Log LOG = LogFactory.getLog(CostGraph.class.getName());
 
     public CostGraph(VariableSet variablesUpdated, long iterationNumber) {
         this.variablesUpdated = variablesUpdated;
@@ -31,7 +35,7 @@ public class CostGraph {
 
 
     public ArrayList<OperatorNode> testOperatorGraph(ArrayList<SinglePlan> pairs, Pair<SingleCse, Hop> emptyPair, ArrayList<Range> blockRanges, ArrayList<Leaf> leaves) {
-        //  System.out.println("begin test Operator Graph");
+        LOG.info("begin test Operator Graph");
         int maxIndex = 0;
         HashSet<Pair<Integer, Integer>> ranges = new HashSet<>();
 
@@ -452,9 +456,9 @@ public class CostGraph {
         ArrayList<Pair<Integer, Integer>> sortedRanges = new ArrayList<>(range2acnode.keySet());
 //        ranges.sort(Comparator.comparingInt((Pair<Integer,Integer> a)->(a.getRight()-a.getLeft())));
         sortedRanges.sort(Comparator.comparingInt((Pair<Integer, Integer> a) -> (a.getRight() - a.getLeft())).thenComparingInt(Pair::getLeft));
-//        System.out.println(sortedRanges);
+        LOG.info(sortedRanges);
         for (Pair<Integer, Integer> boundery : sortedRanges) {
-//            System.out.println("boundery: " + boundery);
+            LOG.info("boundery: " + boundery);
 //            if (boundery.getRight()-boundery.getLeft()>2) break;
 //            if (boundery.getLeft() == 1 && boundery.getRight() == 19) {
 //                System.out.println("x");
@@ -474,8 +478,8 @@ public class CostGraph {
                 ArrayList<OperatorNode> lops = lac.getOperatorNodes(MAINTAINER);
                 ArrayList<OperatorNode> rops = rac.getOperatorNodes(MAINTAINER);
                 Collection<OperatorNode> mids = acNode.drange2operatornodes.get(drange).values();
-//                System.out.println(lRange+" "+rRange);
-//                System.out.println("0.1 " + lops.size() + " " + rops.size() + " " + mids.size());
+//                System.out.println();
+                LOG.info("  " + lRange + " " + rRange + lops.size() + " " + rops.size() + " " + mids.size());
 //                System.out.println(lops);
 //                System.out.println(rops);
 //                System.out.println(mids);
@@ -496,7 +500,7 @@ public class CostGraph {
                     }
                 }
             }
-//            System.out.println("1. " + allResults.size());
+            LOG.info("boundery: " + boundery + " all size: " + allResults.size());
 
             classifyOperatorNode(MAINTAINER, allResults, acNode);
 
@@ -522,7 +526,7 @@ public class CostGraph {
             if (!range2acnode.containsKey(boundery)) {
                 range2acnode.put(boundery, new ACNode());
             } else {
-//                System.out.println("boundery=" + boundery + " = " + range2acnode.get(boundery).uncertainACs.size());
+                LOG.info("boundery: " + boundery + " uncertainACs size: " + range2acnode.get(boundery).uncertainACs.size());
             }
 //            System.out.println(boundery + " min ac: ");
 //            System.out.println(acNode.minAC);
