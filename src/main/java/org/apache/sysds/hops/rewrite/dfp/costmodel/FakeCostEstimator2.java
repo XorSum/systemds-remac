@@ -196,7 +196,8 @@ public class FakeCostEstimator2 {
 
     private static MMNode createMMNode(DataCharacteristics dc) {
         MMNode mmNode = new MMNode(dc);
-        LOG.info("create new mmnode by dc " + mmNode.id);
+        if (MMShowCostFlag)
+            LOG.info("create new mmnode by dc " + mmNode.id);
         return mmNode;
     }
 
@@ -204,11 +205,13 @@ public class FakeCostEstimator2 {
         Triple<MMNode, MMNode, SparsityEstimator.OpCode> key = Triple.of(left, right, op);
         if (binaryOpMmnode.containsKey(key)) {
             MMNode mmNode = binaryOpMmnode.get(key);
-            LOG.info("reuse old mmnode by triple " + left.id + " " + op + " " + right.id + " -> " + mmNode.id);
+            if (MMShowCostFlag)
+                LOG.info("reuse old mmnode by triple " + left.id + " " + op + " " + right.id + " -> " + mmNode.id);
             return mmNode;
         } else {
             MMNode mmNode = new MMNode(left, right, op);
-            LOG.info("create new mmnode by triple " + left.id + " " + op + " " + right.id + " -> " + mmNode.id);
+            if (MMShowCostFlag)
+                LOG.info("create new mmnode by triple " + left.id + " " + op + " " + right.id + " -> " + mmNode.id);
             binaryOpMmnode.put(key, mmNode);
             return mmNode;
         }
@@ -218,11 +221,13 @@ public class FakeCostEstimator2 {
         Pair<MMNode, SparsityEstimator.OpCode> key = Pair.of(left, op);
         if (unaryOpMmnode.containsKey(key)) {
             MMNode mmNode = unaryOpMmnode.get(key);
-            LOG.info("reuse old mmnode by pair " + left.id + " " + op + " -> " + mmNode.id);
+            if (MMShowCostFlag)
+                LOG.info("reuse old mmnode by pair " + left.id + " " + op + " -> " + mmNode.id);
             return mmNode;
         } else {
             MMNode mmNode = new MMNode(left, op);
-            LOG.info("create new mmnode by pair " + left.id + " " + op + " -> " + mmNode.id);
+            if (MMShowCostFlag)
+                LOG.info("create new mmnode by pair " + left.id + " " + op + " -> " + mmNode.id);
             unaryOpMmnode.put(key, mmNode);
             return mmNode;
         }
@@ -239,7 +244,8 @@ public class FakeCostEstimator2 {
             ans = null;
         } else if (name2MMNode.containsKey(name)) {
             ans = name2MMNode.get(name).mmNode;
-            LOG.info("get mmnode by old name " + name + " -> " + ans.id);
+            if (MMShowCostFlag)
+                LOG.info("get mmnode by old name " + name + " -> " + ans.id);
         } else if (ec != null && ec.containsVariable(name)) {
             try {
                 Data data = ec.getVariable(name);
@@ -259,7 +265,8 @@ public class FakeCostEstimator2 {
                     setMMNode(name, mmNode, Types.ExecType.SPARK);
                     ans = mmNode;
                 }
-                LOG.info("get mmnode by create " + name + " -> " + ans.id);
+                if (MMShowCostFlag)
+                    LOG.info("get mmnode by create " + name + " -> " + ans.id);
             } catch (Exception e) {
 //                e.printStackTrace();
             }
@@ -277,8 +284,9 @@ public class FakeCostEstimator2 {
 //                e.printStackTrace();
 //            }
 //        }
+        if (MMShowCostFlag)
         LOG.info("get mmnode " + name + " -> " + ans);
-        if (ans == null && !name.startsWith("_Var"))
+        if (ans == null && !name.startsWith("_Var") && MMShowCostFlag)
             LOG.error("get mmnode failed " + name);
         return ans;
     }
@@ -286,11 +294,12 @@ public class FakeCostEstimator2 {
     private static void setMMNode(String name, MMNode mmNode, Types.ExecType execType) {
         if (name2MMNode.containsKey(name)) return;
         //  LOG.trace("set mmnode " + name);
-        if ("g".equals(name)) {
+        if ("g".equals(name) && MMShowCostFlag) {
             LOG.debug("set g = " + mmNode.getDataCharacteristics() + " " + execType);
         }
 //         if (execType== Types.ExecType.SPARK)
-        LOG.info("set mmnode " + name + " -> " + mmNode);
+        if (MMShowCostFlag)
+            LOG.info("set mmnode " + name + " -> " + mmNode);
         name2MMNode.put(name, new Node(mmNode, execType));
         //names.add(name);
     }
@@ -309,7 +318,8 @@ public class FakeCostEstimator2 {
         double cost = 0;
         for (Instruction inst : instructions) {
             //  System.out.println(inst);
-            LOG.trace(inst);
+            if (MMShowCostFlag)
+                LOG.trace(inst);
             double delta = 0;
             try {
                 if (inst instanceof CPInstruction) {
@@ -1046,8 +1056,8 @@ public class FakeCostEstimator2 {
             shuffle = MatrixBlock.estimateSizeDenseInMemory(dc1.getRows(), dc1.getCols())
                     + MatrixBlock.estimateSizeDenseInMemory(dc2.getRows(), dc2.getCols());
         }
-        double computeCost = CpuSpeed * compute/reducerNum;
-        double shuffleCost = ShuffleSpeed * shuffle/reducerNum;
+        double computeCost = CpuSpeed * compute / reducerNum;
+        double shuffleCost = ShuffleSpeed * shuffle / reducerNum;
         computeCostSummary += computeCost;
         shuffleCostSummary += shuffleCost;
         return computeCost + shuffleCost;
@@ -1089,8 +1099,8 @@ public class FakeCostEstimator2 {
         setMMNode(inst.output.getName(), out, Types.ExecType.SPARK);
 
         long r = reducerNumber(dc.getRows(), dc.getCols());
-        double computeCost = CpuSpeed * computation/r;
-        double shuffleCost = ShuffleSpeed * shuffle/r;
+        double computeCost = CpuSpeed * computation / r;
+        double shuffleCost = ShuffleSpeed * shuffle / r;
         computeCostSummary += computeCost;
         shuffleCostSummary += shuffleCost;
         return computeCost + shuffleCost;

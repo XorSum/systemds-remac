@@ -1,37 +1,40 @@
 package org.apache.sysds.hops.rewrite.dfp;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.http.impl.io.IdentityOutputStream;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.*;
+import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
 import org.apache.sysds.hops.rewrite.dfp.utils.ConstantUtil;
 import org.apache.sysds.hops.rewrite.dfp.utils.MyExplain;
 
 import java.util.*;
+
 import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.*;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Reorder.reorder;
 
-public class RewriteDFP extends HopRewriteRule {
-    @Override
-    public ArrayList<Hop> rewriteHopDAGs(ArrayList<Hop> roots, ProgramRewriteStatus state) {
-        System.out.println("bbbb");
-        for (int i = 0; i < roots.size(); i++) {
-            Hop hi = roots.get(i);
-            long startTime = System.currentTimeMillis();
-            rewriteDFP(hi);
-            long endTime = System.currentTimeMillis();
-            long totalTime = endTime - startTime;
-            System.out.println("rewriteDAG执行耗时：" + totalTime + " ms");
-        }
-        return roots;
-    }
-
-    @Override
-    public Hop rewriteHopDAG(Hop root, ProgramRewriteStatus state) {
+public class RewriteDFP {
+//    @Override
+//    public ArrayList<Hop> rewriteHopDAGs(ArrayList<Hop> roots, ProgramRewriteStatus state) {
+//        System.out.println("bbbb");
+//        for (int i = 0; i < roots.size(); i++) {
+//            Hop hi = roots.get(i);
+//            long startTime = System.currentTimeMillis();
+//            rewriteDFP(hi);
+//            long endTime = System.currentTimeMillis();
+//            long totalTime = endTime - startTime;
+//            System.out.println("rewriteDAG执行耗时：" + totalTime + " ms");
+//        }
+//        return roots;
+//    }
+//
+//    @Override
+//    public Hop rewriteHopDAG(Hop root, ProgramRewriteStatus state) {
+////        return root;
+//        rewriteDFP(root);
 //        return root;
-        rewriteDFP(root);
-        return root;
-    }
+//    }
 
     private static HopRewriteRule rewriteMatrixMultChainOptimization = new RewriteMatrixMultChainOptimization();
     private static HopRewriteRule rewriteCommonSubexpressionElimination = new RewriteCommonSubexpressionElimination();
@@ -40,7 +43,41 @@ public class RewriteDFP extends HopRewriteRule {
     private static ArrayList<MySolution> solutions;
     private static ArrayList<MatrixMultChain> chains;
 
-    public static ArrayList<MySolution> rewriteDFP(Hop root) {
+//    public static MySolution rewriteDFP(Hop root) {
+//
+//    }
+
+    public static MySolution rewiteHopDag(Hop root, RewriteCoordinate rewriteCoordinateEstimator) {
+        System.out.println("begin dfp <<<");
+        ArrayList<MySolution> mySolutions = rewriteDFP(root);
+        MySolution originalSolution = new MySolution(root);
+        rewriteCoordinateEstimator.estimate(originalSolution, false);
+        mySolutions.add(originalSolution);
+        int id = 0;
+        double minCost = Double.MAX_VALUE;
+        for (int i = 0; i < mySolutions.size(); i++) {
+            MySolution mySolution = mySolutions.get(i);
+            double cost = rewriteCoordinateEstimator.estimate(mySolution, false);
+            System.out.println(i + " " + cost);
+            System.out.println(mySolution);
+            if (cost < minCost) {
+                minCost = cost;
+                id = i;
+            }
+        }
+        MySolution returnedSolution = mySolutions.get(id);
+        System.out.println(returnedSolution);
+        if (id + 1 == mySolutions.size()) {
+            System.out.println("return original solution");
+        } else {
+            System.out.println("return rewrited solution");
+        }
+        System.out.println("end dfp >>>");
+        return returnedSolution;
+    }
+
+
+    private static ArrayList<MySolution> rewriteDFP(Hop root) {
         if (root == null) return null;
 
         solutions = new ArrayList<>();
@@ -80,7 +117,7 @@ public class RewriteDFP extends HopRewriteRule {
         return solutions;
     }
 
-    static ConstantUtil constantUtil = new ConstantUtil(null);
+    public static ConstantUtil constantUtil = new ConstantUtil(null);
 
     private static void func(Hop root,
                              boolean onlySearchConstantSubExp) {
@@ -117,13 +154,15 @@ public class RewriteDFP extends HopRewriteRule {
                 // targetDag = rewriteCommonSubexpressionElimination.rewriteHopDAG(targetDag,prs);
                 System.out.println("Target: " + solutions.size() + ", count=" + allCount + ", exp=" + MyExplain.myExplain(targetDag));
                 Hop hop = genSolution(root, chains, targetHash, targetDag);
+                hop = deepCopyHopsDag(hop);
+                rewriteCommonSubexpressionElimination.rewriteHopDAG(hop, new ProgramRewriteStatus());
 
                 MySolution solution;
 
 
                 if (onlySearchConstantSubExp) {
                     solution = constantUtil.liftLoopConstant(hop);
-                    System.out.println(solution);
+                    //  System.out.println(solution);
                 } else {
                     solution = new MySolution();
                     solution.body = hop;
@@ -204,7 +243,6 @@ public class RewriteDFP extends HopRewriteRule {
     }
 
     ///////////////////////////////////////////////////////////
-
 
 
 }

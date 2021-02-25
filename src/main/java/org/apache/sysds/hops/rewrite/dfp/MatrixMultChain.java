@@ -77,7 +77,7 @@ public class MatrixMultChain {
         System.out.println(">>所有子式插入哈希表执行耗时：" + totalTime + " ms");
     }
 
-    static ConstantUtil constantUtil = new ConstantUtil(null);
+   public static ConstantUtil constantUtil = new ConstantUtil( null );
 
     private void  statConstantNode(Hop tree,Hop node,HashMap<Pair<Long, Long>, ArrayList<Hop>> singleTree ) {
         if (isSampleHop(node)) return;

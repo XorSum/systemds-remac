@@ -776,7 +776,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     }
 
 
-    private double estimate(MySolution solution, boolean showDetails) {
+    public  double estimate(MySolution solution, boolean showDetails) {
         // 代价估计
         double cost = 0;
         if (showDetails) {
@@ -853,7 +853,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             }
 
         } catch (Exception e) {
-            //  e.printStackTrace();
+              e.printStackTrace();
             cost = Double.MAX_VALUE;
         }
         if (showDetails) {

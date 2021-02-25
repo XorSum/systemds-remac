@@ -63,7 +63,7 @@ public class BaoLi {
         }
         //   System.out.println("call F3: dep: "+depth+" , id: "+current.getHopID());
         for (MyRule rule : rules) {
-            if (dags.size() < 1000 && rule.applicable(null, current, 0)) {
+            if ( rule.applicable(null, current, 0)) {
                 copyChangePush(depth, rule);
             }
         }

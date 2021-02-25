@@ -48,10 +48,12 @@ public class RewriteLoopConstant extends StatementBlockRewriteRule {
 
         LOG.info("=================================");
         LOG.info("begin normal search");
-        double cost2 = func1(sb, res);
+//        double cost2 = func1(sb, res);
+        double cost2 = func2(sb, res);
+
         LOG.info("end normal search");
         LOG.info("normal cost = " + cost2);
-      //  FakeCostEstimator2.cleanUnusedScratchMMNode();
+        //  FakeCostEstimator2.cleanUnusedScratchMMNode();
         LOG.info(res);
         return res;
 
@@ -71,6 +73,32 @@ public class RewriteLoopConstant extends StatementBlockRewriteRule {
             Hop copy = deepCopyHopsDag(hop);
             MySolution mySolution = rewriteCoordinate.rewiteHopDag(copy);
             cost += mySolution.cost;
+            sb.getHops().set(k, mySolution.body);
+            twriteHops.addAll(mySolution.preLoopConstants);
+        }
+        if (twriteHops.size() > 0) {
+            StatementBlock preStatmentBlock = new StatementBlock();
+            preStatmentBlock.setLiveIn(sb.liveIn());
+            preStatmentBlock.setLiveOut(sb.liveIn());  // 这里没写错,就该这样写
+            preStatmentBlock.setHops(twriteHops);
+            preLoop.add(preStatmentBlock);
+        }
+        res.clear();
+        res.add(sb);
+        return cost;
+    }
+
+
+    double func2(StatementBlock sb, List<StatementBlock> res) {
+        double cost = 0;
+        MatrixMultChain.constantUtil.variablesUpdated = this.variablesUpdated;
+        RewriteDFP.constantUtil.variablesUpdated = this.variablesUpdated;
+        RewriteCoordinate rewriteCoordinateEstimator = new RewriteCoordinate(ec,sb);
+        ArrayList<Hop> twriteHops = new ArrayList<>();
+        for (int k = 0; k < sb.getHops().size(); k++) {
+            Hop hop = sb.getHops().get(k);
+            Hop copy = deepCopyHopsDag(hop);
+            MySolution mySolution = RewriteDFP.rewiteHopDag(copy,rewriteCoordinateEstimator);
             sb.getHops().set(k, mySolution.body);
             twriteHops.addAll(mySolution.preLoopConstants);
         }
