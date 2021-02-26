@@ -18,7 +18,7 @@ import org.apache.sysds.hops.rewrite.dfp.rule.transpose.TransposeMatrixMatrixMul
 import org.apache.sysds.hops.rewrite.dfp.utils.ConstantUtil;
 import org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag;
 import org.apache.sysds.utils.Explain;
-import org.spark_project.jetty.util.ConcurrentHashSet;
+
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -39,7 +39,9 @@ public class ConcurrentBaoLi {
     public static ConstantUtil constantUtil = new ConstantUtil(null);
 
 
-    private final static ConcurrentHashSet<Pair<Long, Long>> hashKeysSet = new ConcurrentHashSet<>();
+    //private final static ConcurrentHashSet<Pair<Long, Long>> hashKeysSet = new ConcurrentHashSet<>();
+    private final static Set<Pair<Long, Long>> hashKeysSet = ConcurrentHashMap.newKeySet();
+
     private static ArrayList<MyRule> rules;
 
     static {
