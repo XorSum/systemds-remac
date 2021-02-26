@@ -30,6 +30,7 @@ import org.apache.sysds.hops.LiteralOp;
 import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
 import org.apache.sysds.hops.rewrite.ProgramRewriter;
 import org.apache.sysds.hops.rewrite.dfp.RewriteLoopConstant;
+import org.apache.sysds.hops.rewrite.dfp.alltrees.RewriteAllTres;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
 import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
 import org.apache.sysds.parser.*;
@@ -170,14 +171,19 @@ public class WhileProgramBlock extends ProgramBlock
 			}
 			long end1 = System.nanoTime();
 
-			LOG.info("all generate options time = " + (RewriteCoordinate.allGenerateOptionsTime / 1e9) + "s");
-			System.out.println("all generate options time = " + (RewriteCoordinate.allGenerateOptionsTime / 1e9) + "s");
+			LOG.info("all search time = " + (RewriteAllTres.searchTime / 1e9) + "s");
+			System.out.println("all search time = " + (RewriteAllTres.searchTime / 1e9) + "s");
+			System.out.println("STOP");
+			System.exit(0);
 
-			LOG.info("all generate combinations time = " + (RewriteCoordinate.allGenerateCombinationsTime / 1e9) + "s");
-			System.out.println("all generate combinations time = " + (RewriteCoordinate.allGenerateCombinationsTime / 1e9) + "s");
+//			LOG.info("all generate options time = " + (RewriteCoordinate.allGenerateOptionsTime / 1e9) + "s");
+//			System.out.println("all generate options time = " + (RewriteCoordinate.allGenerateOptionsTime / 1e9) + "s");
 
-			System.out.println("remac optimize time = "+((end1-start1)/1e9)+"s");
-			LOG.info("remac optimize time = "+((end1-start1)/1e9)+"s");
+//			LOG.info("all generate combinations time = " + (RewriteCoordinate.allGenerateCombinationsTime / 1e9) + "s");
+//			System.out.println("all generate combinations time = " + (RewriteCoordinate.allGenerateCombinationsTime / 1e9) + "s");
+//
+//			System.out.println("remac optimize time = "+((end1-start1)/1e9)+"s");
+//			LOG.info("remac optimize time = "+((end1-start1)/1e9)+"s");
 
 			// prepare update in-place variables
 			UpdateType[] flags = prepareUpdateInPlaceVariables(ec, _tid);

@@ -81,7 +81,7 @@ public class MatrixMultChain {
 
     private void  statConstantNode(Hop tree,Hop node,HashMap<Pair<Long, Long>, ArrayList<Hop>> singleTree ) {
         if (isSampleHop(node)) return;
-        if (constantUtil.rFindConstant(node)) {
+        if (constantUtil.rFindConstant(node,new HashMap<>())) {
             Pair<Long, Long> hash = hashHopDag(node);
             if (!singleTree.containsKey(hash)) {
                 singleTree.put(hash, new ArrayList<>());

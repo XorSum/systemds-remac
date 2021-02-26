@@ -798,6 +798,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
             for (Hop h : solution.preLoopConstants) {
                 Program program = constructProgramBlocks(h, statementBlock);
+                if (program==null) return Double.MAX_VALUE;
                 if (showDetails)
                     LOG.debug(Explain.explain(program));
                 preCost += FakeCostEstimator2.estimate(program);
@@ -808,6 +809,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //                if (preCost > FakeCostEstimator2.miniumCostBoundery) break;
             }
             Program programBlocks = constructProgramBlocks(solution.body, statementBlock);
+            if (programBlocks==null) return Double.MAX_VALUE;
             if (showDetails)
                 LOG.debug(Explain.explain(programBlocks));
 //            cost = CostEstimationWrapper.getTimeEstimate(programBlocks, ec);

@@ -6,6 +6,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.sysds.common.Types;
 import org.apache.sysds.hops.*;
+import org.apache.sysds.hops.estim.EstimatorBasicAvg;
 import org.apache.sysds.hops.estim.EstimatorMatrixHistogram;
 import org.apache.sysds.hops.estim.MMNode;
 import org.apache.sysds.hops.estim.SparsityEstimator;
@@ -24,6 +25,7 @@ import org.apache.sysds.runtime.meta.DataCharacteristics;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch.createFullHistogram;
 import static org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch.getMatrixHistogram;
@@ -38,8 +40,8 @@ public class FakeCostEstimator2 {
     public static long defaultBlockSize = 1000;
     public static ExecutionContext ec = null;
 
-    //            private static SparsityEstimator estimator = new EstimatorBasicAvg();
-    private static EstimatorMatrixHistogram estimator = new EstimatorMatrixHistogram();
+    private static SparsityEstimator estimator = new EstimatorBasicAvg();
+//    private static EstimatorMatrixHistogram estimator = new EstimatorMatrixHistogram();
 
     //public static double miniumCostBoundery = Double.MAX_VALUE;
 
@@ -86,7 +88,7 @@ public class FakeCostEstimator2 {
             }
         }
         //  LOG.error("for end");
-        name2MMNode.entrySet().removeIf(e -> e.getKey().startsWith("_Var") || e.getKey().startsWith("_mVar"));
+     //   name2MMNode.entrySet().removeIf(e -> e.getKey().startsWith("_Var") || e.getKey().startsWith("_mVar"));
 
         //   LOG.info("Name Size = "+name2MMNode.size());
         //     LOG.info("Names = "+name2MMNode.keySet());
@@ -178,7 +180,7 @@ public class FakeCostEstimator2 {
     }
 
 
-    private static HashMap<String, Node> name2MMNode = new HashMap<>();
+    private static ConcurrentHashMap<String, Node> name2MMNode = new ConcurrentHashMap<>();
     // private static ArrayList<String> names = new ArrayList<>();
     private static HashMap<String, DataCharacteristics> name2DataCharacteristics = new HashMap<>();
 
@@ -305,8 +307,8 @@ public class FakeCostEstimator2 {
     }
 
     private static DataCharacteristics getDC(MMNode mmNode) throws Exception {
-        DataCharacteristics dc = estimator.estim(mmNode, false);
-//        DataCharacteristics dc = estimator.estim(mmNode);
+//        DataCharacteristics dc = estimator.estim(mmNode, false);
+        DataCharacteristics dc = estimator.estim(mmNode);
         if (dc.getRows() < 0 || dc.getCols() < 0) throw new Exception("dc<0");
         if (MMShowCostFlag) {
             LOG.info("dc " + dc);

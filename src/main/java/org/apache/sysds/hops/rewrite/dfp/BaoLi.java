@@ -7,6 +7,7 @@ import org.apache.sysds.hops.rewrite.dfp.rule.MyRule;
 import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule;
 import org.apache.sysds.hops.rewrite.dfp.rule.jiehe.MatrixMultJieheRule2;
 import org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag;
+import org.apache.sysds.utils.Explain;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -35,9 +36,9 @@ public class BaoLi {
         dags.add(root); // push
         hashKeysSet.add(hashHopDag(root));
         path = new ArrayList<>();
-//        System.out.println("root=");
+        System.out.println("root=");
         root.resetVisitStatusForced(new HashSet<>());
-//        System.out.println(Explain.explain(root));
+        System.out.println(Explain.explain(root));
         for (int i = 0; i < dags.size(); i++) {
             firstDag = dags.get(i);
             // System.out.println(Explain.explain(firstDag));
@@ -94,6 +95,7 @@ public class BaoLi {
 //                System.out.println("push");
             hashKeysSet.add(hash);
             dags.add(shadowDag);
+            System.out.println(dags.size());
         }
 //            else {
 //                System.out.println("don't push");

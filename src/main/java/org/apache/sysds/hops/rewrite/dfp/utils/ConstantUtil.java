@@ -22,21 +22,21 @@ public class ConstantUtil {
 
     public VariableSet variablesUpdated;
 
-    Map<Long, Boolean> constantTable;
+    //Map<Long, Boolean> constantTable;
 
     public ConstantUtil(VariableSet variablesUpdate) {
        variablesUpdated  = variablesUpdate;
-       constantTable = new HashMap<>();
+     //  constantTable = new HashMap<>();
    }
 
     public  MySolution liftLoopConstant(Hop hop) {
         Map<Long, Pair<Hop, Hop>> topConstantHops = new HashMap<>(); //   <id,<tread,twrite>        Map<Long, Boolean> constantTable = new HashMap<>();
-        constantTable = new HashMap<>();
+        Map<Long, Boolean>   constantTable = new HashMap<>();
         // step 1. 判断子节点是否是常量
-        rFindConstant(hop);
+        rFindConstant(hop,constantTable);
         // step 2. 把top常量替换为tread，把twrite放入哈希表
         hop.resetVisitStatusForced(new HashSet<>());
-        collectConstantHops(hop, topConstantHops);
+        collectConstantHops(hop, topConstantHops,constantTable);
         hop.resetVisitStatusForced(new HashSet<>());
         // step 3. 创建solution
         MySolution mySolution = new MySolution();
@@ -51,7 +51,7 @@ public class ConstantUtil {
         return mySolution;
     }
 
-    public  boolean rFindConstant(Hop hop) {
+    public  boolean rFindConstant(Hop hop,Map<Long, Boolean>   constantTable) {
         if (constantTable.containsKey(hop.getHopID())) { // 记忆化搜索
             return constantTable.get(hop.getHopID());
         }
@@ -62,7 +62,7 @@ public class ConstantUtil {
         if (!isLeafMatrix(hop)) {  // 判断儿子是否改变
             for (int i = 0; i < hop.getInput().size(); i++) {
                 Hop child = hop.getInput().get(i);
-                if (!rFindConstant(child)) {
+                if (!rFindConstant(child,constantTable)) {
                     isConstant = false;
                 }
             }
@@ -73,7 +73,7 @@ public class ConstantUtil {
     }
 
     private void collectConstantHops(Hop hop,
-                                            Map<Long, Pair<Hop, Hop>> topConstantHops) {
+                                            Map<Long, Pair<Hop, Hop>> topConstantHops,Map<Long, Boolean>   constantTable) {
         if (hop.isVisited()) return;
         if (constantTable.get(hop.getHopID())) return;
         for (int i = 0; i < hop.getInput().size(); i++) {
@@ -96,7 +96,7 @@ public class ConstantUtil {
                     }
                 }
             } else {// 儿子也不是常量，则继续向下递归
-                collectConstantHops(child, topConstantHops);
+                collectConstantHops(child, topConstantHops,constantTable);
             }
         }
         hop.setVisited();

@@ -5,6 +5,8 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
 import org.apache.sysds.hops.rewrite.StatementBlockRewriteRule;
+import org.apache.sysds.hops.rewrite.dfp.alltrees.ConcurrentBaoLi;
+import org.apache.sysds.hops.rewrite.dfp.alltrees.RewriteAllTres;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
 import org.apache.sysds.hops.rewrite.dfp.utils.ConstantUtil;
 import org.apache.sysds.parser.*;
@@ -93,12 +95,13 @@ public class RewriteLoopConstant extends StatementBlockRewriteRule {
         double cost = 0;
         MatrixMultChain.constantUtil.variablesUpdated = this.variablesUpdated;
         RewriteDFP.constantUtil.variablesUpdated = this.variablesUpdated;
+        ConcurrentBaoLi.constantUtil.variablesUpdated = this.variablesUpdated;
         RewriteCoordinate rewriteCoordinateEstimator = new RewriteCoordinate(ec,sb);
         ArrayList<Hop> twriteHops = new ArrayList<>();
         for (int k = 0; k < sb.getHops().size(); k++) {
             Hop hop = sb.getHops().get(k);
             Hop copy = deepCopyHopsDag(hop);
-            MySolution mySolution = RewriteDFP.rewiteHopDag(copy,rewriteCoordinateEstimator);
+            MySolution mySolution = RewriteAllTres.rewiteHopDag(copy,rewriteCoordinateEstimator);
             sb.getHops().set(k, mySolution.body);
             twriteHops.addAll(mySolution.preLoopConstants);
         }

@@ -29,6 +29,7 @@ public class CreateRuntimeProgram {
             hop.resetVisitStatusForced(new HashSet<>());
             System.out.println(MyExplain.myExplain(hop));
             System.out.println("y");
+            return null;
         }
         Program rtprog = dmlt.getRuntimeProgram(prog, ConfigurationManager.getDMLConfig());
         return rtprog;
