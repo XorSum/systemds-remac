@@ -84,7 +84,7 @@ public class ConcurrentBaoLi {
         for (int i = 0; i < threadNum; i++) {
             fixedThreadPool.execute(new AAA(latch));
         }
-        fixedThreadPool.execute(new BBB(latch));
+        fixedThreadPool.execute(new BBB());
         try {
             latch.await();
         } catch (InterruptedException E) {
@@ -114,27 +114,20 @@ public class ConcurrentBaoLi {
     static MySolution minSolution = null;
 
     private static class BBB implements Runnable {
-        CountDownLatch latch;
 
-        public BBB(CountDownLatch latch) {
-            this.latch = latch;
-        }
 
         @Override
         public void run() {
             try {
                 while (!Thread.currentThread().isInterrupted()) {
-
                     int treesNum = hashKeysSet.size();
                     int queueSize = unappliedDags.size();
                     LOG.info("all trees number: " + treesNum + ", queue size: " + queueSize);
                     System.out.println(java.time.LocalTime.now() + " trees number: " + treesNum + ", queue size: " + queueSize);
-                    Thread.sleep(30000);
+                    Thread.sleep(60000);
                 }
             } catch (Exception e) {
                 e.printStackTrace();
-            } finally {
-                latch.countDown();
             }
         }
     }
