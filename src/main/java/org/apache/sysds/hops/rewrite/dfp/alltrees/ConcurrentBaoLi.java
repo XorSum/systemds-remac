@@ -32,7 +32,7 @@ public class ConcurrentBaoLi {
 
     protected static final Log LOG = LogFactory.getLog(ConcurrentBaoLi.class.getName());
 
-    private static int threadNum = 12;
+    private static int threadNum = 24;
 
     //private static ArrayList<Hop> dags;
     private static HopRewriteRule rewriteCommonSubexpressionElimination = new RewriteCommonSubexpressionElimination();
@@ -84,7 +84,7 @@ public class ConcurrentBaoLi {
         for (int i = 0; i < threadNum; i++) {
             fixedThreadPool.execute(new AAA(latch));
         }
-
+        fixedThreadPool.execute(new BBB(latch));
         try {
             latch.await();
         } catch (InterruptedException E) {
@@ -113,6 +113,32 @@ public class ConcurrentBaoLi {
     //    static Hop minHop = null;
     static MySolution minSolution = null;
 
+    private static class BBB implements Runnable {
+        CountDownLatch latch;
+
+        public BBB(CountDownLatch latch) {
+            this.latch = latch;
+        }
+
+        @Override
+        public void run() {
+            try {
+                while (!Thread.currentThread().isInterrupted()) {
+
+                    int treesNum = hashKeysSet.size();
+                    int queueSize = unappliedDags.size();
+                    LOG.info("all trees number: " + treesNum + ", queue size: " + queueSize);
+                    System.out.println(java.time.LocalTime.now() + " trees number: " + treesNum + ", queue size: " + queueSize);
+                    Thread.sleep(30000);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            } finally {
+                latch.countDown();
+            }
+        }
+    }
+
     private static class AAA implements Runnable {
 
         private ArrayList<Integer> path = new ArrayList<>();
@@ -128,12 +154,12 @@ public class ConcurrentBaoLi {
         public void run() {
             try {
                 while (!Thread.currentThread().isInterrupted()) {
-                    int treesNum = hashKeysSet.size();
-                    int queueSize = unappliedDags.size();
-                    if (queueSize % 1000 == 0) {
-                        LOG.info("all trees number: " + treesNum + ", queue size: " + queueSize);
-                        System.out.println(java.time.LocalTime.now() + " trees number: " + treesNum + ", queue size: " + queueSize);
-                    }
+//                    int treesNum = hashKeysSet.size();
+//                    int queueSize = unappliedDags.size();
+//                    if (queueSize % 1000 == 0) {
+//                        LOG.info("all trees number: " + treesNum + ", queue size: " + queueSize);
+//                        System.out.println(java.time.LocalTime.now() + " trees number: " + treesNum + ", queue size: " + queueSize);
+//                    }
                     Hop root = null;
                     for (int i = 0; i < 3; i++) {
                         root = unappliedDags.poll();
