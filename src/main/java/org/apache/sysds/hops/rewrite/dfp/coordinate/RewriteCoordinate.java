@@ -112,9 +112,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             findAllLeaf(template, new ArrayList<>(), 0, hopId2LeafIndex, djs);
             if (leaves.size() < 4) return originalSolution;
 
-//            if (leaves.size() != 28) {
+            if (leaves.size() != 28) {
 //            if (leaves.size() != 11) {
-            if (!"h".equals(root.getName())) {
+//            if (!"h".equals(root.getName())) {
                 long end = System.nanoTime();
                 allGenerateOptionsTime += end - start;
                 return originalSolution;
@@ -150,10 +150,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             start = System.nanoTime();
             MySolution mySolution = null;
             try {
-                mySolution = testDfpAta(template, blockRanges);
+//                mySolution = testDfpAta(template, blockRanges);
 //                mySolution = testDfpSporesAta(template, blockRanges);
 //                mySolution = testBfgsAta(template, blockRanges);
-//                mySolution = testGdAta(template, blockRanges);
+                mySolution = testGdAta(template, blockRanges);
 //                mySolution = testBruteForce(singleCses, template, blockRanges);
             } catch (Exception e) {
                 e.printStackTrace();
