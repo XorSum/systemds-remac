@@ -122,12 +122,15 @@ public class WhileProgramBlock extends ProgramBlock
 		System.out.println(Explain.explain(predicateOp));
 		ArrayList<Long> literals = new ArrayList<>();
 		rGetLiteral(predicateOp,literals);
-		long max = 2;
+		long iterationNum = -1;
 		for (long i: literals) {
-			max = Math.max(max,i);
+			iterationNum = Math.max(iterationNum,i);
 		}
-		LOG.info("iterationNumber="+max);
-		return max;
+		if (iterationNum<=0) {
+			iterationNum = 2;
+		}
+		LOG.info("iterationNumber="+iterationNum);
+		return iterationNum;
 	}
 
 
