@@ -708,15 +708,12 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     filter.put(key, arrayList);
                 }
                 if (hop != null) {
-                    if (liftConstant) {
-                        Hop copy = deepCopyHopsDag(hop);
-                        MySolution mySolution = constantUtil.liftLoopConstant(copy);
-                        mySolution.multiCse = c;
-                        solutions.add(mySolution);
-                    } else {
-                        MySolution solution = new MySolution(c, hop);
-                        solutions.add(solution);
-                    }
+                    Hop copy = deepCopyHopsDag(hop);
+                    MySolution lseSolution = constantUtil.liftLoopConstant(copy);
+                    lseSolution.multiCse = c;
+                    solutions.add(lseSolution);
+                    MySolution cseSolution = new MySolution(c, hop);
+                    solutions.add(cseSolution);
                 }
             } catch (Exception e) {
 //                System.out.println(multiCses.get(i));
