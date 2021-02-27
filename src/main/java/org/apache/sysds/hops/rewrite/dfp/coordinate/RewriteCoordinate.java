@@ -1042,14 +1042,15 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         }
 
         ArrayList<Hop> children = new ArrayList<>();
-        for (RangeTree son : rt.children) {
-            Hop s = rCreateHop(son);
+        for (int i= rt.children.size()-1;i>=0;i--) {
+            Hop s = rCreateHop(rt.children.get(i));
             if (s == null) return null;
 //                if ( ! isSame(son.left,son.right,son.singleCse.protoRange.left,son.singleCse.protoRange.right) )
 //                    if (son.transpose!=son.singleCse.protoRange.transpose)
 //                    s = HopRewriteUtils.createTranspose(s);
             children.add(s);
         }
+        Collections.reverse(children);
         Hop ret = build_binary_tree_mmc(children);
         //           Hop ret = build_binary_tree_naive(children);
 //            if (!Judge.isSame(ret1,ret2)) {
