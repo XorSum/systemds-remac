@@ -113,8 +113,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             if (leaves.size() < 4) return originalSolution;
 
 //            if (leaves.size() != 28) {
-//            if (leaves.size() != 11) {
-            if (!"h".equals(root.getName())) {
+            if (leaves.size() != 11) {
+//            if (!"h".equals(root.getName())) {
                 long end = System.nanoTime();
                 allGenerateOptionsTime += end - start;
                 return originalSolution;
@@ -150,8 +150,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             start = System.nanoTime();
             MySolution mySolution = null;
             try {
-                mySolution = testDfpAta(template, blockRanges);
-//                mySolution = testDfpSporesAta(template, blockRanges);
+//                mySolution = testDfpAta(template, blockRanges);
+                mySolution = testDfpSporesAta(template, blockRanges);
 //                mySolution = testBfgsAta(template, blockRanges);
 //                mySolution = testGdAta(template, blockRanges);
 //                mySolution = testBruteForce(singleCses, template, blockRanges);

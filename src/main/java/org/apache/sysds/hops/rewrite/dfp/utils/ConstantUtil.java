@@ -56,7 +56,8 @@ public class ConstantUtil {
             return constantTable.get(hop.getHopID());
         }
         boolean isConstant = true;
-        if (variablesUpdated.containsVariable(hop.getName())) { // 判断自己是否改变
+       // if (variablesUpdated.containsVariable(hop.getName())) { // 判断自己是否改变
+         if ("A".equals(hop.getName())){
             isConstant = false;
         }
         if (!isLeafMatrix(hop)) {  // 判断儿子是否改变
