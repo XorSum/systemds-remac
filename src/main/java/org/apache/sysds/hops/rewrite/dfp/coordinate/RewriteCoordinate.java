@@ -152,7 +152,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             try {
 //                mySolution = testDfpAta(template, blockRanges);
 //                mySolution = testDfpSporesAta(template, blockRanges);
-                mySolution = testBfgsAta(template, blockRanges);
+                mySolution = testBfgs(template, blockRanges);
 //                mySolution = testGdAta(template, blockRanges);
 //                mySolution = testBruteForce(singleCses, template, blockRanges);
             } catch (Exception e) {
@@ -677,8 +677,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return solution;
     }
 
-    private MySolution testBfgsAta(Hop template, ArrayList<Range> blockRanges) {
-        MultiCse multiCse = createMultiCseBfgsAta();
+    private MySolution testBfgs(Hop template, ArrayList<Range> blockRanges) {
+        MultiCse multiCse = createMultiCseBfgs();
         LOG.debug(multiCse);
         Hop result = createHop(multiCse, template, blockRanges);
         result = deepCopyHopsDag(result);
@@ -779,7 +779,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     }
 
 
-    private MultiCse createMultiCseBfgsAta() {
+    private MultiCse createMultiCseBfgs() {
         MultiCse multiCse = new MultiCse();
         SingleCse sHy = new SingleCse();
         SingleCse sY = new SingleCse();
@@ -819,18 +819,6 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         sd.ranges.add(Range.of(30, 31, false));
         sd.ranges.add(Range.of(48, 49, true));
         multiCse.cses.add(sd);
-
-        SingleCse sAta = new SingleCse();
-        sAta.name = getRangeName(39,40);
-        sAta.ranges.add(Range.of(39, 40, true));
-        sAta.ranges.add(Range.of(52, 53, true));
-        sAta.ranges.add(Range.of(7, 8, true));
-        sAta.ranges.add(Range.of(17, 18, true));
-        sAta.ranges.add(Range.of(23, 24, true));
-        sAta.ranges.add(Range.of(26, 27, false));
-        sAta.ranges.add(Range.of(44, 45, false));
-        sAta.ranges.add(Range.of(34, 35, true));
-        multiCse.cses.add(sAta);
 
         return multiCse;
     }
