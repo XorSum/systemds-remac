@@ -150,7 +150,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             start = System.nanoTime();
             MySolution mySolution = null;
             try {
-                mySolution = testDfpAta(template, blockRanges);
+                mySolution = testDfp(template, blockRanges);
 //                mySolution = testDfpSporesAta(template, blockRanges);
 //                mySolution = testBfgsAta(template, blockRanges);
 //                mySolution = testGdAta(template, blockRanges);
@@ -662,8 +662,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     }
 
 
-    private MySolution testDfpAta(Hop template, ArrayList<Range> blockRanges) {
-        MultiCse multiCse = createMultiCseDfpAta();
+    private MySolution testDfp(Hop template, ArrayList<Range> blockRanges) {
+        MultiCse multiCse = createMultiCseDfp();
         LOG.debug(multiCse);
         Hop result = createHop(multiCse, template, blockRanges);
         result = deepCopyHopsDag(result);
@@ -719,16 +719,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return solution;
     }
 
-    private MultiCse createMultiCseDfpAta() {
+    private MultiCse createMultiCseDfp() {
         MultiCse multiCse = new MultiCse();
-        SingleCse sAta = new SingleCse(); // ata
-        sAta.name = getRangeName(2, 3);
-        sAta.ranges.add(Range.of(2, 3, false));
-        sAta.ranges.add(Range.of(8, 9, true));
-        sAta.ranges.add(Range.of(13, 14, true));
-        sAta.ranges.add(Range.of(16, 17, false));
-        sAta.ranges.add(Range.of(26, 27, true));
-        multiCse.cses.add(sAta);
 
         SingleCse sHy = new SingleCse(); // hatahg
         sHy.name = getRangeName(1, 5);
