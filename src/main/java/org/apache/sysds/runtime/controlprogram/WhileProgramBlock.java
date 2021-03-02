@@ -23,6 +23,7 @@ import java.util.ArrayList;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.sysds.api.DMLOptions;
 import org.apache.sysds.conf.ConfigurationManager;
 import org.apache.sysds.hops.DataOp;
 import org.apache.sysds.hops.Hop;
@@ -44,6 +45,7 @@ import org.apache.sysds.runtime.instructions.cp.BooleanObject;
 import org.apache.sysds.runtime.instructions.cp.Data;
 import org.apache.sysds.runtime.lineage.LineageDedupUtils;
 import org.apache.sysds.utils.Explain;
+import org.apache.sysds.utils.Statistics;
 
 
 public class WhileProgramBlock extends ProgramBlock
@@ -133,6 +135,8 @@ public class WhileProgramBlock extends ProgramBlock
 		return iterationNum;
 	}
 
+	public static boolean stopExec = false;
+
 
 	@Override
 	public void execute(ExecutionContext ec)
@@ -141,15 +145,35 @@ public class WhileProgramBlock extends ProgramBlock
 		try
 		{
 //			System.out.println( "StatementBlock = " +  _sb);
-			long start1 = System.nanoTime();
 			try {
-			//	System.out.println("Reducer Number: "+ OptimizerUtils.getNumReducers(false));
+
+				long start1 = System.nanoTime();
+
+				//	System.out.println("Reducer Number: "+ OptimizerUtils.getNumReducers(false));
 			    VariableSet variablesUpdated = _sb.variablesUpdated();
 			    long iterationNumber = getInerationNumber();
 				ProgramRewriter rewriter = new ProgramRewriter(new RewriteLoopConstant(ec,variablesUpdated,iterationNumber));
 				ArrayList<StatementBlock> sbs = new ArrayList<>();
 				sbs.add(_sb);
 				sbs = rewriter.rRewriteStatementBlocks(sbs, new ProgramRewriteStatus(), false);
+				long end1 = System.nanoTime();
+				LOG.info("all generate options time = " + (RewriteCoordinate.allGenerateOptionsTime / 1e9) + "s");
+				System.out.println("all generate options time = " + (RewriteCoordinate.allGenerateOptionsTime / 1e9) + "s");
+
+				LOG.info("all generate combinations time = " + (RewriteCoordinate.allGenerateCombinationsTime / 1e9) + "s");
+				System.out.println("all generate combinations time = " + (RewriteCoordinate.allGenerateCombinationsTime / 1e9) + "s");
+
+				System.out.println("remac optimize time = "+((end1-start1)/1e9)+"s");
+				LOG.info("remac optimize time = "+((end1-start1)/1e9)+"s");
+
+				if (stopExec) {
+					System.out.println("stop before exec");
+					Statistics.stopRunTimer();
+					System.out.println(Statistics.display());
+					System.exit(0);
+				}
+
+				long start2 = System.nanoTime();
 
 				LOG.info(RewriteLoopConstant.preLoop);
 
@@ -167,20 +191,15 @@ public class WhileProgramBlock extends ProgramBlock
 						LOG.info("pre execute done");
 					}
 //				}
+				long end2 = System.nanoTime();
+				LOG.info("pre loop time = " + ((end2-start2) / 1e9) + "s");
+				System.out.println("pre loop time = " + ((end2-start2) / 1e9) + "s");
+
 			} catch (Exception e) {
 				LOG.debug("while program optimize error");
 				e.printStackTrace();
 			}
-			long end1 = System.nanoTime();
 
-			LOG.info("all generate options time = " + (RewriteCoordinate.allGenerateOptionsTime / 1e9) + "s");
-			System.out.println("all generate options time = " + (RewriteCoordinate.allGenerateOptionsTime / 1e9) + "s");
-
-			LOG.info("all generate combinations time = " + (RewriteCoordinate.allGenerateCombinationsTime / 1e9) + "s");
-			System.out.println("all generate combinations time = " + (RewriteCoordinate.allGenerateCombinationsTime / 1e9) + "s");
-
-			System.out.println("remac optimize time = "+((end1-start1)/1e9)+"s");
-			LOG.info("remac optimize time = "+((end1-start1)/1e9)+"s");
 
 			// prepare update in-place variables
 			UpdateType[] flags = prepareUpdateInPlaceVariables(ec, _tid);
