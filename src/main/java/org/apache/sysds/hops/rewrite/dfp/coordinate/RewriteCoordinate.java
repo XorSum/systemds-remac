@@ -81,7 +81,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         try {
             LOG.trace(ec.getVariables().keySet());
 //            FakeCostEstimator2.miniumCostBoundery = Double.MAX_VALUE;
+            long start2 = System.nanoTime();
             originalSolution.cost = estimate(originalSolution, true);
+            long end2 = System.nanoTime();
+            allGenerateCombinationsTime += end2 - start2;
 //            if (!"h".equals(root.getName())) {
 //                return originalSolution;
 //            }
