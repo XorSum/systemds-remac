@@ -31,6 +31,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
 import org.apache.sysds.common.Types.ExecMode;
 import org.apache.sysds.hops.OptimizerUtils;
+import org.apache.sysds.runtime.controlprogram.WhileProgramBlock;
 import org.apache.sysds.runtime.lineage.LineageCacheConfig.LineageCachePolicy;
 import org.apache.sysds.runtime.lineage.LineageCacheConfig.ReuseCacheType;
 import org.apache.sysds.utils.Explain;
@@ -65,8 +66,8 @@ public class DMLOptions {
 	public LineageCachePolicy   linCachePolicy= LineageCachePolicy.HYBRID; // lineage cache eviction policy
 	public boolean              fedWorker     = false;
 	public int                  fedWorkerPort = -1;
-	public boolean              checkPrivacy  = false;            // Check which privacy constraints are loaded and checked during federated execution 
-	
+	public boolean              checkPrivacy  = false;            // Check which privacy constraints are loaded and checked during federated execution
+
 	public final static DMLOptions defaultOptions = new DMLOptions(null);
 
 	public DMLOptions(Options opts) {
@@ -153,6 +154,9 @@ public class DMLOptions {
 					throw new org.apache.commons.cli.ParseException("Invalid argument specified for -gpu option");
 				}
 			}
+		}
+		if (line.hasOption("stop_exec")){
+			WhileProgramBlock.stopExec = true;
 		}
 		if (line.hasOption("exec")){
 			String execMode = line.getOptionValue("exec");
@@ -287,7 +291,9 @@ public class DMLOptions {
 		Option checkPrivacy = OptionBuilder
 			.withDescription("Check which privacy constraints are loaded and checked during federated execution")
 			.create("checkPrivacy");
-		
+		Option checkStopExec = OptionBuilder
+				.create("stop_exec");
+
 		options.addOption(configOpt);
 		options.addOption(cleanOpt);
 		options.addOption(statsOpt);
@@ -300,6 +306,7 @@ public class DMLOptions {
 		options.addOption(lineageOpt);
 		options.addOption(fedOpt);
 		options.addOption(checkPrivacy);
+		options.addOption(checkStopExec);
 
 		// Either a clean(-clean), a file(-f), a script(-s) or help(-help) needs to be specified
 		OptionGroup fileOrScriptOpt = new OptionGroup()
