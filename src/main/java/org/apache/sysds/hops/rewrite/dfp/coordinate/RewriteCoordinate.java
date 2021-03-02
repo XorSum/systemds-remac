@@ -31,6 +31,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     protected final Log LOG = LogFactory.getLog(RewriteCoordinate.class.getName());
 
+    public static String manualType = null;
 
     public ArrayList<Leaf> leaves = new ArrayList<>();
     public HashMap<Long, Integer> hopId2LeafIndex = new HashMap<>();
@@ -81,10 +82,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         try {
             LOG.trace(ec.getVariables().keySet());
 //            FakeCostEstimator2.miniumCostBoundery = Double.MAX_VALUE;
-            long start2 = System.nanoTime();
-            originalSolution.cost = estimate(originalSolution, true);
-            long end2 = System.nanoTime();
-            allGenerateCombinationsTime += end2 - start2;
+//            long start2 = System.nanoTime();
+//            originalSolution.cost = estimate(originalSolution, true);
+//            long end2 = System.nanoTime();
+//            allGenerateCombinationsTime += end2 - start2;
 
             long start = System.nanoTime();
             LOG.info("original cost = " + originalSolution.cost);
@@ -113,55 +114,39 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
             // 找到所有的叶子节点
             findAllLeaf(template, new ArrayList<>(), 0, hopId2LeafIndex, djs);
-            if (leaves.size() < 4) return originalSolution;
-
-//            if (leaves.size() != 28) {
-//            if (leaves.size() != 11) {
-            if (!"h".equals(root.getName())) {
+            if (leaves.size() < 4) {
                 long end = System.nanoTime();
                 allGenerateOptionsTime += end - start;
                 return originalSolution;
             }
 
-//            LOG.info("number of leaves = " + leaves.size());
-//            for (int i = 0; i < leaves.size(); i++) {
-//                Hop hop = leaves.get(i).hop;
-//                if (HopRewriteUtils.isTransposeOperation(hop)) {
-//                    hop = hop.getInput().get(0);
-//                    LOG.info("leavesID: " + i + " t(" + hop.getName() + ")");
-//                } else {
-//                    LOG.info("leavesID: " + i + " " + hop.getName());
-//                }
-//            }
-
             // 生成singleCes
             ArrayList<SingleCse> singleCses = genSingleCse(djs, blockRanges);
 
-//            System.exit(-1);
-
-//            if (showOriginHop) {
-//                root.resetVisitStatusForced(new HashSet<>());
-//                LOG.debug("before coordinate");
-//                LOG.debug(Explain.explain(root));
-//            }
 
             long end = System.nanoTime();
             allGenerateOptionsTime += end - start;
+
 //            LOG.info("generate options time = " + ((end - start) / 1e9) + "s");
 //            System.out.println("generate options time = " + ((end - start) / 1e9) + "s");
 
             start = System.nanoTime();
             MySolution mySolution = null;
-            try {
-//                mySolution = testDfpAta(template, blockRanges);
-//                mySolution = testDfpSporesAta(template, blockRanges);
+
+            if (manualType == null) {
+                System.exit(-1);
+            } else if (manualType.equals("dfp") && "h".equals(root.getName())) {
+                mySolution = testDfp(template, blockRanges);
+            } else if (manualType.equals("dfp-ata") && "h".equals(root.getName())) {
+                mySolution = testDfpAta(template, blockRanges);
+            } else if (manualType.equals("bfgs") && "h".equals(root.getName())) {
+                mySolution = testBfgs(template, blockRanges);
+            } else if (manualType.equals("bfgs-ata") && "h".equals(root.getName())) {
                 mySolution = testBfgsAta(template, blockRanges);
-//                mySolution = testGdAta(template, blockRanges);
-//                mySolution = testBruteForce(singleCses, template, blockRanges);
-            } catch (Exception e) {
-                e.printStackTrace();
-                mySolution = null;
-                //  System.out.println("x");
+            } else if (manualType.equals("gd-ata") && leaves.size() == 28) {
+                mySolution = testGdAta(template, blockRanges);
+            } else if (manualType.equals("dfp-spores-ata") && leaves.size() == 11) {
+                mySolution = testDfpSporesAta(template, blockRanges);
             }
             end = System.nanoTime();
             allGenerateCombinationsTime += end - start;
@@ -169,22 +154,6 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             if (mySolution != null) {
                 return mySolution;
             }
-
-//            LOG.info("generate combinations time = " + ((end - start) / 1e9) + "s");
-//            System.out.println("generate combinations time = " + ((end - start) / 1e9) + "s");
-
-//            if (mySolution != null && mySolution.cost < originalSolution.cost) {
-//                LOG.info("return rewrited solution");
-//                System.out.println("return rewrited solution");
-//                return mySolution;
-//            } else {
-//                LOG.info("return original solution");
-//                System.out.println("return original solution");
-//            }
-
-//            testusefulCse(singleCses, template);
-
-            //   testCostTree(singleCses, template);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -674,8 +643,23 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         MySolution solution = constantUtil.liftLoopConstant(result);
 //        MySolution solution = new MySolution(result);
         solution.multiCse = multiCse;
-        estimate(solution, false);
+        //  estimate(solution, false);
         LOG.debug("return dfp ata");
+        LOG.debug(solution);
+        return solution;
+    }
+
+    private MySolution testDfp(Hop template, ArrayList<Range> blockRanges) {
+        MultiCse multiCse = createMultiCseDfp();
+        LOG.debug(multiCse);
+        Hop result = createHop(multiCse, template, blockRanges);
+        result = deepCopyHopsDag(result);
+        rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
+        //   MySolution solution = constantUtil.liftLoopConstant(result);
+        MySolution solution = new MySolution(result);
+        solution.multiCse = multiCse;
+        // estimate(solution, false);
+        LOG.debug("return dfp");
         LOG.debug(solution);
         return solution;
     }
@@ -688,8 +672,23 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
         MySolution solution = constantUtil.liftLoopConstant(result);
         solution.multiCse = multiCse;
-        estimate(solution, false);
+        //   estimate(solution, false);
         LOG.debug("return bfgs ata");
+        LOG.debug(solution);
+        return solution;
+    }
+
+    private MySolution testBfgs(Hop template, ArrayList<Range> blockRanges) {
+        MultiCse multiCse = createMultiCseBfgs();
+        LOG.debug(multiCse);
+        Hop result = createHop(multiCse, template, blockRanges);
+        result = deepCopyHopsDag(result);
+        rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
+        // MySolution solution = constantUtil.liftLoopConstant(result);
+        MySolution solution = new MySolution(result);
+        solution.multiCse = multiCse;
+        //   estimate(solution, false);
+        LOG.debug("return bfgs");
         LOG.debug(solution);
         return solution;
     }
@@ -702,7 +701,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
         MySolution solution = constantUtil.liftLoopConstant(result);
         solution.multiCse = multiCse;
-        estimate(solution, false);
+        //   estimate(solution, false);
         LOG.debug("return gd ata");
         LOG.debug(solution);
         return solution;
@@ -714,9 +713,12 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         Hop result = createHop(multiCse, template, blockRanges);
         result = deepCopyHopsDag(result);
         rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
+        VariableSet aSet = new VariableSet();
+        aSet.addVariable("A", null);
+        constantUtil.variablesUpdated = aSet;
         MySolution solution = constantUtil.liftLoopConstant(result);
         solution.multiCse = multiCse;
-        estimate(solution, false);
+        //   estimate(solution, false);
         LOG.debug("return dfp-spores ata");
         LOG.debug(solution);
         return solution;
@@ -766,13 +768,49 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return multiCse;
     }
 
+    private MultiCse createMultiCseDfp() {
+        MultiCse multiCse = new MultiCse();
+
+        SingleCse sHy = new SingleCse(); // hatahg
+        sHy.name = getRangeName(1, 5);
+        sHy.ranges.add(Range.of(1, 5, false));
+        sHy.ranges.add(Range.of(6, 10, true));
+//        sHy.ranges.add(Range.of(15, 19, false));
+        sHy.ranges.add(Range.of(11, 15, true));
+        sHy.ranges.add(Range.of(24, 28, true));
+        multiCse.cses.add(sHy);
+
+        SingleCse sY = new SingleCse(); // atahg
+        sY.name = getRangeName(2, 5);
+        sY.ranges.add(Range.of(2, 5, false));
+        sY.ranges.add(Range.of(6, 9, true));
+        sY.ranges.add(Range.of(11, 14, true));
+        sY.ranges.add(Range.of(16, 19, false));
+        sY.ranges.add(Range.of(24, 27, true));
+        multiCse.cses.add(sY);
+
+        SingleCse sD = new SingleCse(); // d
+        sD.name = getRangeName(4, 5);
+        sD.ranges.add(Range.of(4, 5, false));
+        sD.ranges.add(Range.of(6, 7, true));
+        sD.ranges.add(Range.of(11, 12, true));
+        sD.ranges.add(Range.of(18, 19, false));
+        sD.ranges.add(Range.of(20, 21, false));
+        sD.ranges.add(Range.of(22, 23, true));
+        sD.ranges.add(Range.of(24, 25, true));
+        sD.ranges.add(Range.of(28, 29, false));
+        multiCse.cses.add(sD);
+
+        return multiCse;
+    }
+
     private MultiCse createMultiCseDfpSporseAta() {
         SingleCse sHy = new SingleCse();
-        sHy.name = getRangeName(1,4);
+        sHy.name = getRangeName(1, 4);
         sHy.ranges.add(Range.of(1, 4, false));
         sHy.ranges.add(Range.of(6, 9, true));
         SingleCse sAta = new SingleCse();
-        sAta.name = getRangeName(3,4);
+        sAta.name = getRangeName(3, 4);
         sAta.ranges.add(Range.of(3, 4, false));
         sAta.ranges.add(Range.of(6, 7, true));
         MultiCse multiCse = new MultiCse();
@@ -787,7 +825,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         SingleCse sHy = new SingleCse();
         SingleCse sY = new SingleCse();
         SingleCse sd = new SingleCse();
-        sHy.name = getRangeName(5,9);
+        sHy.name = getRangeName(5, 9);
         sHy.ranges.add(Range.of(5, 9, true));
         sHy.ranges.add(Range.of(15, 19, true));
         sHy.ranges.add(Range.of(21, 25, true));
@@ -796,7 +834,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         sHy.ranges.add(Range.of(43, 47, false));
         sHy.ranges.add(Range.of(50, 54, true));
         multiCse.cses.add(sHy);
-        sY.name = getRangeName(5,8);
+        sY.name = getRangeName(5, 8);
         sY.ranges.add(Range.of(5, 8, true));
         sY.ranges.add(Range.of(15, 18, true));
         sY.ranges.add(Range.of(21, 24, true));
@@ -806,7 +844,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         sY.ranges.add(Range.of(44, 47, false));
         sY.ranges.add(Range.of(50, 53, true));
         multiCse.cses.add(sY);
-        sd.name = getRangeName(1,2);
+        sd.name = getRangeName(1, 2);
         sd.ranges.add(Range.of(1, 2, false));
         sd.ranges.add(Range.of(3, 4, true));
         sd.ranges.add(Range.of(5, 6, true));
@@ -828,13 +866,13 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         multiCse.cses.add(sd);
 
         SingleCse sDtd = new SingleCse();
-        sDtd.name = getRangeName(1,4);
-        sDtd.ranges.add(Range.of(1,4,false));
-        sDtd.ranges.add(Range.of(11,14,false));
+        sDtd.name = getRangeName(1, 4);
+        sDtd.ranges.add(Range.of(1, 4, false));
+        sDtd.ranges.add(Range.of(11, 14, false));
         multiCse.cses.add(sDtd);
 
         SingleCse sAta = new SingleCse();
-        sAta.name = getRangeName(39,40);
+        sAta.name = getRangeName(39, 40);
         sAta.ranges.add(Range.of(39, 40, true));
         sAta.ranges.add(Range.of(52, 53, true));
         sAta.ranges.add(Range.of(7, 8, true));
@@ -848,22 +886,77 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return multiCse;
     }
 
+
+    private MultiCse createMultiCseBfgs() {
+        MultiCse multiCse = new MultiCse();
+        SingleCse sHy = new SingleCse();
+        SingleCse sY = new SingleCse();
+        SingleCse sd = new SingleCse();
+        sHy.name = getRangeName(5, 9);
+        sHy.ranges.add(Range.of(5, 9, true));
+        sHy.ranges.add(Range.of(15, 19, true));
+        sHy.ranges.add(Range.of(21, 25, true));
+        sHy.ranges.add(Range.of(32, 36, true));
+        sHy.ranges.add(Range.of(37, 41, true));
+        sHy.ranges.add(Range.of(43, 47, false));
+        sHy.ranges.add(Range.of(50, 54, true));
+        multiCse.cses.add(sHy);
+        sY.name = getRangeName(5, 8);
+        sY.ranges.add(Range.of(5, 8, true));
+        sY.ranges.add(Range.of(15, 18, true));
+        sY.ranges.add(Range.of(21, 24, true));
+        sY.ranges.add(Range.of(26, 29, false));
+        sY.ranges.add(Range.of(32, 35, true));
+        sY.ranges.add(Range.of(37, 40, true));
+        sY.ranges.add(Range.of(44, 47, false));
+        sY.ranges.add(Range.of(50, 53, true));
+        multiCse.cses.add(sY);
+        sd.name = getRangeName(1, 2);
+        sd.ranges.add(Range.of(1, 2, false));
+        sd.ranges.add(Range.of(3, 4, true));
+        sd.ranges.add(Range.of(5, 6, true));
+        sd.ranges.add(Range.of(9, 10, false));
+        sd.ranges.add(Range.of(11, 12, false));
+        sd.ranges.add(Range.of(13, 14, true));
+        sd.ranges.add(Range.of(15, 16, true));
+        sd.ranges.add(Range.of(19, 20, false));
+        sd.ranges.add(Range.of(21, 22, true));
+        sd.ranges.add(Range.of(28, 29, false));
+        sd.ranges.add(Range.of(30, 31, false));
+        sd.ranges.add(Range.of(32, 33, true));
+        sd.ranges.add(Range.of(37, 38, true));
+        sd.ranges.add(Range.of(41, 42, false));
+        sd.ranges.add(Range.of(46, 47, false));
+        sd.ranges.add(Range.of(48, 49, true));
+        sd.ranges.add(Range.of(50, 51, true));
+        sd.ranges.add(Range.of(54, 55, false));
+        multiCse.cses.add(sd);
+
+        SingleCse sDtd = new SingleCse();
+        sDtd.name = getRangeName(1, 4);
+        sDtd.ranges.add(Range.of(1, 4, false));
+        sDtd.ranges.add(Range.of(11, 14, false));
+        multiCse.cses.add(sDtd);
+
+        return multiCse;
+    }
+
     private MultiCse createMultiCseGdAta() {
         MultiCse multiCse = new MultiCse();
         SingleCse sAtATheta = new SingleCse();
         SingleCse sAtA = new SingleCse();
         SingleCse sAtB = new SingleCse();
-        sAtATheta.name = getRangeName(1,3);
+        sAtATheta.name = getRangeName(1, 3);
         sAtATheta.ranges.add(Range.of(1, 3, false));
         sAtATheta.ranges.add(Range.of(7, 9, false));
         sAtATheta.ranges.add(Range.of(14, 16, false));
         sAtATheta.ranges.add(Range.of(20, 22, false));
-        sAtA.name = getRangeName(1,2);
+        sAtA.name = getRangeName(1, 2);
         sAtA.ranges.add(Range.of(1, 2, false));
         sAtA.ranges.add(Range.of(7, 8, false));
         sAtA.ranges.add(Range.of(14, 15, false));
         sAtA.ranges.add(Range.of(20, 21, false));
-        sAtA.name = getRangeName(4,5);
+        sAtB.name = getRangeName(4, 5);
         sAtB.ranges.add(Range.of(4, 5, false));
         sAtB.ranges.add(Range.of(10, 11, false));
         sAtB.ranges.add(Range.of(17, 18, false));

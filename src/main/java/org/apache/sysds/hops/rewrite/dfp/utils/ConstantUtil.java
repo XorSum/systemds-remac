@@ -20,7 +20,7 @@ public class ConstantUtil {
 
     protected static final Log LOG = LogFactory.getLog(ConstantUtil.class.getName());
 
-    VariableSet variablesUpdated;
+    public VariableSet variablesUpdated;
 
     Map<Long, Boolean> constantTable;
 

@@ -31,6 +31,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
 import org.apache.sysds.common.Types.ExecMode;
 import org.apache.sysds.hops.OptimizerUtils;
+import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
 import org.apache.sysds.runtime.controlprogram.WhileProgramBlock;
 import org.apache.sysds.runtime.lineage.LineageCacheConfig.LineageCachePolicy;
 import org.apache.sysds.runtime.lineage.LineageCacheConfig.ReuseCacheType;
@@ -157,6 +158,10 @@ public class DMLOptions {
 		}
 		if (line.hasOption("stop_exec")){
 			WhileProgramBlock.stopExec = true;
+		}
+		if (line.hasOption("manual_type")) {
+			String manual_type = line.getOptionValue("manual_type");
+			RewriteCoordinate.manualType = manual_type;
 		}
 		if (line.hasOption("exec")){
 			String execMode = line.getOptionValue("exec");
@@ -293,6 +298,9 @@ public class DMLOptions {
 			.create("checkPrivacy");
 		Option checkStopExec = OptionBuilder
 				.create("stop_exec");
+		Option manualType = OptionBuilder
+				.hasOptionalArg()
+				.create("manual_type");
 
 		options.addOption(configOpt);
 		options.addOption(cleanOpt);
@@ -307,6 +315,7 @@ public class DMLOptions {
 		options.addOption(fedOpt);
 		options.addOption(checkPrivacy);
 		options.addOption(checkStopExec);
+		options.addOption(manualType);
 
 		// Either a clean(-clean), a file(-f), a script(-s) or help(-help) needs to be specified
 		OptionGroup fileOrScriptOpt = new OptionGroup()
