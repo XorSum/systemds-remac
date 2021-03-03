@@ -25,10 +25,9 @@ import static org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2.MMS
 public class NodeCostEstimator {
 
     protected static final Log LOG = LogFactory.getLog(NodeCostEstimator.class.getName());
-
-
-//     private static SparsityEstimator estimator = new EstimatorBasicAvg();
-    private static EstimatorMatrixHistogram estimator = new EstimatorMatrixHistogram();
+    private static EstimatorBasicAvg metadataEstimator = new EstimatorBasicAvg();
+    private static EstimatorMatrixHistogram mncEstimator = new EstimatorMatrixHistogram();
+    public static boolean useMncEstimator = false;
 
     HashMap<Pair<Integer, Integer>, MMNode> range2mmnode = new HashMap<>();
 
@@ -176,7 +175,11 @@ public class NodeCostEstimator {
         DataCharacteristics dc = null;
         MMNode mmNode = addOpnode2Mmnode(opNode);
         try {
-            dc = estimator.estim(mmNode, false);
+            if (useMncEstimator) {
+                mncEstimator.estim(mmNode, false);
+            } else {
+                metadataEstimator.estim(mmNode);
+            }
 //            dc = estimator.estim(mmNode);
         } catch (Exception e) {
             e.printStackTrace();

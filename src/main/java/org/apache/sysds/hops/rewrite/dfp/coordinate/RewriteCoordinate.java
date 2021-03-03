@@ -71,6 +71,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     public static long allGenerateOptionsTime = 0;
     public static long allGenerateCombinationsTime = 0;
+    public static long estimateTime = 0;
 
     public MySolution rewiteHopDag(Hop root) {
 //        System.out.println("rootname"+root.getName());
@@ -82,10 +83,11 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         try {
             LOG.trace(ec.getVariables().keySet());
 //            FakeCostEstimator2.miniumCostBoundery = Double.MAX_VALUE;
-//            long start2 = System.nanoTime();
-//            originalSolution.cost = estimate(originalSolution, true);
-//            long end2 = System.nanoTime();
-//            allGenerateCombinationsTime += end2 - start2;
+            long start2 = System.nanoTime();
+            originalSolution.cost = estimate(originalSolution, true);
+            long end2 = System.nanoTime();
+            allGenerateCombinationsTime += end2 - start2;
+            estimateTime += end2 - start2;
 
             long start = System.nanoTime();
             LOG.info("original cost = " + originalSolution.cost);
@@ -136,17 +138,32 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             if (manualType == null) {
                 System.exit(-1);
             } else if (manualType.equals("dfp") && "h".equals(root.getName())) {
-                mySolution = testDfp(template, blockRanges);
+                MultiCse multiCse = createMultiCseDfp();
+                mySolution = testManual(template,blockRanges,multiCse,false);
+                LOG.info("return dfp");
             } else if (manualType.equals("dfp-ata") && "h".equals(root.getName())) {
-                mySolution = testDfpAta(template, blockRanges);
+                MultiCse multiCse = createMultiCseDfpAta();
+                mySolution = testManual(template,blockRanges,multiCse,true);
+                LOG.info("return dfp-ata");
             } else if (manualType.equals("bfgs") && "h".equals(root.getName())) {
-                mySolution = testBfgs(template, blockRanges);
+                MultiCse multiCse = createMultiCseBfgs();
+                mySolution = testManual(template,blockRanges,multiCse,false);
+                LOG.info("return bfgs");
             } else if (manualType.equals("bfgs-ata") && "h".equals(root.getName())) {
-                mySolution = testBfgsAta(template, blockRanges);
+                MultiCse multiCse = createMultiCseBfgsAta();
+                mySolution = testManual(template,blockRanges,multiCse,true);
+                LOG.info("return bfgs-ata");
             } else if (manualType.equals("gd-ata") && leaves.size() == 28) {
-                mySolution = testGdAta(template, blockRanges);
+                MultiCse multiCse = createMultiCseGdAta();
+                mySolution = testManual(template,blockRanges,multiCse,true);
+                LOG.info("return gd-ata");
             } else if (manualType.equals("dfp-spores-ata") && leaves.size() == 11) {
-                mySolution = testDfpSporesAta(template, blockRanges);
+                MultiCse multiCse = createMultiCseDfpSporseAta();
+                VariableSet aSet = new VariableSet();
+                aSet.addVariable("A", null);
+                constantUtil.variablesUpdated = aSet;
+                mySolution = testManual(template,blockRanges,multiCse,true);
+                LOG.info("return dfp-spores-ata");
             }
             end = System.nanoTime();
             allGenerateCombinationsTime += end - start;
@@ -633,96 +650,24 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return m;
     }
 
-
-    private MySolution testDfpAta(Hop template, ArrayList<Range> blockRanges) {
-        MultiCse multiCse = createMultiCseDfpAta();
+    private MySolution testManual(Hop template, ArrayList<Range> blockRanges,MultiCse multiCse,boolean liftConstant) {
         LOG.debug(multiCse);
         Hop result = createHop(multiCse, template, blockRanges);
         result = deepCopyHopsDag(result);
         rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
-        MySolution solution = constantUtil.liftLoopConstant(result);
-//        MySolution solution = new MySolution(result);
+        MySolution solution;
+        if (liftConstant) solution = constantUtil.liftLoopConstant(result);
+        else solution = new MySolution(result);
         solution.multiCse = multiCse;
-        //  estimate(solution, false);
-        LOG.debug("return dfp ata");
-        LOG.debug(solution);
+        long start = System.nanoTime();
+        estimate(solution, false);
+        long end = System.nanoTime();
+        estimateTime += end - start;
+        //LOG.debug(solution);
+        System.out.println("manual solution:\n"+solution);
         return solution;
     }
 
-    private MySolution testDfp(Hop template, ArrayList<Range> blockRanges) {
-        MultiCse multiCse = createMultiCseDfp();
-        LOG.debug(multiCse);
-        Hop result = createHop(multiCse, template, blockRanges);
-        result = deepCopyHopsDag(result);
-        rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
-        //   MySolution solution = constantUtil.liftLoopConstant(result);
-        MySolution solution = new MySolution(result);
-        solution.multiCse = multiCse;
-        // estimate(solution, false);
-        LOG.debug("return dfp");
-        LOG.debug(solution);
-        return solution;
-    }
-
-    private MySolution testBfgsAta(Hop template, ArrayList<Range> blockRanges) {
-        MultiCse multiCse = createMultiCseBfgsAta();
-        LOG.debug(multiCse);
-        Hop result = createHop(multiCse, template, blockRanges);
-        result = deepCopyHopsDag(result);
-        rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
-        MySolution solution = constantUtil.liftLoopConstant(result);
-        solution.multiCse = multiCse;
-        //   estimate(solution, false);
-        LOG.debug("return bfgs ata");
-        LOG.debug(solution);
-        return solution;
-    }
-
-    private MySolution testBfgs(Hop template, ArrayList<Range> blockRanges) {
-        MultiCse multiCse = createMultiCseBfgs();
-        LOG.debug(multiCse);
-        Hop result = createHop(multiCse, template, blockRanges);
-        result = deepCopyHopsDag(result);
-        rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
-        // MySolution solution = constantUtil.liftLoopConstant(result);
-        MySolution solution = new MySolution(result);
-        solution.multiCse = multiCse;
-        //   estimate(solution, false);
-        LOG.debug("return bfgs");
-        LOG.debug(solution);
-        return solution;
-    }
-
-    private MySolution testGdAta(Hop template, ArrayList<Range> blockRanges) {
-        MultiCse multiCse = createMultiCseGdAta();
-        LOG.debug(multiCse);
-        Hop result = createHop(multiCse, template, blockRanges);
-        result = deepCopyHopsDag(result);
-        rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
-        MySolution solution = constantUtil.liftLoopConstant(result);
-        solution.multiCse = multiCse;
-        //   estimate(solution, false);
-        LOG.debug("return gd ata");
-        LOG.debug(solution);
-        return solution;
-    }
-
-    private MySolution testDfpSporesAta(Hop template, ArrayList<Range> blockRanges) {
-        MultiCse multiCse = createMultiCseDfpSporseAta();
-        LOG.debug(multiCse);
-        Hop result = createHop(multiCse, template, blockRanges);
-        result = deepCopyHopsDag(result);
-        rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
-        VariableSet aSet = new VariableSet();
-        aSet.addVariable("A", null);
-        constantUtil.variablesUpdated = aSet;
-        MySolution solution = constantUtil.liftLoopConstant(result);
-        solution.multiCse = multiCse;
-        //   estimate(solution, false);
-        LOG.debug("return dfp-spores ata");
-        LOG.debug(solution);
-        return solution;
-    }
 
     private MultiCse createMultiCseDfpAta() {
         MultiCse multiCse = new MultiCse();
