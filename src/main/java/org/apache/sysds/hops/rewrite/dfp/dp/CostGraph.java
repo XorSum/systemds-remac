@@ -33,6 +33,8 @@ public class CostGraph {
     long iterationNumber = 2;
     public VariableSet variablesUpdated = null;
 
+    public static long estimateTime = 0;
+    public static long dynamicProgramTime = 0;
 
     public ArrayList<OperatorNode> testOperatorGraph(ArrayList<SinglePlan> pairs, Pair<SingleCse, Hop> emptyPair, ArrayList<Range> blockRanges, ArrayList<Leaf> leaves) {
         LOG.info("begin test Operator Graph");
@@ -84,10 +86,14 @@ public class CostGraph {
         CseStateMaintainer MAINTAINER = new CseStateMaintainer();
         MAINTAINER.initRangeCounter(range2acnode);
         MAINTAINER.initCseState(pairs);
-        ArrayList<OperatorNode> result = selectBest(MAINTAINER);
 
+        long start = System.nanoTime();
+        ArrayList<OperatorNode> result = selectBest(MAINTAINER);
         //showBest(Pair.of(0, maxIndex));
         result.sort(Comparator.comparingDouble(a -> a.accCost));
+        long end = System.nanoTime();
+        dynamicProgramTime += end - start;
+
 //        && list2.get(i).accCost <= bestsinglecsenode.accCost
 //        for (int i = 0; i < 30 && i < result.size(); i++) {
 //            System.out.println(result.get(i));
@@ -370,7 +376,11 @@ public class CostGraph {
             analyzeOperatorCost(node.inputs.get(i), visited);
             //  accCost += node.inputs.get(i).accCost;
         }
+
+        long start = System.nanoTime();
         thisCost = this.nodeCostEstimator.getNodeCost(node);
+        long end = System.nanoTime();
+        estimateTime += end - start;
 
         if (!range2acnode.containsKey(node.range)) {
             OperatorNode node1 = node.copyWithoutDependencies();
