@@ -68,7 +68,8 @@ public class ConstantUtil {
             }
         }
 //        LOG.debug("cons(" + hop.getHopID() + ") " + hop.getName()+" " + isConstant);
-        constantTable.put(hop.getHopID(), isConstant);
+        if (HopRewriteUtils.isTransposeOperation(hop)) constantTable.put(hop.getHopID(),false);
+        else constantTable.put(hop.getHopID(), isConstant);
         return isConstant;
     }
 
