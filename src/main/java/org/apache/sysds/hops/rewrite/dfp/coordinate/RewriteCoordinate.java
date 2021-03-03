@@ -85,6 +85,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             originalSolution.cost = estimate(originalSolution, true);
             long end2 = System.nanoTime();
             allGenerateCombinationsTime += end2 - start2;
+            CostGraph.estimateTime += end2 - start2;
 //            if (!"h".equals(root.getName())) {
 //                return originalSolution;
 //            }
@@ -266,7 +267,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //            operatorNodeArrayList.sort(Comparator.comparingDouble(a -> a.accCost));
 
             ArrayList<OperatorNode> operatorNodeArrayList = costGraph.testOperatorGraph(singlePlans, pair, blockRanges, leaves);
-
+            long start = System.nanoTime();
             ArrayList<MultiCse> multiCseArrayList = new ArrayList<>();
             for (int i = 0; i < operatorNodeArrayList.size(); i++) {
                 MultiCse multiCse = createMultiCseFromOperatorNode(operatorNodeArrayList.get(i));
@@ -276,10 +277,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             for (MultiCse cse : multiCseArrayList) {
                 LOG.info("candidate multi cse" + cse);
             }
-
             ArrayList<MySolution> mySolutions = genSolutions(multiCseArrayList, true, template, blockRanges);
             MySolution mySolution = selectSolution(mySolutions);
-
+            long end = System.nanoTime();
+            CostGraph.estimateTime += end - start;
             LOG.info("dynamic programming: ");
             LOG.info(mySolution);
             System.out.println("dynamic programming: ");
