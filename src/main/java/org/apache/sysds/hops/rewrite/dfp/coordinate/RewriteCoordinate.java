@@ -49,7 +49,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     // <configuration>
     private boolean showBlock = false;
-    private boolean showSingleCse = false;
+    private boolean showSingleCse = true;
     private boolean showMultiCse = false;
     private boolean showCost = false;
     private boolean showMinCostHop = true;
@@ -271,12 +271,12 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             ArrayList<MultiCse> multiCseArrayList = new ArrayList<>();
             for (int i = 0; i < operatorNodeArrayList.size(); i++) {
                 MultiCse multiCse = createMultiCseFromOperatorNode(operatorNodeArrayList.get(i));
-                if (multiCse != null) multiCseArrayList.add(multiCse);
+                if (multiCse != null) {
+                    multiCseArrayList.add(multiCse);
+                    LOG.info("candidate multi cse cost=" + operatorNodeArrayList.get(i).accCost +" " + multiCse);
+                }
             }
             LOG.info("candidate muti cse size = " + multiCseArrayList.size());
-            for (MultiCse cse : multiCseArrayList) {
-                LOG.info("candidate multi cse" + cse);
-            }
             ArrayList<MySolution> mySolutions = genSolutions(multiCseArrayList, true, template, blockRanges);
             MySolution mySolution = selectSolution(mySolutions);
             long end = System.nanoTime();
@@ -742,7 +742,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         for (int i = 0; i < solutions.size(); i++) {
             try {
                 MySolution solution = solutions.get(i);
-                solution.cost = estimate(solution, true);
+                solution.cost = estimate(solution, false);
                 if (showCost)
                     LOG.debug("cost=" + solution.cost);
                 if (bestSolution.body == null
@@ -783,6 +783,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         if (showDetails) {
             LOG.debug("runtime program<<<");
             FakeCostEstimator2.MMShowCostFlag = true;
+        } else {
+            FakeCostEstimator2.MMShowCostFlag = false;
         }
         try {
             FakeCostEstimator2.ec = ec;

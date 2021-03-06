@@ -66,6 +66,32 @@ public class SingleCse {
         return false;
     }
 
+//    public boolean contain(SingleCse innner) {
+//        HashSet<ArrayList<Integer>> mask = new HashSet<>();
+//        int count = 0;
+//        for (Range or : ranges) {
+//            ArrayList<Integer> tmp = new ArrayList<>();
+//            for (Range ir : innner.ranges) {
+//                if (or.conflict(ir)) return false;
+//                if (or.contain(ir)) {
+//                    int m;
+//                    if (or.transpose) {
+//                        if (ir.transpose) m = ir.right - or.right;
+//                        else m = ir.left - or.right;
+//                    }else {
+//                        if (ir.transpose) m = or.left - ir.right;
+//                        else m = or.left - ir.left;
+//                    }
+//                    tmp.add(m);
+//                    //   System.out.println(or.toString() +" "+ ir.toString() +" "+(m));
+//                }
+//            }
+//            mask.add(tmp);
+//            if (tmp.size()>0) count++;
+//        }
+//        //  return mask.size()==1;
+//        return mask.size() == 1 && count == ranges.size() ;
+//    }
     public boolean contain(SingleCse innner) {
         HashSet<ArrayList<Integer>> mask = new HashSet<>();
         int count = 0;
@@ -83,14 +109,17 @@ public class SingleCse {
                         else m = or.left - ir.left;
                     }
                     tmp.add(m);
-                 //   System.out.println(or.toString() +" "+ ir.toString() +" "+(m));
+                    //   System.out.println(or.toString() +" "+ ir.toString() +" "+(m));
                 }
             }
             mask.add(tmp);
             if (tmp.size()>0) count++;
         }
-      //  return mask.size()==1;
-        return mask.size() == 1 && count == ranges.size() ;
+        //  return mask.size()==1;
+        if (innner.hash.left==innner.hash.right)
+            return (mask.size() == 1||mask.size() == 2) && count == ranges.size() ;
+        else
+            return mask.size() == 1 && count == ranges.size() ;
     }
 
     @Override

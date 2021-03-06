@@ -1,7 +1,9 @@
 package org.apache.sysds.hops.rewrite.dfp.dp;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.sysds.hops.rewrite.dfp.coordinate.Range;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.SingleCse;
+import org.mortbay.log.Log;
 
 import java.util.*;
 
@@ -21,6 +23,9 @@ public class ACNode {
             p2 = Pair.of(p0, p1);
         } else {
             p2 = Pair.of(node.range, node.range);
+        }
+        if (p2.getLeft().getLeft()==1&&p2.getLeft().getRight()==2&&p2.getRight().getLeft()==3&&p2.getRight().getRight()==4) {
+            System.out.println("(find1234");
         }
         HashMap<HashSet<SingleCse>, OperatorNode> cses2node;
         if (drange2operatornodes.containsKey(p2)) {
@@ -51,6 +56,20 @@ public class ACNode {
                 }
             }
         }
+        for (OperatorNode node: ops) {
+            boolean hasata =false;
+            boolean hashy = false;
+            for (SingleCse singleCse: node.dependencies) {
+                for (Range range: singleCse.ranges) {
+                    if (range.left==3&&range.right==4) hasata=true;
+                    if (range.left==1&&range.right==4) hashy=true;
+                }
+            }
+            if (hasata&&hashy) {
+                Log.info("ata dtat");
+            }
+        }
+
         return ops;
     }
 

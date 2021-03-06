@@ -11,6 +11,7 @@ import org.apache.sysds.hops.NaryOp;
 import org.apache.sysds.hops.TernaryOp;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.Leaf;
+import org.apache.sysds.hops.rewrite.dfp.coordinate.HashKey;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.Range;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.SingleCse;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
@@ -53,7 +54,7 @@ public class CostGraph {
             SingleCse cse = p.singleCse;
             Hop hop = p.hop;
             //    System.out.println("========================");
-            //    System.out.println(cse);
+//                System.out.println(cse);
 //            System.out.println(Explain.explain(hop));
             OperatorNode node = createOperatorGraph(hop, false);
             MutableInt mutableInt = new MutableInt(0);
@@ -390,6 +391,7 @@ public class CostGraph {
             ACNode acNode = new ACNode();
             acNode.range = node.range;
             acNode.emptyOpnode = node1;
+//            acNode.addOperatorNode(node1);
             range2acnode.put(node.range, acNode);
         }
 
@@ -499,7 +501,14 @@ public class CostGraph {
                         if (operatorNode1 == null) continue;
                         for (OperatorNode operatorNode2 : rops) {
                             if (operatorNode2 == null) continue;
-                            if (check(operatorNode1, operatorNode2, operatorNode.dependencies)) {
+//                            boolean x1 = ffff(operatorNode1,operatorNode2);
+                            boolean x2 = check(operatorNode1, operatorNode2, operatorNode.dependencies);
+//                            if (x1) {
+//                                LOG.info("combine hy ata "+x2);
+//                                LOG.info(operatorNode1.dependencies);
+//                                LOG.info(operatorNode2.dependencies);
+//                            }
+                            if (x2) {
                                 OperatorNode tmp = createOperatorNode(operatorNode1, lRange, operatorNode2, rRange, operatorNode, boundery);
                                 if (tmp != null) {  // && testttt(tmp.dependencies)
                                     allResults.add(tmp);
@@ -511,6 +520,7 @@ public class CostGraph {
                 }
             }
             LOG.info("boundery: " + boundery + " all size: " + allResults.size());
+         //   LOG.info(allResults);
 
             classifyOperatorNode(MAINTAINER, allResults, acNode);
 
@@ -569,15 +579,75 @@ public class CostGraph {
         }
     }
 
+    boolean  ffff(OperatorNode operatorNode1,
+               OperatorNode operatorNode2) {
+        boolean hasata =false;
+        boolean hashy = false;
+        for (SingleCse singleCse: operatorNode1.dependencies) {
+            for (Range range: singleCse.ranges) {
+                if (range.left==2&&range.right==3) hasata=true;
+                if (range.left==1&&range.right==5) hashy=true;
+            }
+        }
+        for (SingleCse singleCse: operatorNode2.dependencies) {
+            for (Range range: singleCse.ranges) {
+                if (range.left==2&&range.right==3) hasata=true;
+                if (range.left==1&&range.right==5) hashy=true;
+            }
+        }
+        return  hasata&&hashy ;
+    }
+
+    public static void main(String[] args) {
+        OperatorNode n1 = new OperatorNode();
+        OperatorNode n2 = new OperatorNode();
+        SingleCse ata = new SingleCse();
+        SingleCse hy = new SingleCse();
+        ata.hash =  HashKey.of(1l,1l);
+        n1.range = Pair.of(1,10);
+        n2.range = Pair.of(11,29);
+
+        ata.ranges.add(Range.of(3,4,false));
+        ata.ranges.add(Range.of(6,7,false));
+
+
+//        ata.ranges.add(Range.of(2,3,true));
+//        ata.ranges.add(Range.of(16,17,true));
+//        ata.ranges.add(Range.of(26,27,false));
+
+        hy.hash =  HashKey.of(2l,3l);
+
+//        hy.ranges.add(Range.of(1,5,false));
+//        hy.ranges.add(Range.of(15,19,false));
+//        hy.ranges.add(Range.of(24,28,false));
+
+        SingleCse d = new SingleCse();
+        d.hash = HashKey.of(5l,6l);
+        d.ranges.add(Range.of(1,2,true));
+        d.ranges.add(Range.of(8,9,false));
+
+
+
+        n1.dependencies.add(ata);
+        n2.dependencies.add(d);
+
+        CostGraph g = new CostGraph(null,10);
+        boolean x = g.checkConflict(n1.dependencies,n2.dependencies);
+
+        System.out.println(x);
+
+    }
+
 
     boolean check(OperatorNode operatorNode1,
                   OperatorNode operatorNode2,
                   HashSet<SingleCse> midcses) {
 
         if (!checkConflict(operatorNode1.dependencies, operatorNode2.dependencies)) return false;
+      //  System.out.println("ccc");
         if (!checkAAA(operatorNode1.dependencies, operatorNode1.range, operatorNode2.dependencies, operatorNode2.range))
             return false;
-
+     //   System.out.println("aaa");
         if (!checkOOOO(operatorNode1, operatorNode2, midcses)) {
 ////            System.out.println(midcses);
 ////            System.out.println(operatorNode1);
@@ -585,14 +655,14 @@ public class CostGraph {
 ////            System.out.println("------------------------");
             return false;
         }
-
+     //   System.out.println("qqq");
         if (!checkIIII(operatorNode1, operatorNode2)) {
 //            System.out.println(operatorNode1);
 //            System.out.println(operatorNode2);
 //            System.out.println("------------------------");
             return false;
         }
-
+       // System.out.println("www");
         return true;
     }
 
@@ -643,6 +713,7 @@ public class CostGraph {
                     break;
                 }
             }
+       //     System.out.println(lcse+" intersect "+intersect);
             if (intersect != rcses.contains(lcse)) return false;
         }
         for (SingleCse rcse : rcses) {
@@ -653,6 +724,7 @@ public class CostGraph {
                     break;
                 }
             }
+         //   System.out.println(rcse + "intersect "+intersect);
             if (intersect != lcses.contains(rcse)) return false;
         }
         return true;
