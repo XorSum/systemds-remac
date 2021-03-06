@@ -90,7 +90,10 @@ public class SingleCse {
             if (tmp.size()>0) count++;
         }
       //  return mask.size()==1;
-        return mask.size() == 1 && count == ranges.size() ;
+        if (innner.hash.left==innner.hash.right)
+            return mask.size()<=2 && count==ranges.size();
+        else
+            return mask.size() == 1 && count == ranges.size() ;
     }
 
     @Override
