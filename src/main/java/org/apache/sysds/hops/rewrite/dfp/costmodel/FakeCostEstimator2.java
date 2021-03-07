@@ -41,6 +41,8 @@ public class FakeCostEstimator2 {
     //            private static SparsityEstimator estimator = new EstimatorBasicAvg();
     private static EstimatorMatrixHistogram estimator = new EstimatorMatrixHistogram();
 
+    public static boolean MMShowCostFlag = false;
+
     //public static double miniumCostBoundery = Double.MAX_VALUE;
 
     //////////////////////
@@ -54,19 +56,16 @@ public class FakeCostEstimator2 {
     //
     //////////////////////
 
-    public static double estimate(Program rtprog) {
+    public static CostSummary estimateRuntimeProgram(Program rtprog) {
 
-        shuffleCostSummary = 0;
-        broadcastCostSummary = 0;
-        computeCostSummary = 0;
-        collectCostSummary = 0;
+        CostSummary costSummary = new CostSummary();
 
         //  System.out.println(name2MMNode.keySet());
         double cost = 0;
         //  LOG.debug(Explain.explain(rtprog));
         for (ProgramBlock pb : rtprog.getProgramBlocks()) {
             try {
-                double delta = rEstimate(pb);
+                double delta = eProgramBlock(pb,costSummary);
                 //   LOG.debug("pb cost = "+delta);
                 if (delta < 0 || delta >= Double.MAX_VALUE) {
                     //      LOG.error("delta error");
@@ -93,7 +92,8 @@ public class FakeCostEstimator2 {
         //  LOG.debug("rtprog cost = "+cost);
         //  return cost;
 
-        return cost;
+//        return cost;
+        return costSummary;
     }
 
     public static void cleanUnusedMMNode() {
@@ -104,37 +104,37 @@ public class FakeCostEstimator2 {
         name2MMNode.entrySet().removeIf(e -> e.getKey().startsWith("_Var") || e.getKey().startsWith("_mVar") || e.getKey().startsWith("_conVar") || e.getKey().startsWith("_sVar"));
     }
 
-    private static double rEstimate(ProgramBlock pb) throws Exception {
+    private static double eProgramBlock(ProgramBlock pb, CostSummary costSummary) throws Exception {
         double cost = 0;
         double delta;
         if (pb instanceof IfProgramBlock) {
             IfProgramBlock ipb = (IfProgramBlock) pb;
-            delta = processInstructions(ipb.getPredicate());
+            delta = processInstructions(ipb.getPredicate(),costSummary);
             if (delta < 0 || delta >= Double.MAX_VALUE) return Double.MAX_VALUE;
             cost += delta;
             for (ProgramBlock p : ipb.getChildBlocksIfBody()) {
-                delta = rEstimate(p);
+                delta = eProgramBlock(p,costSummary);
                 if (delta < 0 || delta >= Double.MAX_VALUE) return Double.MAX_VALUE;
                 cost += delta;
             }
             for (ProgramBlock p : ipb.getChildBlocksElseBody()) {
-                delta = rEstimate(p);
+                delta = eProgramBlock(p,costSummary);
                 if (delta < 0 || delta >= Double.MAX_VALUE) return Double.MAX_VALUE;
                 cost += delta;
             }
         } else if (pb instanceof WhileProgramBlock) {
             WhileProgramBlock wpb = (WhileProgramBlock) pb;
-            delta = processInstructions(wpb.getPredicate());
+            delta = processInstructions(wpb.getPredicate(),costSummary);
             if (delta < 0 || delta >= Double.MAX_VALUE) return Double.MAX_VALUE;
             cost += delta;
             for (ProgramBlock p : wpb.getChildBlocks()) {
-                delta = rEstimate(p);
+                delta = eProgramBlock(p,costSummary);
                 if (delta < 0 || delta >= Double.MAX_VALUE) return Double.MAX_VALUE;
                 cost += delta;
             }
         } else if (pb instanceof BasicProgramBlock) {
             BasicProgramBlock bpb = (BasicProgramBlock) pb;
-            delta = processInstructions(bpb.getInstructions());
+            delta = processInstructions(bpb.getInstructions(),costSummary);
             if (delta < 0 || delta >= Double.MAX_VALUE) return Double.MAX_VALUE;
             cost += delta;
         }
@@ -305,7 +305,7 @@ public class FakeCostEstimator2 {
         return dc;
     }
 
-    private static double processInstructions(ArrayList<Instruction> instructions) throws Exception {
+    private static double processInstructions(ArrayList<Instruction> instructions,CostSummary costSummary) throws Exception {
         double cost = 0;
         for (Instruction inst : instructions) {
             //  System.out.println(inst);
@@ -313,9 +313,9 @@ public class FakeCostEstimator2 {
             double delta = 0;
             try {
                 if (inst instanceof CPInstruction) {
-                    delta = eCPInstruction((CPInstruction) inst);
+                    delta = eCPInstruction((CPInstruction) inst,costSummary);
                 } else if (inst instanceof SPInstruction) {
-                    delta = eSPInstruction((SPInstruction) inst);
+                    delta = eSPInstruction((SPInstruction) inst,costSummary);
                 }
             } catch (Exception e) {
                 //   System.out.println(e);
@@ -340,16 +340,16 @@ public class FakeCostEstimator2 {
     //////////////////////////////
     //以下是处理各种instruction的函数
 
-    private static double eCPInstruction(CPInstruction inst) throws Exception {
+    private static double eCPInstruction(CPInstruction inst,CostSummary costSummary) throws Exception {
         double cost = 0;
         if (inst instanceof ComputationCPInstruction) {
-            cost += eComputationCPInstruction((ComputationCPInstruction) inst);
+            cost += eComputationCPInstruction((ComputationCPInstruction) inst,costSummary);
         } else if (inst instanceof VariableCPInstruction) {
-            cost += eVariableCPInstruction((VariableCPInstruction) inst);
+            cost += eVariableCPInstruction((VariableCPInstruction) inst,costSummary);
         } else if (inst instanceof FunctionCallCPInstruction) {
-            cost += eFunctionCallCPInstruction((FunctionCallCPInstruction) inst);
+            cost += eFunctionCallCPInstruction((FunctionCallCPInstruction) inst,costSummary);
         } else if (inst instanceof BuiltinNaryCPInstruction) {
-            cost += eBuiltinNaryCPInstruction((BuiltinNaryCPInstruction) inst);
+            cost += eBuiltinNaryCPInstruction((BuiltinNaryCPInstruction) inst,costSummary);
         } else {
             throw new UnhandledOperatorException(inst);
         }
@@ -357,7 +357,7 @@ public class FakeCostEstimator2 {
         return cost;
     }
 
-    private static double eBuiltinNaryCPInstruction(BuiltinNaryCPInstruction inst) throws Exception {
+    private static double eBuiltinNaryCPInstruction(BuiltinNaryCPInstruction inst,CostSummary costSummary) throws Exception {
         MMNode summary = getMMNode(inst.inputs[0].getName());
         for (int i = 1; i < inst.inputs.length; i++) {
             MMNode tmp = getMMNode(inst.inputs[i].getName());
@@ -367,37 +367,38 @@ public class FakeCostEstimator2 {
         DataCharacteristics dc = getDC(summary);
         double cost = CpuSpeed * dc.getNonZeros() * (inst.inputs.length - 1);
         computeCostSummary += cost;
+        costSummary.addCompute(cost);
         for (int i = 0; i < inst.inputs.length; i++) {
-            cost += getCollectCost(inst.inputs[i].getName());
+            cost += getCollectCost(inst.inputs[i].getName(),costSummary);
         }
         return cost;
     }
 
-    private static double eComputationCPInstruction(ComputationCPInstruction inst) throws Exception {
+    private static double eComputationCPInstruction(ComputationCPInstruction inst,CostSummary costSummary) throws Exception {
         double cost = 0;
         if (inst instanceof UnaryCPInstruction) {
-            cost += eUnaryCPInstruction((UnaryCPInstruction) inst);
+            cost += eUnaryCPInstruction((UnaryCPInstruction) inst,costSummary);
         } else if (inst instanceof BinaryCPInstruction) {
-            cost += eBinaryCPInstruction((BinaryCPInstruction) inst);
+            cost += eBinaryCPInstruction((BinaryCPInstruction) inst,costSummary);
         } else if (inst instanceof TernaryCPInstruction) {
-            cost += eTernaryCPInstruction((TernaryCPInstruction) inst);
+            cost += eTernaryCPInstruction((TernaryCPInstruction) inst,costSummary);
         } else {
             throw new UnhandledOperatorException(inst);
         }
         return cost;
     }
 
-    private static double eUnaryCPInstruction(UnaryCPInstruction inst) throws Exception {  // pass through
+    private static double eUnaryCPInstruction(UnaryCPInstruction inst,CostSummary costSummary) throws Exception {  // pass through
         //    System.out.println("UnaryCP " + inst.getOutput().getName());
         double cost = 0;
         if (inst instanceof MMChainCPInstruction) {
-            cost += eMMChainCPInstruction((MMChainCPInstruction) inst);
+            cost += eMMChainCPInstruction((MMChainCPInstruction) inst,costSummary);
         } else if (inst instanceof DataGenCPInstruction) {
 
         } else if (inst instanceof ReorgCPInstruction) {
-            cost += eReorgCPInstruction((ReorgCPInstruction) inst);
+            cost += eReorgCPInstruction((ReorgCPInstruction) inst,costSummary);
         } else if (inst instanceof MMTSJCPInstruction) {
-            cost += eMMTSJCPInstruction((MMTSJCPInstruction) inst);
+            cost += eMMTSJCPInstruction((MMTSJCPInstruction) inst,costSummary);
         } else if (inst instanceof UnaryScalarCPInstruction) {
 
         } else {
@@ -408,7 +409,7 @@ public class FakeCostEstimator2 {
         return cost;
     }
 
-    private static double eMMChainCPInstruction(MMChainCPInstruction inst) throws Exception {
+    private static double eMMChainCPInstruction(MMChainCPInstruction inst,CostSummary costSummary) throws Exception {
         MMNode out;
         double cost = 0;
         if (inst.getMMChainType() == MapMultChain.ChainType.XtXv) {
@@ -428,6 +429,7 @@ public class FakeCostEstimator2 {
             else
                 cost = CpuSpeed * (2 + 2) * ((double) d1m * d1n * d1s) / 2;
             computeCostSummary += cost;
+            costSummary.addCompute(cost);
             if (MMShowCostFlag) {
                 LOG.info("end " + inst + " >>>");
             }
@@ -440,7 +442,7 @@ public class FakeCostEstimator2 {
         return cost;
     }
 
-    private static double eReorgCPInstruction(ReorgCPInstruction inst) throws Exception {
+    private static double eReorgCPInstruction(ReorgCPInstruction inst,CostSummary costSummary) throws Exception {
 //        System.out.println(inst.getOpcode());
         double cost = 0;
         if ("r'".equals(inst.getOpcode())) {
@@ -453,7 +455,8 @@ public class FakeCostEstimator2 {
                 cost = CpuSpeed * dc.getRows() * dc.getCols();
             }
             computeCostSummary += cost;
-            cost += getCollectCost(inst.input1.getName());
+            costSummary.addCompute(cost);
+            cost += getCollectCost(inst.input1.getName(),costSummary);
 
             MMNode out = createMMNode(in, SparsityEstimator.OpCode.TRANS);
             setMMNode(inst.output.getName(), out, Types.ExecType.CP);
@@ -462,7 +465,7 @@ public class FakeCostEstimator2 {
         return cost;
     }
 
-    private static double eMMTSJCPInstruction(MMTSJCPInstruction inst) throws Exception { // tsmm
+    private static double eMMTSJCPInstruction(MMTSJCPInstruction inst,CostSummary costSummary) throws Exception { // tsmm
         MMNode in = getMMNode(inst.input1.getName());
         DataCharacteristics dcin = getDC(in);
         double d1m = dcin.getRows(), d1n = dcin.getCols(), d1s = dcin.getSparsity();
@@ -485,25 +488,26 @@ public class FakeCostEstimator2 {
                 cost = CpuSpeed * d1m * d1n * d1m / 2;
             }
         }
+        costSummary.addCompute(cost);
         computeCostSummary += cost;
-        cost += getCollectCost(inst.input1.getName());
+        cost += getCollectCost(inst.input1.getName(),costSummary);
 
         setMMNode(inst.output.getName(), out, Types.ExecType.CP);
         //System.out.println(inst.toString() + cost);
         return cost;
     }
 
-    private static double eBinaryCPInstruction(BinaryCPInstruction inst) throws Exception {
+    private static double eBinaryCPInstruction(BinaryCPInstruction inst,CostSummary costSummary) throws Exception {
         double cost = 0;
         if (inst instanceof AggregateBinaryCPInstruction) { // matrix mult
-            cost += eAggregateBinaryCPInstruction((AggregateBinaryCPInstruction) inst);
+            cost += eAggregateBinaryCPInstruction((AggregateBinaryCPInstruction) inst,costSummary);
         } else if (inst instanceof BinaryScalarScalarCPInstruction) {// pass through
 //            BinaryScalarScalarCPInstruction bcp = (BinaryScalarScalarCPInstruction) inst;
 //            System.out.println("BinaryScalarScalarCP " + bcp.input1.getName() + " " + bcp.getOpcode() + " " + bcp.input2.getName() + " -> " + bcp.output.getName());
         } else if (inst instanceof BinaryMatrixMatrixCPInstruction) {// pass through
-            cost += eBinaryMatrixMatrixCPInstruction((BinaryMatrixMatrixCPInstruction) inst);
+            cost += eBinaryMatrixMatrixCPInstruction((BinaryMatrixMatrixCPInstruction) inst,costSummary);
         } else if (inst instanceof BinaryMatrixScalarCPInstruction) {
-            cost += eBinaryMatrixScalarCPInstruction((BinaryMatrixScalarCPInstruction) inst);
+            cost += eBinaryMatrixScalarCPInstruction((BinaryMatrixScalarCPInstruction) inst,costSummary);
         } else {
             throw new UnhandledOperatorException(inst);
         }
@@ -511,7 +515,7 @@ public class FakeCostEstimator2 {
         return cost;
     }
 
-    private static double eTernaryCPInstruction(TernaryCPInstruction inst) throws Exception { // Matrix Multiply
+    private static double eTernaryCPInstruction(TernaryCPInstruction inst,CostSummary costSummary) throws Exception { // Matrix Multiply
         //  System.out.println("TernaryCP " + inst.output.getName());
         double cost = 0;
         MMNode out = null;
@@ -521,20 +525,21 @@ public class FakeCostEstimator2 {
         if (inst.input3.getDataType() == Types.DataType.MATRIX) inputs.add(getMMNode(inst.input3.getName()));
         if (inputs.size() == 1) {
             out = inputs.get(0);
-            cost += getCollectCost(inst.input1.getName());
+            cost += getCollectCost(inst.input1.getName(),costSummary);
         } else if (inputs.size() == 2) {
             out = createMMNode(inputs.get(0), inputs.get(1), SparsityEstimator.OpCode.MM);
-            cost += getCollectCost(inst.input1.getName());
-            cost += getCollectCost(inst.input2.getName());
+            cost += getCollectCost(inst.input1.getName(),costSummary);
+            cost += getCollectCost(inst.input2.getName(),costSummary);
         } else if (inputs.size() == 3) {
             MMNode tmp = createMMNode(inputs.get(0), inputs.get(1), SparsityEstimator.OpCode.MM);
             out = createMMNode(tmp, inputs.get(2), SparsityEstimator.OpCode.MM);
-            cost += getCollectCost(inst.input1.getName());
-            cost += getCollectCost(inst.input2.getName());
-            cost += getCollectCost(inst.input3.getName());
+            cost += getCollectCost(inst.input1.getName(),costSummary);
+            cost += getCollectCost(inst.input2.getName(),costSummary);
+            cost += getCollectCost(inst.input3.getName(),costSummary);
         }
         double computeCost = CpuSpeed * 2 * inputs.get(0).getRows() * inputs.get(0).getCols();
         computeCostSummary += computeCost;
+        costSummary.addCompute(computeCost);
         cost += computeCost;
         try {
             DataCharacteristics dc = getDC(out);
@@ -547,7 +552,7 @@ public class FakeCostEstimator2 {
         return cost;
     }
 
-    private static double eAggregateBinaryCPInstruction(AggregateBinaryCPInstruction inst) throws Exception {
+    private static double eAggregateBinaryCPInstruction(AggregateBinaryCPInstruction inst,CostSummary costSummary) throws Exception {
         //   System.out.println("AggregateBinaryCP " + inst.input1.getName() + " %*% " + inst.input2.getName() + " -> " + inst.output.getName());
         MMNode m1 = getMMNode(inst.input1.getName());
         MMNode m2 = getMMNode(inst.input2.getName());
@@ -577,14 +582,16 @@ public class FakeCostEstimator2 {
             e.printStackTrace();
         }
         computeCostSummary += cost;
-        cost += getCollectCost(inst.input1.getName());
-        cost += getCollectCost(inst.input2.getName());
+        costSummary.addCompute(cost);
+        cost += getCollectCost(inst.input1.getName(),costSummary);
+        cost += getCollectCost(inst.input2.getName(),costSummary);
         setMMNode(inst.output.getName(), out, Types.ExecType.CP);
         //System.out.println(inst.toString() + cost);
         return cost;
     }
 
-    private static double eBinaryMatrixMatrixCPInstruction(BinaryMatrixMatrixCPInstruction inst) throws Exception {
+    private static double eBinaryMatrixMatrixCPInstruction(BinaryMatrixMatrixCPInstruction inst,
+                                                           CostSummary costSummary) throws Exception {
         //  System.out.println("BinaryMatrixMatrixSP " + inst.input1.getName() + " " + inst.getOpcode() + " " + inst.input2.getName() + " -> " + inst.output.getName());
         MMNode m1 = getMMNode(inst.input1.getName());
         MMNode m2 = getMMNode(inst.input2.getName());
@@ -613,24 +620,26 @@ public class FakeCostEstimator2 {
             e.printStackTrace();
         }
         computeCostSummary += cost;
-        cost += getCollectCost(inst.input1.getName());
-        cost += getCollectCost(inst.input2.getName());
+        costSummary.addCompute(cost);
+        cost += getCollectCost(inst.input1.getName(),costSummary);
+        cost += getCollectCost(inst.input2.getName(),costSummary);
         setMMNode(inst.output.getName(), out, Types.ExecType.CP);
         //System.out.println(inst.toString() + cost);
         return cost;
     }
 
-    private static double eBinaryMatrixScalarCPInstruction(BinaryMatrixScalarCPInstruction inst) throws Exception {
+    private static double eBinaryMatrixScalarCPInstruction(BinaryMatrixScalarCPInstruction inst,
+                                                           CostSummary costSummary) throws Exception {
         // PLUT, MULT
         //  System.out.println("BinaryMatrixScalarSP " + inst.input1.getName() + " " + inst.getOpcode() + " " + inst.input2.getName() + " -> " + inst.output.getName());
         MMNode out = null;
         double cost = 0;
         if (inst.input1.getDataType() == Types.DataType.MATRIX) {
             out = getMMNode(inst.input1.getName());
-            cost += getCollectCost(inst.input1.getName());
+            cost += getCollectCost(inst.input1.getName(),costSummary);
         } else {
             out = getMMNode(inst.input2.getName());
-            cost += getCollectCost(inst.input2.getName());
+            cost += getCollectCost(inst.input2.getName(),costSummary);
         }
         double computeCost = 0;
         try {
@@ -646,13 +655,14 @@ public class FakeCostEstimator2 {
             e.printStackTrace();
         }
         computeCostSummary += computeCost;
+        costSummary.addCompute(computeCost);
         cost += computeCost;
         setMMNode(inst.output.getName(), out, Types.ExecType.CP);
         //System.out.println(inst.toString() + cost);
         return cost;
     }
 
-    private static double eVariableCPInstruction(VariableCPInstruction inst) throws Exception {
+    private static double eVariableCPInstruction(VariableCPInstruction inst,CostSummary costSummary) throws Exception {
         CPOperand input1 = inst.getInput1();
         CPOperand input2 = inst.getInput2();
         CPOperand output = inst.getOutput();
@@ -693,7 +703,7 @@ public class FakeCostEstimator2 {
         return 0;
     }
 
-    private static double eFunctionCallCPInstruction(FunctionCallCPInstruction fcp) throws Exception {
+    private static double eFunctionCallCPInstruction(FunctionCallCPInstruction fcp,CostSummary costSummary) throws Exception {
 //        System.out.print("FunctionCallCP " + fcp.getFunctionName());
 //        System.out.print(" [");
 //        for (CPOperand cpOperand : fcp.getInputs()) {
@@ -708,40 +718,42 @@ public class FakeCostEstimator2 {
         return 0;
     }
 
-    private static double eSPInstruction(SPInstruction inst) throws Exception {
+    private static double eSPInstruction(SPInstruction inst,CostSummary costSummary) throws Exception {
         double cost = 0;
         if (inst instanceof ComputationSPInstruction) {
-            cost += eComputationSPInstruction((ComputationSPInstruction) inst);
+            cost += eComputationSPInstruction((ComputationSPInstruction) inst,costSummary);
         } else if (inst instanceof MapmmChainSPInstruction) {
-            cost += eMapmmChainSPInstruction((MapmmChainSPInstruction) inst);
+            cost += eMapmmChainSPInstruction((MapmmChainSPInstruction) inst,costSummary);
         } else if (inst instanceof BuiltinNarySPInstruction) {
-            cost += eBuiltinNarySPInstruction((BuiltinNarySPInstruction) inst);
+            cost += eBuiltinNarySPInstruction((BuiltinNarySPInstruction) inst,costSummary);
         } else {
             throw new UnhandledOperatorException(inst);
         }
         return cost;
     }
 
-    private static double eComputationSPInstruction(ComputationSPInstruction inst) throws Exception {
+    private static double eComputationSPInstruction(ComputationSPInstruction inst,
+                                                    CostSummary costSummary) throws Exception {
         double cost = 0;
         if (inst instanceof UnarySPInstruction) {
-            cost += eUnarySPInstruction((UnarySPInstruction) inst);
+            cost += eUnarySPInstruction((UnarySPInstruction) inst,costSummary);
         } else if (inst instanceof BinarySPInstruction) {
-            cost += eBinarySPInstruction((BinarySPInstruction) inst);
+            cost += eBinarySPInstruction((BinarySPInstruction) inst,costSummary);
         } else if (inst instanceof TernarySPInstruction) {
-            cost += eTernarySPInstruction((TernarySPInstruction) inst);
+            cost += eTernarySPInstruction((TernarySPInstruction) inst,costSummary);
         } else {
             throw new UnhandledOperatorException(inst);
         }
         return cost;
     }
 
-    private static double eUnarySPInstruction(UnarySPInstruction inst) throws Exception {
+    private static double eUnarySPInstruction(UnarySPInstruction inst,
+                                              CostSummary costSummary) throws Exception {
         double cost = 0;
         if (inst instanceof TsmmSPInstruction) {// matrix multiply
-            cost += eTsmmSPInstruction((TsmmSPInstruction) inst);
+            cost += eTsmmSPInstruction((TsmmSPInstruction) inst,costSummary);
         } else if (inst instanceof ReorgSPInstruction) {   // TRcost
-            cost += eReorgSPInstruction((ReorgSPInstruction) inst);
+            cost += eReorgSPInstruction((ReorgSPInstruction) inst,costSummary);
         } else if (inst instanceof CSVReblockSPInstruction) {
 
         } else if (inst instanceof CheckpointSPInstruction) {
@@ -754,7 +766,8 @@ public class FakeCostEstimator2 {
         return cost;
     }
 
-    private static double eBuiltinNarySPInstruction(BuiltinNarySPInstruction inst) throws Exception {
+    private static double eBuiltinNarySPInstruction(BuiltinNarySPInstruction inst,
+                                                    CostSummary costSummary) throws Exception {
         MMNode summary = getMMNode(inst.inputs[0].getName());
         for (int i = 1; i < inst.inputs.length; i++) {
             summary = createMMNode(summary, getMMNode(inst.inputs[i].getName()), SparsityEstimator.OpCode.PLUS);
@@ -763,24 +776,38 @@ public class FakeCostEstimator2 {
         DataCharacteristics dc = getDC(summary);
         double cost = CpuSpeed * dc.getNonZeros() * (inst.inputs.length - 1) / SparkExecutionContext.getNumExecutors();
         computeCostSummary += cost;
+        costSummary.addCompute(cost);
         return cost;
     }
 
-    private static double eTsmmSPInstruction(TsmmSPInstruction inst) throws Exception {
+    private static double eTsmmSPInstruction(TsmmSPInstruction inst,
+                                             CostSummary costSummary) throws Exception {
         // System.out.println("TSMM " + inst.input1.getName() + " -> " + inst.output.getName());
         MMNode in = getMMNode(inst.input1.getName());
         DataCharacteristics dcin = getDC(in);
+        MMNode tmp = createMMNode(in, SparsityEstimator.OpCode.TRANS);
+        MMNode out = null;
+        boolean isLeft = inst.getMMTSJType() == MMTSJ.MMTSJType.LEFT;
+        if (isLeft) {
+            out = createMMNode(tmp, in, SparsityEstimator.OpCode.MM);
+        } else {
+            out = createMMNode(in, tmp, SparsityEstimator.OpCode.MM);
+        }
+        setMMNode(inst.output.getName(), out, Types.ExecType.SPARK);
+        DataCharacteristics dcout = getDC(out);
+        double cost = eTsmmSPInner(dcin, dcout, isLeft,costSummary);
+        return cost;
+    }
+
+    public static double eTsmmSPInner(DataCharacteristics dcin, DataCharacteristics dcout, boolean isLeft,CostSummary costSummary) {
+
         long d1m = dcin.getRows(), d1n = dcin.getCols();
         double d1s = dcin.getSparsity();
         boolean sparse = MatrixBlock.evalSparseFormatInMemory(dcin);
-        MMNode tmp = createMMNode(in, SparsityEstimator.OpCode.TRANS);
-        MMNode out = null;
         double computeCost = Double.MAX_VALUE;
         double shuffleCost = Double.MAX_VALUE;
         long executor = reducerNumber(d1m, d1n);
-        if (inst.getMMTSJType() == MMTSJ.MMTSJType.LEFT) {
-            out = createMMNode(tmp, in, SparsityEstimator.OpCode.MM);
-            DataCharacteristics dcout = getDC(out);
+        if (isLeft) {
             if (sparse) {
                 computeCost = CpuSpeed * d1m * d1n * d1s * d1n / (2.0 * executor);
                 shuffleCost = ShuffleSpeed * MatrixBlock.estimateSizeInMemory(d1n, d1n, dcout.getSparsity()) * executor;
@@ -788,9 +815,7 @@ public class FakeCostEstimator2 {
                 computeCost = CpuSpeed * d1m * d1n * d1s * d1n * d1s / (2.0 * executor);
                 shuffleCost = ShuffleSpeed * MatrixBlock.estimateSizeInMemory(d1n, d1n, dcout.getSparsity()) * executor;
             }
-        } else if (inst.getMMTSJType() == MMTSJ.MMTSJType.RIGHT) {
-            out = createMMNode(in, tmp, SparsityEstimator.OpCode.MM);
-            DataCharacteristics dcout = getDC(out);
+        } else {
             if (sparse) {
                 computeCost = CpuSpeed * ((double) d1m * d1n * d1s + d1m * d1n * d1s * d1n * d1s / (2.0 * executor));
                 shuffleCost = ShuffleSpeed * MatrixBlock.estimateSizeInMemory(d1n, d1n, dcout.getSparsity()) * executor;
@@ -799,13 +824,15 @@ public class FakeCostEstimator2 {
                 shuffleCost = ShuffleSpeed * MatrixBlock.estimateSizeInMemory(d1n, d1n, dcout.getSparsity()) * executor;
             }
         }
-        setMMNode(inst.output.getName(), out, Types.ExecType.SPARK);
+        costSummary.addCompute(computeCost);
+        costSummary.addShuffle(shuffleCost);
         computeCostSummary += computeCost;
         shuffleCostSummary += shuffleCost;
         return shuffleCost + computeCost;
     }
 
-    private static double eReorgSPInstruction(ReorgSPInstruction t) throws Exception {
+
+    private static double eReorgSPInstruction(ReorgSPInstruction t,CostSummary costSummary) throws Exception {
         //   System.out.println("ReorgSP " + t.input1.getName() + " -> " + t.output.getName());
         MMNode m1 = getMMNode(t.input1.getName());
         MMNode out = createMMNode(m1, SparsityEstimator.OpCode.TRANS);
@@ -813,28 +840,30 @@ public class FakeCostEstimator2 {
         DataCharacteristics dc = getDC(m1);
         double cost = CpuSpeed * dc.getCols() * dc.getRows() / reducerNumber(m1.getRows(), m1.getCols());
         computeCostSummary += cost;
+        costSummary.addCompute(cost);
         return cost;
     }
 
-    private static double eBinarySPInstruction(BinarySPInstruction inst) throws Exception {
+    private static double eBinarySPInstruction(BinarySPInstruction inst,
+                                               CostSummary costSummary) throws Exception {
         double cost = 0;
 //        if (inst.getOpcode().equals("map-")) {
 //            System.out.println("x");
 //        }
         if (inst instanceof MapmmSPInstruction) {// matrix multiply
-            cost += eMapmmSPInstruction((MapmmSPInstruction) inst);
+            cost += eMapmmSPInstruction((MapmmSPInstruction) inst,costSummary);
         } else if (inst instanceof CpmmSPInstruction) { // matrix multiply
-            cost += eCpmmSPInstruction((CpmmSPInstruction) inst);
+            cost += eCpmmSPInstruction((CpmmSPInstruction) inst,costSummary);
         } else if (inst instanceof BinaryMatrixBVectorSPInstruction) { // minus: ax - b
-            cost += eBinaryMatrixBVectorSPInstruction((BinaryMatrixBVectorSPInstruction) inst);
+            cost += eBinaryMatrixBVectorSPInstruction((BinaryMatrixBVectorSPInstruction) inst,costSummary);
         } else if (inst instanceof BinaryMatrixScalarSPInstruction) { // PLUT,MULT
-            cost += eBinaryMatrixScalarSPInstruction((BinaryMatrixScalarSPInstruction) inst);
+            cost += eBinaryMatrixScalarSPInstruction((BinaryMatrixScalarSPInstruction) inst,costSummary);
         } else if (inst instanceof BinaryMatrixMatrixSPInstruction) {// PLUS,MULT
-            cost += eBinaryMatrixMatrixSPInstruction((BinaryMatrixMatrixSPInstruction) inst);
+            cost += eBinaryMatrixMatrixSPInstruction((BinaryMatrixMatrixSPInstruction) inst,costSummary);
         } else if (inst instanceof RmmSPInstruction) {
-            cost += eRmmSPInstruction((RmmSPInstruction) inst);
+            cost += eRmmSPInstruction((RmmSPInstruction) inst,costSummary);
         } else if (inst instanceof ZipmmSPInstruction) {
-            cost += eZipmmSPInstruction((ZipmmSPInstruction) inst);
+            cost += eZipmmSPInstruction((ZipmmSPInstruction) inst,costSummary);
         } else {
             throw new UnhandledOperatorException(inst);
         }
@@ -856,7 +885,7 @@ public class FakeCostEstimator2 {
         return MatrixBlock.estimateSizeInMemory(mb.getNumRows(), mb.getNumColumns(), mb.getSparsity());
     }
 
-    private static double eMapmmSPInstruction(MapmmSPInstruction t) throws Exception {
+    private static double eMapmmSPInstruction(MapmmSPInstruction t,CostSummary costSummary) throws Exception {
         //  System.out.println("MPMM " + t.input1.getName() + " %*% " + t.input2.getName() + " -> " + t.output.getName());
         if (MMShowCostFlag) {
             LOG.info("begin<<< " + t);
@@ -868,16 +897,28 @@ public class FakeCostEstimator2 {
         DataCharacteristics dc1 = getDC(m1);
         DataCharacteristics dc2 = getDC(m2);
         DataCharacteristics dc3 = getDC(out);
+        boolean isLeft = t.getCacheType() == MapMult.CacheType.LEFT;
+        double cost = eMapmmSPInner(dc1, dc2, dc3, isLeft,costSummary);
+        if (MMShowCostFlag) {
+            LOG.info(t + "  end>>>");
+        }
+        return cost;
+    }
+
+    public static double eMapmmSPInner(DataCharacteristics dc1,
+                                       DataCharacteristics dc2,
+                                       DataCharacteristics dc3,
+                                       boolean isLeft,CostSummary costSummary) {
         double broadcastCost = Double.MAX_VALUE;
         double computeCost = Double.MAX_VALUE;
         double shuffleCost = Double.MAX_VALUE;
         long r2 = reducerNumber(dc3.getRows(), dc3.getCols());
-        if (t.getCacheType() == MapMult.CacheType.LEFT) {
+        if (isLeft) {
             long r1 = Math.min(OptimizerUtils.getNumReducers(false), (long) Math.ceil((double) dc2.getRows() / defaultBlockSize));
             broadcastCost = BroadCaseSpeed * matrixSize(dc1) * Math.ceil(Math.log(Math.min(r1, SparkExecutionContext.getNumExecutors())));
             shuffleCost = ShuffleSpeed * matrixSize(dc3) * r1 / r2;
             computeCost = computeCostSPMM(dc1, dc2, dc3);
-        } else if (t.getCacheType() == MapMult.CacheType.RIGHT) {
+        } else {
             long r1 = Math.min(OptimizerUtils.getNumReducers(false), (long) Math.ceil((double) dc1.getCols() / defaultBlockSize));
             broadcastCost = BroadCaseSpeed * matrixSize(dc2) * Math.ceil(Math.log(Math.min(r1, SparkExecutionContext.getNumExecutors())));
             shuffleCost = ShuffleSpeed * matrixSize(dc3) * r1 / r2;
@@ -887,17 +928,18 @@ public class FakeCostEstimator2 {
             LOG.info("mapmm broadcast cost = " + broadcastCost);
             LOG.info("mapmm compute cost = " + computeCost);
             LOG.info("mapmm shuffle cost = " + shuffleCost);
-            LOG.info(t + "  end>>>");
         }
         computeCostSummary += computeCost;
         shuffleCostSummary += shuffleCost;
         broadcastCostSummary += broadcastCost;
+        costSummary.addCompute(computeCost);
+        costSummary.addShuffle(shuffleCost);
+        costSummary.addBroadcast(broadcastCost);
         return computeCost + shuffleCost + broadcastCost;
     }
 
-    public static boolean MMShowCostFlag = false;
 
-    private static double eCpmmSPInstruction(CpmmSPInstruction t) throws Exception {
+    private static double eCpmmSPInstruction(CpmmSPInstruction t,CostSummary costSummary) throws Exception {
         //  System.out.println("CPMM " + t.input1.getName() + " %*% " + t.input2.getName() + " -> " + t.output.getName());
         if (MMShowCostFlag) {
             LOG.info("begin<<< " + t);
@@ -909,6 +951,14 @@ public class FakeCostEstimator2 {
         DataCharacteristics dc1 = getDC(m1);
         DataCharacteristics dc2 = getDC(m2);
         DataCharacteristics dc3 = getDC(out);
+        double cost = eCpmmInner(dc1, dc2, dc3,costSummary);
+        if (MMShowCostFlag) LOG.info(t + "  end>>>");
+        return cost;
+    }
+
+    public static double eCpmmInner(DataCharacteristics dc1,
+                                    DataCharacteristics dc2,
+                                    DataCharacteristics dc3,CostSummary costSummary) {
 
         long r = Math.min((long) Math.ceil((double) dc2.getRows() / defaultBlockSize), //max used reducers
                 OptimizerUtils.getNumReducers(false)); //available reducer
@@ -921,14 +971,17 @@ public class FakeCostEstimator2 {
             LOG.info("cpmm shuffle cost 1 = " + shuffleCost1);
             LOG.info("cpmm shuffle cost 2 = " + shuffleCost2);
             LOG.info("cpmm compute cost = " + computeCost);
-            LOG.info(t + "  end>>>");
+
         }
         computeCostSummary += computeCost;
         shuffleCostSummary += shuffleCost1 + shuffleCost2;
+        costSummary.addCompute(computeCost);
+        costSummary.addShuffle(shuffleCost1+shuffleCost2);
         return shuffleCost1 + shuffleCost2 + computeCost;
     }
 
-    private static double eRmmSPInstruction(RmmSPInstruction t) throws Exception {
+
+    private static double eRmmSPInstruction(RmmSPInstruction t,CostSummary costSummary) throws Exception {
         if (MMShowCostFlag) {
             LOG.info("begin<<< " + t);
         }
@@ -940,7 +993,14 @@ public class FakeCostEstimator2 {
         DataCharacteristics dc1 = getDC(m1);
         DataCharacteristics dc2 = getDC(m2);
         DataCharacteristics dc3 = getDC(out);
+        double cost = eRmmSpInner(dc1, dc2, dc3,costSummary);
+        if (MMShowCostFlag) LOG.info(t + "  end>>>");
+        return cost;
+    }
 
+    public static double eRmmSpInner(DataCharacteristics dc1,
+                                     DataCharacteristics dc2,
+                                     DataCharacteristics dc3,CostSummary costSummary) {
         long m1_nrb = (long) Math.ceil((double) dc1.getRows() / defaultBlockSize); // number of row blocks in m1
         long m2_ncb = (long) Math.ceil((double) dc2.getCols() / defaultBlockSize); // number of column blocks in m2
         long k = (long) Math.ceil((double) dc2.getRows() / defaultBlockSize);
@@ -956,15 +1016,16 @@ public class FakeCostEstimator2 {
             LOG.info("rmm shuffle cost 1 = " + shuffleCost1);
             LOG.info("rmm shuffle cost 2 = " + shuffleCost2);
             LOG.info("rmm compute cost = " + computeCost);
-            LOG.info(t + "  end>>>");
         }
         shuffleCostSummary += shuffleCost1 + shuffleCost2;
         computeCostSummary += computeCost;
+        costSummary.addCompute(computeCost);
+        costSummary.addShuffle(shuffleCost1+shuffleCost2);
         return shuffleCost1 + shuffleCost2 + computeCost;
-
     }
 
-    private static double eZipmmSPInstruction(ZipmmSPInstruction t) throws Exception {
+
+    private static double eZipmmSPInstruction(ZipmmSPInstruction t,CostSummary costSummary) throws Exception {
         if (MMShowCostFlag) {
             LOG.info("begin<<< " + t);
         }
@@ -976,7 +1037,17 @@ public class FakeCostEstimator2 {
         DataCharacteristics dc1 = getDC(m1);
         DataCharacteristics dc2 = getDC(m2);
         DataCharacteristics dc3 = getDC(out);
+        double cost = eZipmmSP(dc1, dc2, dc3,costSummary);
+        if (MMShowCostFlag) {
+            LOG.info(t + "  end>>>");
+        }
+        return cost;
+    }
 
+    public static double eZipmmSP(DataCharacteristics dc1,
+                                  DataCharacteristics dc2,
+                                  DataCharacteristics dc3,
+                                  CostSummary costSummary) {
         long reducer = (long) Math.ceil(Math.max(dc1.getRows(), dc1.getCols()) * 1.0 / defaultBlockSize);
         reducer = Math.min(reducer, OptimizerUtils.getNumReducers(false));
         reducer = Math.max(reducer, 1);
@@ -986,14 +1057,17 @@ public class FakeCostEstimator2 {
         if (MMShowCostFlag) {
             LOG.info("zipmm reduce cost = " + reduceCost);
             LOG.info("zipmm compute cost = " + computeCost);
-            LOG.info(t + "  end>>>");
         }
         collectCostSummary += reduceCost;
         computeCostSummary += computeCost;
+        costSummary.addCompute(computeCost);
+        costSummary.addCollect(reduceCost);
         return reduceCost + computeCost;
     }
 
-    private static double eBinaryMatrixBVectorSPInstruction(BinaryMatrixBVectorSPInstruction t) throws Exception {
+
+    private static double eBinaryMatrixBVectorSPInstruction(BinaryMatrixBVectorSPInstruction t,
+                                                            CostSummary costSummary) throws Exception {
         //   System.out.println("BinaryMatrixBVectorSP " + t.input1.getName() + " " + t.input2.getName() + " -> " + t.output.getName());
         MMNode m1 = getMMNode(t.input1.getName());
         MMNode m2 = getMMNode(t.input2.getName());
@@ -1007,11 +1081,12 @@ public class FakeCostEstimator2 {
             e.printStackTrace();
         }
         computeCostSummary += cost;
+        costSummary.addCompute(cost);
         setMMNode(t.output.getName(), out, Types.ExecType.SPARK);
         return cost;
     }
 
-    private static double eBinaryMatrixScalarSPInstruction(BinaryMatrixScalarSPInstruction inst) throws Exception {
+    private static double eBinaryMatrixScalarSPInstruction(BinaryMatrixScalarSPInstruction inst,CostSummary costSummary) throws Exception {
         //  System.out.println("BinaryMatrixScalarSP " + inst.input1.getName() + " " + inst.input2.getName() + " -> " + inst.output.getName());
         if (inst.input1.getDataType() == Types.DataType.MATRIX) {
             MMNode tmp = getMMNode(inst.input1.getName());
@@ -1023,7 +1098,7 @@ public class FakeCostEstimator2 {
         return 0;
     }
 
-    private static double eBinaryMatrixMatrixSPInstruction(BinaryMatrixMatrixSPInstruction t) throws Exception {
+    private static double eBinaryMatrixMatrixSPInstruction(BinaryMatrixMatrixSPInstruction t,CostSummary costSummary) throws Exception {
         //    System.out.println("BinaryMatrixMatrixSP " + t.input1.getName() + " " + t.input2.getName() + " -> " + t.output.getName());
         MMNode m1 = getMMNode(t.input1.getName());
         MMNode m2 = getMMNode(t.input2.getName());
@@ -1046,15 +1121,17 @@ public class FakeCostEstimator2 {
             shuffle = MatrixBlock.estimateSizeDenseInMemory(dc1.getRows(), dc1.getCols())
                     + MatrixBlock.estimateSizeDenseInMemory(dc2.getRows(), dc2.getCols());
         }
-        double computeCost = CpuSpeed * compute/reducerNum;
-        double shuffleCost = ShuffleSpeed * shuffle/reducerNum;
+        double computeCost = CpuSpeed * compute / reducerNum;
+        double shuffleCost = ShuffleSpeed * shuffle / reducerNum;
         computeCostSummary += computeCost;
         shuffleCostSummary += shuffleCost;
+        costSummary.addCompute(compute);
+        costSummary.addShuffle(shuffle);
         return computeCost + shuffleCost;
     }
 
 
-    private static double eTernarySPInstruction(TernarySPInstruction inst) throws Exception {
+    private static double eTernarySPInstruction(TernarySPInstruction inst,CostSummary costSummary) throws Exception {
         // System.out.println("ternarySP " + inst.input1.getName() + " " + inst.input2.getName() + " " + inst.input3.getName() + " -> " + inst.output.getName());
         MMNode out = null;
         double shuffle = 0;
@@ -1089,14 +1166,16 @@ public class FakeCostEstimator2 {
         setMMNode(inst.output.getName(), out, Types.ExecType.SPARK);
 
         long r = reducerNumber(dc.getRows(), dc.getCols());
-        double computeCost = CpuSpeed * computation/r;
-        double shuffleCost = ShuffleSpeed * shuffle/r;
+        double computeCost = CpuSpeed * computation / r;
+        double shuffleCost = ShuffleSpeed * shuffle / r;
         computeCostSummary += computeCost;
         shuffleCostSummary += shuffleCost;
+        costSummary.addCompute(computation);
+        costSummary.addShuffle(shuffle);
         return computeCost + shuffleCost;
     }
 
-    private static double eMapmmChainSPInstruction(MapmmChainSPInstruction inst) throws Exception {
+    private static double eMapmmChainSPInstruction(MapmmChainSPInstruction inst,CostSummary costSummary) throws Exception {
         // System.out.println("mapmm chain sp ");
         MMNode out = null;
         double cost = 0;
@@ -1126,27 +1205,40 @@ public class FakeCostEstimator2 {
             MMNode Xt = createMMNode(X, SparsityEstimator.OpCode.TRANS);
             out = createMMNode(Xt, Xv, SparsityEstimator.OpCode.MM);
             DataCharacteristics dc3 = getDC(out);
-            long reducer = reducerNumber(dc1.getRows(), dc1.getCols());
-            reducer = Math.min(reducer, OptimizerUtils.getNumReducers(false));
-            long executor = Math.min(reducer, SparkExecutionContext.getNumExecutors());
-            double computeCost = 1.5 * CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols() * (dc1.getSparsity() * dc2.getSparsity() + dc1.getSparsity()) / reducer;
-            double broadcastCost = BroadCaseSpeed * MatrixBlock.estimateSizeInMemory(dc2.getRows(), dc2.getCols(), dc2.getSparsity()) * Math.ceil(Math.log(executor));
-            double reduceCost = BroadCaseSpeed * MatrixBlock.estimateSizeInMemory(dc3.getRows(), dc3.getRows(), dc3.getSparsity());
+            cost = eMapmmChainXtXv(dc1, dc2, dc3,costSummary);
             if (MMShowCostFlag) {
-                LOG.info("mapmmchain broad cost = " + broadcastCost);
-                LOG.info("mapmmchain reduce cost = " + reduceCost);
-                LOG.info("mapmmchain compute cost = " + computeCost);
                 LOG.info(inst + "  end>>>");
             }
-            cost = computeCost + reduceCost + broadcastCost;
-            computeCostSummary += computeCost;
-            broadcastCostSummary += broadcastCost;
-            collectCostSummary += reduceCost;
         } else {
             //  System.out.println(inst.get_chainType());
             throw new UnhandledOperatorException(inst);
         }
         setMMNode(inst.get_output().getName(), out, Types.ExecType.SPARK);
+        return cost;
+    }
+
+    public static double eMapmmChainXtXv(DataCharacteristics dc1,
+                                         DataCharacteristics dc2,
+                                         DataCharacteristics dc3,CostSummary costSummary) {
+        long reducer = reducerNumber(dc1.getRows(), dc1.getCols());
+        reducer = Math.min(reducer, OptimizerUtils.getNumReducers(false));
+        long executor = Math.min(reducer, SparkExecutionContext.getNumExecutors());
+        double computeCost = 1.5 * CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols() * (dc1.getSparsity() * dc2.getSparsity() + dc1.getSparsity()) / reducer;
+        double broadcastCost = BroadCaseSpeed * MatrixBlock.estimateSizeInMemory(dc2.getRows(), dc2.getCols(), dc2.getSparsity()) * Math.ceil(Math.log(executor));
+        double reduceCost = BroadCaseSpeed * MatrixBlock.estimateSizeInMemory(dc3.getRows(), dc3.getRows(), dc3.getSparsity());
+        if (MMShowCostFlag) {
+            LOG.info("mapmmchain broad cost = " + broadcastCost);
+            LOG.info("mapmmchain reduce cost = " + reduceCost);
+            LOG.info("mapmmchain compute cost = " + computeCost);
+        }
+        double cost = computeCost + reduceCost + broadcastCost;
+        computeCostSummary += computeCost;
+        broadcastCostSummary += broadcastCost;
+        collectCostSummary += reduceCost;
+        costSummary.addCompute(computeCost);
+        costSummary.addBroadcast(broadcastCost);
+        costSummary.addCollect(reduceCost);
+
         return cost;
     }
 
@@ -1194,7 +1286,7 @@ public class FakeCostEstimator2 {
         return numReducer;
     }
 
-    private static double getCollectCost(String name) throws Exception {
+    private static double getCollectCost(String name,CostSummary costSummary) throws Exception {
         //   LOG.info("get collect cost "+name);
         Types.ExecType type = getExecType(name);
         if (type == null || type == Types.ExecType.SPARK) {
@@ -1205,6 +1297,7 @@ public class FakeCostEstimator2 {
                 cost = Math.max(cost, 0);
                 //   LOG.info(name + " collect cost = " + cost);
                 collectCostSummary += cost;
+                costSummary.addCollect(cost);
                 return cost;
             }
         }

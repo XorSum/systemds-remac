@@ -9,6 +9,7 @@ import org.apache.sysds.hops.rewrite.dfp.AnalyzeSymmetryMatrix;
 import org.apache.sysds.hops.rewrite.dfp.DisjointSet;
 import org.apache.sysds.hops.rewrite.dfp.Leaf;
 import org.apache.sysds.hops.rewrite.dfp.MySolution;
+import org.apache.sysds.hops.rewrite.dfp.costmodel.CostSummary;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
 import org.apache.sysds.hops.rewrite.dfp.dp.CostGraph;
@@ -801,7 +802,15 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 Program program = constructProgramBlocks(h, statementBlock);
                 if (showDetails)
                     LOG.debug(Explain.explain(program));
-                preCost += FakeCostEstimator2.estimate(program);
+//                preCost +=
+                CostSummary costSummary = FakeCostEstimator2.estimateRuntimeProgram(program);
+
+                assert (costSummary.shuffleCostSummary == FakeCostEstimator2.shuffleCostSummary );
+                assert (costSummary.collectCostSummary == FakeCostEstimator2.collectCostSummary );
+                assert (costSummary.computeCostSummary == FakeCostEstimator2.computeCostSummary );
+                assert (costSummary.broadcastCostSummary == FakeCostEstimator2.broadcastCostSummary );
+
+                System.out.println(costSummary);
                 preloopShuffleCost += FakeCostEstimator2.shuffleCostSummary;
                 preloopBroadcastCost += FakeCostEstimator2.broadcastCostSummary;
                 preloopComputeCost += FakeCostEstimator2.computeCostSummary;
@@ -813,7 +822,15 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 LOG.debug(Explain.explain(programBlocks));
 //            cost = CostEstimationWrapper.getTimeEstimate(programBlocks, ec);
 //            if (preCost <= FakeCostEstimator2.miniumCostBoundery) {
-            bodyCost = FakeCostEstimator2.estimate(programBlocks);
+            bodyCost = 0;
+            CostSummary costSummary   = FakeCostEstimator2.estimateRuntimeProgram(programBlocks);
+            System.out.println(costSummary);
+            assert (costSummary.shuffleCostSummary == FakeCostEstimator2.shuffleCostSummary );
+            assert (costSummary.collectCostSummary == FakeCostEstimator2.collectCostSummary );
+            assert (costSummary.computeCostSummary == FakeCostEstimator2.computeCostSummary );
+            assert (costSummary.broadcastCostSummary == FakeCostEstimator2.broadcastCostSummary );
+
+
             bodyShuffleCost += FakeCostEstimator2.shuffleCostSummary;
             bodyBroadcastCost += FakeCostEstimator2.broadcastCostSummary;
             bodyComputeCost += FakeCostEstimator2.computeCostSummary;

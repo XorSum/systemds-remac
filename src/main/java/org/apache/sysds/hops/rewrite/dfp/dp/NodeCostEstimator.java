@@ -5,11 +5,12 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.sysds.common.Types;
 import org.apache.sysds.hops.*;
-import org.apache.sysds.hops.estim.EstimatorBasicAvg;
 import org.apache.sysds.hops.estim.EstimatorMatrixHistogram;
 import org.apache.sysds.hops.estim.MMNode;
 import org.apache.sysds.hops.estim.SparsityEstimator;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
+import org.apache.sysds.hops.rewrite.dfp.costmodel.CostSummary;
+import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
 import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
 import org.apache.sysds.lops.LopProperties;
 import org.apache.sysds.runtime.matrix.data.MatrixBlock;
@@ -123,6 +124,7 @@ public class NodeCostEstimator {
     public double getNodeCost(OperatorNode opnode) {
         // MMNode mmnode = addOpnode2Mmnode(opnode);
         //System.out.println("hop " + opnode.hop.getOpString());
+        MMShowCostFlag = false;
         double ans = Double.MAX_VALUE;
         Hop hop = opnode.hops.get(0);
         if (HopRewriteUtils.isMatrixMultiply(hop)) {
@@ -195,6 +197,7 @@ public class NodeCostEstimator {
         DataCharacteristics dc2 = getDC(node.inputs.get(1));
         DataCharacteristics dc3 = getDC(node);
         double ans = Double.MAX_VALUE;
+        CostSummary costSummary = new CostSummary();
         if (hop.getExecType() == LopProperties.ExecType.SPARK) {
 //        if (true){
             hop.constructLops();
@@ -202,24 +205,32 @@ public class NodeCostEstimator {
 //            System.out.println(method);
             switch (method) {
                 case MAPMM_R:
+                    ans = FakeCostEstimator2.eMapmmSPInner(dc1,dc2,dc3,false,costSummary);
+                    break;
                 case MAPMM_L:
-                    ans = eMapMM(hop, method, dc1, dc2, dc3);
+                    ans = FakeCostEstimator2.eMapmmSPInner(dc1,dc2,dc3,true,costSummary);
                     break;
                 case RMM:
-                    ans = eRMM(hop, dc1, dc2, dc3);
+                    ans = FakeCostEstimator2.eRmmSpInner(dc1,dc2,dc3,costSummary);
+//                    ans = eRMM(hop, dc1, dc2, dc3);
                     break;
                 case MAPMM_CHAIN:
-                    ans = eMapMMChain(hop, dc1, dc2, dc3);
+                    ans = FakeCostEstimator2.eMapmmChainXtXv(dc1,dc2,dc3,costSummary);
+//                    ans = eMapMMChain(hop, dc1, dc2, dc3);
                     break;
                 case ZIPMM:
-                    ans = eZipMM(hop, dc1, dc2, dc3);
+                    ans = FakeCostEstimator2.eZipmmSP(dc1,dc2,dc3,costSummary);
+//                    ans = eZipMM(hop, dc1, dc2, dc3);
                     break;
                 case TSMM:
-                    ans = eTSMM(hop, dc1, dc2, dc3);
+                    boolean isLeft = HopRewriteUtils.isTransposeOperation(hop.getInput().get(0));
+                    ans = FakeCostEstimator2.eTsmmSPInner(dc1,dc3,isLeft,costSummary);
+//                    ans = eTSMM(hop, dc1, dc2, dc3);
                     break;
                 case CPMM:
                 default:
-                    ans = eCPMM(hop, dc1, dc2, dc3);
+                  //  ans = eCPMM(hop, dc1, dc2, dc3);
+                    ans = FakeCostEstimator2.eCpmmInner(dc1,dc2,dc3,costSummary);
             }
         } else {
             ans = CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols();
@@ -227,38 +238,38 @@ public class NodeCostEstimator {
         return ans;
     }
 
-    double eMapMM(AggBinaryOp hop, AggBinaryOp.MMultMethod method,
-                  DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
-        double broadcastCost = Double.MAX_VALUE;
-        double computeCost = Double.MAX_VALUE;
-        double shuffleCost = Double.MAX_VALUE;
-        double collectCost = 0;
-        long r2 = reducerNumber(dc3.getRows(), dc3.getCols());
-        if (method == AggBinaryOp.MMultMethod.MAPMM_L) {
-            long r1 = Math.min(OptimizerUtils.getNumReducers(false), (long) Math.ceil((double) dc2.getRows() / defaultBlockSize));
-            if (hop.getInput().get(0).getExecType() == LopProperties.ExecType.SPARK)
-                collectCost = BroadCaseSpeed * matrixSize(dc1);
-            broadcastCost = BroadCaseSpeed * matrixSize(dc1) * Math.ceil(Math.log(r1));
-            shuffleCost = ShuffleSpeed * matrixSize(dc3) * r1 / r2;
-            computeCost = computeCostSPMM(dc1, dc2, dc3);
-        } else if (method == AggBinaryOp.MMultMethod.MAPMM_R) {
-            long r1 = Math.min(OptimizerUtils.getNumReducers(false), (long) Math.ceil((double) dc1.getCols() / defaultBlockSize));
-            if (hop.getInput().get(1).getExecType() == LopProperties.ExecType.SPARK)
-                collectCost = BroadCaseSpeed * matrixSize(dc1);
-            broadcastCost = BroadCaseSpeed * matrixSize(dc2) * Math.ceil(Math.log(r1));
-            shuffleCost = ShuffleSpeed * matrixSize(dc3) * r1 / r2;
-            computeCost = computeCostSPMM(dc1, dc2, dc3);
-        }
-        if (MMShowCostFlag) {
-            LOG.info("begin<<< ");
-            LOG.info("mapmm broadcast cost = " + broadcastCost);
-            LOG.info("mapmm compute cost = " + computeCost);
-            LOG.info("mapmm shuffle cost = " + shuffleCost);
-            LOG.info("mapmm collect cost = " + collectCost);
-            LOG.info("  end>>>");
-        }
-        return computeCost + shuffleCost + broadcastCost + collectCost;
-    }
+//    double eMapMM(AggBinaryOp hop, AggBinaryOp.MMultMethod method,
+//                  DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
+//        double broadcastCost = Double.MAX_VALUE;
+//        double computeCost = Double.MAX_VALUE;
+//        double shuffleCost = Double.MAX_VALUE;
+//        double collectCost = 0;
+//        long r2 = reducerNumber(dc3.getRows(), dc3.getCols());
+//        if (method == AggBinaryOp.MMultMethod.MAPMM_L) {
+//            long r1 = Math.min(OptimizerUtils.getNumReducers(false), (long) Math.ceil((double) dc2.getRows() / defaultBlockSize));
+//            if (hop.getInput().get(0).getExecType() == LopProperties.ExecType.SPARK)
+//                collectCost = BroadCaseSpeed * matrixSize(dc1);
+//            broadcastCost = BroadCaseSpeed * matrixSize(dc1) * Math.ceil(Math.log(r1));
+//            shuffleCost = ShuffleSpeed * matrixSize(dc3) * r1 / r2;
+//            computeCost = computeCostSPMM(dc1, dc2, dc3);
+//        } else if (method == AggBinaryOp.MMultMethod.MAPMM_R) {
+//            long r1 = Math.min(OptimizerUtils.getNumReducers(false), (long) Math.ceil((double) dc1.getCols() / defaultBlockSize));
+//            if (hop.getInput().get(1).getExecType() == LopProperties.ExecType.SPARK)
+//                collectCost = BroadCaseSpeed * matrixSize(dc1);
+//            broadcastCost = BroadCaseSpeed * matrixSize(dc2) * Math.ceil(Math.log(r1));
+//            shuffleCost = ShuffleSpeed * matrixSize(dc3) * r1 / r2;
+//            computeCost = computeCostSPMM(dc1, dc2, dc3);
+//        }
+//        if (MMShowCostFlag) {
+//            LOG.info("begin<<< ");
+//            LOG.info("mapmm broadcast cost = " + broadcastCost);
+//            LOG.info("mapmm compute cost = " + computeCost);
+//            LOG.info("mapmm shuffle cost = " + shuffleCost);
+//            LOG.info("mapmm collect cost = " + collectCost);
+//            LOG.info("  end>>>");
+//        }
+//        return computeCost + shuffleCost + broadcastCost + collectCost;
+//    }
 
     double eCPMM(AggBinaryOp hop,
                  DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
@@ -309,6 +320,9 @@ public class NodeCostEstimator {
         double computeCost = CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc1.getSparsity() / reducer;
         double shuffleCost = ShuffleSpeed * MatrixBlock.estimateSizeInMemory(dc3.getRows(), dc3.getRows(), dc3.getSparsity());
         return computeCost + shuffleCost;
+//        boolean isLeft = HopRewriteUtils.isTransposeOperation(hop.getInput().get(0));
+//        double ans = FakeCostEstimator2.eTsmmSPInner(dc1,dc3,isLeft);
+//        return ans;
     }
 
     double eMapMMChain(AggBinaryOp hop,
