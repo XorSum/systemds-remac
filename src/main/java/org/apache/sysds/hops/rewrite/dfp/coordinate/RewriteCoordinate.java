@@ -688,7 +688,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         else solution = new MySolution(result);
         solution.multiCse = multiCse;
         long start = System.nanoTime();
-        estimate(solution, false);
+        estimate(solution, true);
         long end = System.nanoTime();
         estimateTime += end - start;
         //LOG.debug(solution);
