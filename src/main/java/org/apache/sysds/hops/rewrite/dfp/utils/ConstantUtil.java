@@ -81,7 +81,8 @@ public class ConstantUtil {
         for (int i = 0; i < hop.getInput().size(); i++) {
             Hop child = hop.getInput().get(i);
             Long id = child.getHopID();
-            if ( constantTable.get(child.getHopID())) {// 非常量父节点指向常量子节点,说明子节点是个top常量
+            if ( constantTable.get(child.getHopID())
+                    && !HopRewriteUtils.isTransposeOperation(child)) {// 非常量父节点指向常量子节点,说明子节点是个top常量
                 if (!isSampleHop(child) && !hop.isScalar()) {
 //                    LOG.debug("found top constant "+child.getHopID());
                     if (!topConstantHops.containsKey(id)) {
