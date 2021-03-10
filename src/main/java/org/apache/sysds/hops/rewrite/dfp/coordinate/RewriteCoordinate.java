@@ -180,6 +180,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 VariableSet aSet = new VariableSet();
                 aSet.addVariable("theta", null);
                 constantUtil.variablesUpdated = aSet;
+                constantUtil.isGdAtb = true;
                 mySolution = testManual(template,blockRanges,multiCse,true);
                 LOG.info("return gd-atb");
             } else if (manualType.equals("dfp-spores-ata") && leaves.size() == 11) {

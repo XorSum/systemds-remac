@@ -74,6 +74,9 @@ public class ConstantUtil {
         return isConstant;
     }
 
+
+    public boolean isGdAtb=false;
+
     private void collectConstantHops(Hop hop,
                                             Map<Long, Pair<Hop, Hop>> topConstantHops) {
         if (hop.isVisited()) return;
@@ -81,8 +84,22 @@ public class ConstantUtil {
         for (int i = 0; i < hop.getInput().size(); i++) {
             Hop child = hop.getInput().get(i);
             Long id = child.getHopID();
-            if ( constantTable.get(child.getHopID())
-                    && !HopRewriteUtils.isTransposeOperation(child)) {// 非常量父节点指向常量子节点,说明子节点是个top常量
+            boolean isTop = constantTable.get(child.getHopID())
+                    && !HopRewriteUtils.isTransposeOperation(child);// 非常量父节点指向常量子节点,说明子节点是个top常量
+            if (isGdAtb) {
+                if ( HopRewriteUtils.isMatrixMultiply(child) ) {
+                    Hop l = child.getInput().get(0);
+                    Hop r = child.getInput().get(1);
+                    if (HopRewriteUtils.isTransposeOperation(l)) {
+                        Hop l2 = l.getInput().get(0);
+                        if (l2.equals(r)) {
+                            isTop = false;
+                        }
+                    }
+                }
+            }
+
+            if ( isTop ) {
                 if (!isSampleHop(child) && !hop.isScalar()) {
 //                    LOG.debug("found top constant "+child.getHopID());
                     if (!topConstantHops.containsKey(id)) {
