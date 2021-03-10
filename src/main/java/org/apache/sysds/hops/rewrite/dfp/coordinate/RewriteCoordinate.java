@@ -171,10 +171,16 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 MultiCse multiCse = createMultiCseBfgsAtaDtd();
                 mySolution = testManual(template,blockRanges,multiCse,true);
                 LOG.info("return bfgs-ata");
-            } else if (manualType.equals("gd-ata") && leaves.size() == 28) {
-                MultiCse multiCse = createMultiCseGdAta();
-                mySolution = testManual(template,blockRanges,multiCse,true);
-                LOG.info("return gd-ata");
+            } else if (manualType.equals("gd-ata")) {
+                if (leaves.size()==28) {
+                    MultiCse multiCse = createMultiCseGdAta();
+                    mySolution = testManual(template, blockRanges, multiCse, true);
+                    LOG.info("return gd-ata dist");
+                }else if (leaves.size()==6) {
+                    MultiCse multiCse = createMultiCseGdAtaTheta();
+                    mySolution = testManual(template, blockRanges, multiCse, true);
+                    LOG.info("return gd-ata theta");
+                }
             } else if (manualType.equals("gd-atb") && leaves.size() == 28) {
                 MultiCse multiCse = createMultiCseGdAtb();
                 VariableSet aSet = new VariableSet();
@@ -1050,6 +1056,18 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         sAtB.ranges.add(Range.of(17, 18, false));
         sAtB.ranges.add(Range.of(23, 24, false));
         multiCse.cses.add(sAtATheta);
+        multiCse.cses.add(sAtA);
+        multiCse.cses.add(sAtB);
+        return multiCse;
+    }
+    private MultiCse createMultiCseGdAtaTheta() {
+        MultiCse multiCse = new MultiCse();
+        SingleCse sAtA = new SingleCse();
+        SingleCse sAtB = new SingleCse();
+        sAtA.name = getRangeName(1, 2);
+        sAtA.ranges.add(Range.of(1, 2, false));
+        sAtB.name = getRangeName(4, 5);
+        sAtB.ranges.add(Range.of(4, 5, false));
         multiCse.cses.add(sAtA);
         multiCse.cses.add(sAtB);
         return multiCse;
