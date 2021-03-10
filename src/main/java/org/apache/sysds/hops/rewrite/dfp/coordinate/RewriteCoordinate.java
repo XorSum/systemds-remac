@@ -122,12 +122,12 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 return originalSolution;
             }
 
-            for (int i=0;i<leaves.size();i++) {
+            for (int i = 0; i < leaves.size(); i++) {
                 Hop hop = leaves.get(i).hop;
                 if (HopRewriteUtils.isTransposeOperation(hop)) {
                     hop = hop.getInput().get(0);
-                    LOG.info("leaf " + i + " t(" + hop.getName()+")");
-                }else {
+                    LOG.info("leaf " + i + " t(" + hop.getName() + ")");
+                } else {
                     LOG.info("leaf " + i + " " + hop.getName());
                 }
             }
@@ -159,7 +159,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 }
             } else if (manualType.equals("dfp") && "h".equals(root.getName())) {
                 MultiCse multiCse = createMultiCseDfp();
-                mySolution = testManual(template,blockRanges,multiCse,false);
+                mySolution = testManual(template, blockRanges, multiCse, false);
                 LOG.info("return dfp");
             } else if (manualType.equals("dfp-ata") && "h".equals(root.getName())) {
                 MultiCse multiCse = createMultiCseDfpAta();
@@ -167,19 +167,19 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 LOG.info("return dfp-ata h");
             } else if (manualType.equals("dfp-ata-dtd") && "h".equals(root.getName())) {
                 MultiCse multiCse = createMultiCseDfpAtaDtd();
-                mySolution = testManual(template,blockRanges,multiCse,true);
+                mySolution = testManual(template, blockRanges, multiCse, true);
                 LOG.info("return dfp-ata h");
             } else if (manualType.equals("bfgs") && "h".equals(root.getName())) {
                 MultiCse multiCse = createMultiCseBfgs();
-                mySolution = testManual(template,blockRanges,multiCse,false);
+                mySolution = testManual(template, blockRanges, multiCse, false);
                 LOG.info("return bfgs");
             } else if (manualType.equals("bfgs-ata") && "h".equals(root.getName())) {
                 MultiCse multiCse = createMultiCseBfgsAta();
-                mySolution = testManual(template,blockRanges,multiCse,true);
+                mySolution = testManual(template, blockRanges, multiCse, true);
                 LOG.info("return bfgs-ata");
             } else if (manualType.equals("bfgs-ata-dtd") && "h".equals(root.getName())) {
                 MultiCse multiCse = createMultiCseBfgsAtaDtd();
-                mySolution = testManual(template,blockRanges,multiCse,true);
+                mySolution = testManual(template, blockRanges, multiCse, true);
                 LOG.info("return bfgs-ata");
             } else if (manualType.equals("gd-ata")) {
 //                if (leaves.size()==28) {
@@ -187,7 +187,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //                    mySolution = testManual(template, blockRanges, multiCse, true);
 //                    LOG.info("return gd-ata dist");
 //                } else
-                if (leaves.size()==6) {
+                if (leaves.size() == 6) {
                     MultiCse multiCse = createMultiCseGdAtaTheta();
                     mySolution = testManual(template, blockRanges, multiCse, true);
                     LOG.info("return gd-ata theta");
@@ -202,7 +202,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //                    mySolution = testManual(template, blockRanges, multiCse, true);
 //                    LOG.info("return gd-atb");
 //                } else
-                if (leaves.size()==6) {
+                if (leaves.size() == 6) {
                     MultiCse multiCse = createMultiCseGdAtbTheta();
                     mySolution = testManual(template, blockRanges, multiCse, true);
                     LOG.info("return gd-atb theta");
@@ -215,7 +215,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 aSet.addVariable("d", null);
                 aSet.addVariable("i", null);
                 constantUtil.variablesUpdated = aSet;
-                mySolution = testManual(template,blockRanges,multiCse,true);
+                mySolution = testManual(template, blockRanges, multiCse, true);
                 LOG.info("return dfp-spores-ata");
             }
             end = System.nanoTime();
@@ -703,7 +703,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return m;
     }
 
-    private MySolution testManual(Hop template, ArrayList<Range> blockRanges,MultiCse multiCse,boolean liftConstant) {
+    private MySolution testManual(Hop template, ArrayList<Range> blockRanges, MultiCse multiCse, boolean liftConstant) {
         LOG.debug(multiCse);
         Hop result = createHop(multiCse, template, blockRanges);
         result = deepCopyHopsDag(result);
@@ -717,12 +717,141 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         long end = System.nanoTime();
         estimateTime += end - start;
 //        LOG.debug(solution);
-        LOG.info("manual solution:\n"+solution);
+        LOG.info("manual solution:\n" + solution);
         return solution;
     }
 
-    private MultiCse createMultiCseDfpAtaDtd() {
-        MultiCse multiCse = new MultiCse();
+    private SingleCse createSingleCseBfgsAta() {
+        SingleCse sAta = new SingleCse();
+        sAta.name = getRangeName(39, 40);
+        sAta.ranges.add(Range.of(39, 40, true));
+        sAta.ranges.add(Range.of(52, 53, true));
+        sAta.ranges.add(Range.of(7, 8, true));
+        sAta.ranges.add(Range.of(17, 18, true));
+        sAta.ranges.add(Range.of(23, 24, true));
+        sAta.ranges.add(Range.of(26, 27, false));
+        sAta.ranges.add(Range.of(44, 45, false));
+        sAta.ranges.add(Range.of(34, 35, true));
+        return sAta;
+    }
+
+    private SingleCse createSingleCseBfgsDtd2() {
+        SingleCse sDtd = new SingleCse();
+        sDtd.name = getRangeName(1, 4);
+        sDtd.ranges.add(Range.of(1, 4, false));
+        sDtd.ranges.add(Range.of(11, 14, false));
+        return sDtd;
+    }
+
+    private SingleCse createSingleCseBfgsDtd4() {
+        SingleCse sDtd = new SingleCse();
+        sDtd.name = getRangeName(1, 4);
+        sDtd.ranges.add(Range.of(1, 4, false));
+        sDtd.ranges.add(Range.of(11, 14, false));
+        sDtd.ranges.add(Range.of(30, 33, false));
+        sDtd.ranges.add(Range.of(46, 49, false));
+        return sDtd;
+    }
+
+
+    private SingleCse createSingleCseBfgsAtad() {
+        SingleCse sAtahg = new SingleCse();
+        sAtahg.name = getRangeName(7, 10);
+        sAtahg.ranges.add(Range.of(7, 10, false));
+        sAtahg.ranges.add(Range.of(17, 20, false));
+        sAtahg.ranges.add(Range.of(21, 24, true));
+        sAtahg.ranges.add(Range.of(26, 29, false));
+        sAtahg.ranges.add(Range.of(39, 42, false));
+        sAtahg.ranges.add(Range.of(52, 55, false));
+        return sAtahg;
+    }
+    private SingleCse createSingleCseBfgsDtatad() {
+        SingleCse sDtatad = new SingleCse();
+        sDtatad.name = getRangeName(5, 10);
+        sDtatad.ranges.add(Range.of(5, 10, false));
+        sDtatad.ranges.add(Range.of(15, 20, false));
+        sDtatad.ranges.add(Range.of(37, 42, false));
+        sDtatad.ranges.add(Range.of(50, 55, false));
+        return sDtatad;
+    }
+    private SingleCse createSingleCseBfgsAtah() {
+        SingleCse sAtah = new SingleCse();
+        sAtah.name = getRangeName(34, 36);
+        sAtah.ranges.add(Range.of(34, 36, false));
+        sAtah.ranges.add(Range.of(43, 45, true));
+        return sAtah;
+    }
+    private SingleCse createSingleCseBfgsHy() {
+        SingleCse sHy = new SingleCse();
+        sHy.name = getRangeName(5, 9);
+        sHy.ranges.add(Range.of(5, 9, true));
+        sHy.ranges.add(Range.of(15, 19, true));
+        sHy.ranges.add(Range.of(21, 25, true));
+        sHy.ranges.add(Range.of(32, 36, true));
+        sHy.ranges.add(Range.of(37, 41, true));
+        sHy.ranges.add(Range.of(43, 47, false));
+        sHy.ranges.add(Range.of(50, 54, true));
+        return sHy;
+    }
+    private SingleCse createSingleCseBfgsY() {
+        SingleCse sY = new SingleCse();
+        sY.name = getRangeName(5, 8);
+        sY.ranges.add(Range.of(5, 8, true));
+        sY.ranges.add(Range.of(15, 18, true));
+        sY.ranges.add(Range.of(21, 24, true));
+        sY.ranges.add(Range.of(26, 29, false));
+        sY.ranges.add(Range.of(32, 35, true));
+        sY.ranges.add(Range.of(37, 40, true));
+        sY.ranges.add(Range.of(44, 47, false));
+        sY.ranges.add(Range.of(50, 53, true));
+        return sY;
+    }
+    private SingleCse createSingleCseBfgsD() {
+        SingleCse sd = new SingleCse();
+        sd.name = getRangeName(1, 2);
+        sd.ranges.add(Range.of(1, 2, false));
+        sd.ranges.add(Range.of(3, 4, true));
+        sd.ranges.add(Range.of(5, 6, true));
+        sd.ranges.add(Range.of(9, 10, false));
+        sd.ranges.add(Range.of(11, 12, false));
+        sd.ranges.add(Range.of(13, 14, true));
+        sd.ranges.add(Range.of(15, 16, true));
+        sd.ranges.add(Range.of(19, 20, false));
+        sd.ranges.add(Range.of(21, 22, true));
+        sd.ranges.add(Range.of(28, 29, false));
+        sd.ranges.add(Range.of(30, 31, false));
+        sd.ranges.add(Range.of(32, 33, true));
+        sd.ranges.add(Range.of(37, 38, true));
+        sd.ranges.add(Range.of(41, 42, false));
+        sd.ranges.add(Range.of(46, 47, false));
+        sd.ranges.add(Range.of(48, 49, true));
+        sd.ranges.add(Range.of(50, 51, true));
+        return sd;
+    }
+
+    private SingleCse createSingleCseDfpY() {
+        SingleCse sY = new SingleCse(); // atahg
+        sY.name = getRangeName(2, 5);
+        sY.ranges.add(Range.of(2, 5, false));
+        sY.ranges.add(Range.of(6, 9, true));
+        sY.ranges.add(Range.of(11, 14, true));
+        sY.ranges.add(Range.of(16, 19, false));
+        sY.ranges.add(Range.of(24, 27, true));
+        return sY;
+    }
+
+    private SingleCse createSingleCseDfpHy() {
+        SingleCse sHy = new SingleCse(); // hatahg
+        sHy.name = getRangeName(1, 5);
+        sHy.ranges.add(Range.of(1, 5, false));
+        sHy.ranges.add(Range.of(6, 10, true));
+//        sHy.ranges.add(Range.of(15, 19, false));
+        sHy.ranges.add(Range.of(11, 15, true));
+        sHy.ranges.add(Range.of(24, 28, true));
+        return sHy;
+    }
+
+    private SingleCse createSingleCseDfpAta() {
         SingleCse sAta = new SingleCse(); // ata
         sAta.name = getRangeName(2, 3);
         sAta.ranges.add(Range.of(2, 3, false));
@@ -730,8 +859,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         sAta.ranges.add(Range.of(13, 14, true));
         sAta.ranges.add(Range.of(16, 17, false));
         sAta.ranges.add(Range.of(26, 27, true));
-        multiCse.cses.add(sAta);
+        return sAta;
+    }
 
+    private SingleCse createSingleCseDfpD() {
         SingleCse sD = new SingleCse(); // d
         sD.name = getRangeName(4, 5);
         sD.ranges.add(Range.of(4, 5, false));
@@ -741,108 +872,60 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         sD.ranges.add(Range.of(20, 21, false));
         sD.ranges.add(Range.of(22, 23, true));
         sD.ranges.add(Range.of(24, 25, true));
-        sD.ranges.add(Range.of(28, 29, false));
-        multiCse.cses.add(sD);
+        return sD;
+    }
 
+    private SingleCse createSingleCseDfpDtd() {
         SingleCse sDtd = new SingleCse(); // dtd
-        sDtd.name = getRangeName(4,7);
-        sDtd.ranges.add(Range.of(4,7,false));
-        sDtd.ranges.add(Range.of(20,23,false));
-        multiCse.cses.add(sDtd);
+        sDtd.name = getRangeName(4, 7);
+        sDtd.ranges.add(Range.of(4, 7, false));
+        sDtd.ranges.add(Range.of(20, 23, false));
+        return sDtd;
+    }
 
+    private SingleCse createSingleCseDfpHata() {
         SingleCse sHata = new SingleCse();
-        sHata.name = getRangeName(1,3);
-        sHata.ranges.add(Range.of(1,3,false));
-        sHata.ranges.add(Range.of(8,10,true));
-        multiCse.cses.add(sHata);
+        sHata.name = getRangeName(1, 3);
+        sHata.ranges.add(Range.of(1, 3, false));
+        sHata.ranges.add(Range.of(8, 10, true));
+        return sHata;
+    }
 
+    private SingleCse createSingleCseDfpAtad() {
         SingleCse sAtad = new SingleCse();
-        sAtad.name = getRangeName(11,14);
-        sAtad.ranges.add(Range.of(11,14,false));
-        sAtad.ranges.add(Range.of(16,19,true));
-        sAtad.ranges.add(Range.of(26,29,true));
-        multiCse.cses.add(sAtad);
+        sAtad.name = getRangeName(11, 14);
+        sAtad.ranges.add(Range.of(11, 14, false));
+        sAtad.ranges.add(Range.of(16, 19, true));
+        sAtad.ranges.add(Range.of(26, 29, true));
+        return sAtad;
+    }
 
+    private MultiCse createMultiCseDfpAtaDtd() {
+        MultiCse multiCse = new MultiCse();
+        multiCse.cses.add(createSingleCseDfpAta());
+        SingleCse sD = createSingleCseDfpD();
+        sD.ranges.add(Range.of(28,29,false));
+        multiCse.cses.add(sD);
+        multiCse.cses.add(createSingleCseDfpDtd());
+        multiCse.cses.add(createSingleCseDfpHata());
+        multiCse.cses.add(createSingleCseDfpAtad());
         return multiCse;
     }
 
     private MultiCse createMultiCseDfpAta() {
         MultiCse multiCse = new MultiCse();
-        SingleCse sAta = new SingleCse(); // ata
-        sAta.name = getRangeName(2, 3);
-        sAta.ranges.add(Range.of(2, 3, false));
-        sAta.ranges.add(Range.of(8, 9, true));
-        sAta.ranges.add(Range.of(13, 14, true));
-        sAta.ranges.add(Range.of(16, 17, false));
-        sAta.ranges.add(Range.of(26, 27, true));
-        multiCse.cses.add(sAta);
-
-        SingleCse sHy = new SingleCse(); // hatahg
-        sHy.name = getRangeName(1, 5);
-        sHy.ranges.add(Range.of(1, 5, false));
-        sHy.ranges.add(Range.of(6, 10, true));
-//        sHy.ranges.add(Range.of(15, 19, false));
-        sHy.ranges.add(Range.of(11, 15, true));
-        sHy.ranges.add(Range.of(24, 28, true));
-        multiCse.cses.add(sHy);
-
-        SingleCse sY = new SingleCse(); // atahg
-        sY.name = getRangeName(2, 5);
-        sY.ranges.add(Range.of(2, 5, false));
-        sY.ranges.add(Range.of(6, 9, true));
-        sY.ranges.add(Range.of(11, 14, true));
-        sY.ranges.add(Range.of(16, 19, false));
-        sY.ranges.add(Range.of(24, 27, true));
-        multiCse.cses.add(sY);
-
-        SingleCse sD = new SingleCse(); // d
-        sD.name = getRangeName(4, 5);
-        sD.ranges.add(Range.of(4, 5, false));
-        sD.ranges.add(Range.of(6, 7, true));
-        sD.ranges.add(Range.of(11, 12, true));
-        sD.ranges.add(Range.of(18, 19, false));
-        sD.ranges.add(Range.of(20, 21, false));
-        sD.ranges.add(Range.of(22, 23, true));
-        sD.ranges.add(Range.of(24, 25, true));
-        sD.ranges.add(Range.of(28, 29, false));
-        multiCse.cses.add(sD);
-
+        multiCse.cses.add(createSingleCseDfpAta());
+        multiCse.cses.add(createSingleCseDfpHy());
+        multiCse.cses.add(createSingleCseDfpY());
+        multiCse.cses.add(createSingleCseDfpD());
         return multiCse;
     }
 
     private MultiCse createMultiCseDfp() {
         MultiCse multiCse = new MultiCse();
-
-        SingleCse sHy = new SingleCse(); // hatahg
-        sHy.name = getRangeName(1, 5);
-        sHy.ranges.add(Range.of(1, 5, false));
-        sHy.ranges.add(Range.of(6, 10, true));
-//        sHy.ranges.add(Range.of(15, 19, false));
-        sHy.ranges.add(Range.of(11, 15, true));
-        sHy.ranges.add(Range.of(24, 28, true));
-        multiCse.cses.add(sHy);
-
-        SingleCse sY = new SingleCse(); // atahg
-        sY.name = getRangeName(2, 5);
-        sY.ranges.add(Range.of(2, 5, false));
-        sY.ranges.add(Range.of(6, 9, true));
-        sY.ranges.add(Range.of(11, 14, true));
-        sY.ranges.add(Range.of(16, 19, false));
-        sY.ranges.add(Range.of(24, 27, true));
-        multiCse.cses.add(sY);
-
-        SingleCse sD = new SingleCse(); // d
-        sD.name = getRangeName(4, 5);
-        sD.ranges.add(Range.of(4, 5, false));
-        sD.ranges.add(Range.of(6, 7, true));
-        sD.ranges.add(Range.of(11, 12, true));
-        sD.ranges.add(Range.of(18, 19, false));
-        sD.ranges.add(Range.of(20, 21, false));
-        sD.ranges.add(Range.of(22, 23, true));
-        sD.ranges.add(Range.of(24, 25, true));
-        sD.ranges.add(Range.of(28, 29, false));
-        multiCse.cses.add(sD);
-
+        multiCse.cses.add(createSingleCseDfpHy());
+        multiCse.cses.add(createSingleCseDfpY());
+        multiCse.cses.add(createSingleCseDfpD());
         return multiCse;
     }
 
@@ -863,193 +946,36 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     private MultiCse createMultiCseBfgsAtaDtd() {
         MultiCse multiCse = new MultiCse();
-        SingleCse sd = new SingleCse();
-        sd.name = getRangeName(1, 2);
-        sd.ranges.add(Range.of(1, 2, false));
-        sd.ranges.add(Range.of(3, 4, true));
-        sd.ranges.add(Range.of(5, 6, true));
-        sd.ranges.add(Range.of(9, 10, false));
-        sd.ranges.add(Range.of(11, 12, false));
-        sd.ranges.add(Range.of(13, 14, true));
-        sd.ranges.add(Range.of(15, 16, true));
-        sd.ranges.add(Range.of(19, 20, false));
-        sd.ranges.add(Range.of(21, 22, true));
-        sd.ranges.add(Range.of(28, 29, false));
-        sd.ranges.add(Range.of(30, 31, false));
-        sd.ranges.add(Range.of(32, 33, true));
-        sd.ranges.add(Range.of(37, 38, true));
-        sd.ranges.add(Range.of(41, 42, false));
-        sd.ranges.add(Range.of(46, 47, false));
-        sd.ranges.add(Range.of(48, 49, true));
-        sd.ranges.add(Range.of(50, 51, true));
-        sd.ranges.add(Range.of(54, 55, false));
-        multiCse.cses.add(sd);
-
-        SingleCse sAta = new SingleCse();
-        sAta.name = getRangeName(39, 40);
-        sAta.ranges.add(Range.of(39, 40, true));
-        sAta.ranges.add(Range.of(52, 53, true));
-        sAta.ranges.add(Range.of(7, 8, true));
-        sAta.ranges.add(Range.of(17, 18, true));
-        sAta.ranges.add(Range.of(23, 24, true));
-        sAta.ranges.add(Range.of(26, 27, false));
-        sAta.ranges.add(Range.of(44, 45, false));
-        sAta.ranges.add(Range.of(34, 35, true));
-        multiCse.cses.add(sAta);
-
-        SingleCse sDtd = new SingleCse();
-        sDtd.name = getRangeName(1,4);
-        sDtd.ranges.add(Range.of(1,4,false));
-        sDtd.ranges.add(Range.of(11,14,false));
-        sDtd.ranges.add(Range.of(30,33,false));
-        sDtd.ranges.add(Range.of(46,49,false));
-        multiCse.cses.add(sDtd);
-
-        SingleCse sAtahg = new SingleCse();
-        sAtahg.name = getRangeName(7,10);
-        sAtahg.ranges.add(Range.of(7,10,false));
-        sAtahg.ranges.add(Range.of(17,20,false));
-        sAtahg.ranges.add(Range.of(21,24,true));
-        sAtahg.ranges.add(Range.of(26,29,false));
-        sAtahg.ranges.add(Range.of(39,42,false));
-        sAtahg.ranges.add(Range.of(52,55,false));
-        multiCse.cses.add(sAtahg);
-
-        SingleCse sDtatad = new SingleCse();
-        sDtatad.name = getRangeName(5,10);
-        sDtatad.ranges.add(Range.of(5,10,false));
-        sDtatad.ranges.add(Range.of(15,20,false));
-        sDtatad.ranges.add(Range.of(37,42,false));
-        sDtatad.ranges.add(Range.of(50,55,false));
-        multiCse.cses.add(sDtatad);
-
-        SingleCse sAtah = new SingleCse();
-        sAtah.name = getRangeName(34,36);
-        sAtah.ranges.add(Range.of(34,36,false));
-        sAtah.ranges.add(Range.of(43,45,true));
-        multiCse.cses.add(sAtah);
-
+        SingleCse sD = createSingleCseBfgsD();
+        sD.ranges.add(Range.of(54,55,false));
+        multiCse.cses.add(sD);
+        multiCse.cses.add(createSingleCseBfgsAta());
+        multiCse.cses.add(createSingleCseBfgsDtd4());
+        multiCse.cses.add(createSingleCseBfgsAtad());
+        multiCse.cses.add(createSingleCseBfgsAtah());
+        multiCse.cses.add(createSingleCseBfgsDtatad());
         return multiCse;
     }
 
     private MultiCse createMultiCseBfgsAta() {
         MultiCse multiCse = new MultiCse();
-        SingleCse sHy = new SingleCse();
-        SingleCse sY = new SingleCse();
-        SingleCse sd = new SingleCse();
-        sHy.name = getRangeName(5, 9);
-        sHy.ranges.add(Range.of(5, 9, true));
-        sHy.ranges.add(Range.of(15, 19, true));
-        sHy.ranges.add(Range.of(21, 25, true));
-        sHy.ranges.add(Range.of(32, 36, true));
-        sHy.ranges.add(Range.of(37, 41, true));
-        sHy.ranges.add(Range.of(43, 47, false));
-        sHy.ranges.add(Range.of(50, 54, true));
-        multiCse.cses.add(sHy);
-        sY.name = getRangeName(5, 8);
-        sY.ranges.add(Range.of(5, 8, true));
-        sY.ranges.add(Range.of(15, 18, true));
-        sY.ranges.add(Range.of(21, 24, true));
-        sY.ranges.add(Range.of(26, 29, false));
-        sY.ranges.add(Range.of(32, 35, true));
-        sY.ranges.add(Range.of(37, 40, true));
-        sY.ranges.add(Range.of(44, 47, false));
-        sY.ranges.add(Range.of(50, 53, true));
-        multiCse.cses.add(sY);
-        sd.name = getRangeName(1, 2);
-        sd.ranges.add(Range.of(1, 2, false));
-        sd.ranges.add(Range.of(3, 4, true));
-        sd.ranges.add(Range.of(5, 6, true));
-        sd.ranges.add(Range.of(9, 10, false));
-        sd.ranges.add(Range.of(11, 12, false));
-        sd.ranges.add(Range.of(13, 14, true));
-        sd.ranges.add(Range.of(15, 16, true));
-        sd.ranges.add(Range.of(19, 20, false));
-        sd.ranges.add(Range.of(21, 22, true));
-        sd.ranges.add(Range.of(28, 29, false));
-        sd.ranges.add(Range.of(30, 31, false));
-        sd.ranges.add(Range.of(32, 33, true));
-        sd.ranges.add(Range.of(37, 38, true));
-        sd.ranges.add(Range.of(41, 42, false));
-        sd.ranges.add(Range.of(46, 47, false));
-        sd.ranges.add(Range.of(48, 49, true));
-        sd.ranges.add(Range.of(50, 51, true));
-        sd.ranges.add(Range.of(54, 55, false));
-        multiCse.cses.add(sd);
-
-        SingleCse sDtd = new SingleCse();
-        sDtd.name = getRangeName(1, 4);
-        sDtd.ranges.add(Range.of(1, 4, false));
-        sDtd.ranges.add(Range.of(11, 14, false));
-        multiCse.cses.add(sDtd);
-
-        SingleCse sAta = new SingleCse();
-        sAta.name = getRangeName(39, 40);
-        sAta.ranges.add(Range.of(39, 40, true));
-        sAta.ranges.add(Range.of(52, 53, true));
-        sAta.ranges.add(Range.of(7, 8, true));
-        sAta.ranges.add(Range.of(17, 18, true));
-        sAta.ranges.add(Range.of(23, 24, true));
-        sAta.ranges.add(Range.of(26, 27, false));
-        sAta.ranges.add(Range.of(44, 45, false));
-        sAta.ranges.add(Range.of(34, 35, true));
-        multiCse.cses.add(sAta);
-
+        multiCse.cses.add(createSingleCseBfgsHy());
+        multiCse.cses.add(createSingleCseBfgsY());
+        multiCse.cses.add(createSingleCseBfgsD());
+        multiCse.cses.add(createSingleCseBfgsDtd2());
+        multiCse.cses.add(createSingleCseBfgsAta());
+        multiCse.cses.add(createSingleCseBfgsDtatad());
         return multiCse;
     }
 
 
     private MultiCse createMultiCseBfgs() {
         MultiCse multiCse = new MultiCse();
-        SingleCse sHy = new SingleCse();
-        SingleCse sY = new SingleCse();
-        SingleCse sd = new SingleCse();
-        sHy.name = getRangeName(5, 9);
-        sHy.ranges.add(Range.of(5, 9, true));
-        sHy.ranges.add(Range.of(15, 19, true));
-        sHy.ranges.add(Range.of(21, 25, true));
-        sHy.ranges.add(Range.of(32, 36, true));
-        sHy.ranges.add(Range.of(37, 41, true));
-        sHy.ranges.add(Range.of(43, 47, false));
-        sHy.ranges.add(Range.of(50, 54, true));
-        multiCse.cses.add(sHy);
-        sY.name = getRangeName(5, 8);
-        sY.ranges.add(Range.of(5, 8, true));
-        sY.ranges.add(Range.of(15, 18, true));
-        sY.ranges.add(Range.of(21, 24, true));
-        sY.ranges.add(Range.of(26, 29, false));
-        sY.ranges.add(Range.of(32, 35, true));
-        sY.ranges.add(Range.of(37, 40, true));
-        sY.ranges.add(Range.of(44, 47, false));
-        sY.ranges.add(Range.of(50, 53, true));
-        multiCse.cses.add(sY);
-        sd.name = getRangeName(1, 2);
-        sd.ranges.add(Range.of(1, 2, false));
-        sd.ranges.add(Range.of(3, 4, true));
-        sd.ranges.add(Range.of(5, 6, true));
-        sd.ranges.add(Range.of(9, 10, false));
-        sd.ranges.add(Range.of(11, 12, false));
-        sd.ranges.add(Range.of(13, 14, true));
-        sd.ranges.add(Range.of(15, 16, true));
-        sd.ranges.add(Range.of(19, 20, false));
-        sd.ranges.add(Range.of(21, 22, true));
-        sd.ranges.add(Range.of(28, 29, false));
-        sd.ranges.add(Range.of(30, 31, false));
-        sd.ranges.add(Range.of(32, 33, true));
-        sd.ranges.add(Range.of(37, 38, true));
-        sd.ranges.add(Range.of(41, 42, false));
-        sd.ranges.add(Range.of(46, 47, false));
-        sd.ranges.add(Range.of(48, 49, true));
-        sd.ranges.add(Range.of(50, 51, true));
-        sd.ranges.add(Range.of(54, 55, false));
-        multiCse.cses.add(sd);
-
-        SingleCse sDtd = new SingleCse();
-        sDtd.name = getRangeName(1, 4);
-        sDtd.ranges.add(Range.of(1, 4, false));
-        sDtd.ranges.add(Range.of(11, 14, false));
-        multiCse.cses.add(sDtd);
-
+        multiCse.cses.add(createSingleCseBfgsHy());
+        multiCse.cses.add(createSingleCseBfgsY());
+        multiCse.cses.add(createSingleCseBfgsD());
+        multiCse.cses.add(createSingleCseBfgsDtd2());
+        multiCse.cses.add(createSingleCseBfgsDtatad());
         return multiCse;
     }
 
