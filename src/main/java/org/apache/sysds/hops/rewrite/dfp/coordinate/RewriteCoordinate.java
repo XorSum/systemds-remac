@@ -147,18 +147,28 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
             if (manualType == null) {
                 System.exit(-1);
+            } else if ("g".equals(root.getName())) {
+                if (manualType.equals("dfp-ata")
+                        || manualType.equals("dfp-ata-dtd")
+                        || manualType.equals("bfgs-ata")
+                        || manualType.equals("bfgs-ata-dtd")
+                ) {
+                    MultiCse multiCse = createMultiCseGAtA();
+                    mySolution = testManual(template, blockRanges, multiCse, true);
+                    LOG.info("return g-ata ");
+                }
             } else if (manualType.equals("dfp") && "h".equals(root.getName())) {
                 MultiCse multiCse = createMultiCseDfp();
                 mySolution = testManual(template,blockRanges,multiCse,false);
                 LOG.info("return dfp");
             } else if (manualType.equals("dfp-ata") && "h".equals(root.getName())) {
                 MultiCse multiCse = createMultiCseDfpAta();
-                mySolution = testManual(template,blockRanges,multiCse,true);
-                LOG.info("return dfp-ata");
+                mySolution = testManual(template, blockRanges, multiCse, true);
+                LOG.info("return dfp-ata h");
             } else if (manualType.equals("dfp-ata-dtd") && "h".equals(root.getName())) {
                 MultiCse multiCse = createMultiCseDfpAtaDtd();
                 mySolution = testManual(template,blockRanges,multiCse,true);
-                LOG.info("return dfp-ata");
+                LOG.info("return dfp-ata h");
             } else if (manualType.equals("bfgs") && "h".equals(root.getName())) {
                 MultiCse multiCse = createMultiCseBfgs();
                 mySolution = testManual(template,blockRanges,multiCse,false);
@@ -1088,6 +1098,15 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         sAtB.name = getRangeName(4, 5);
         sAtB.ranges.add(Range.of(4, 5, false));
         multiCse.cses.add(sAtB);
+        return multiCse;
+    }
+
+    private MultiCse createMultiCseGAtA() {
+        MultiCse multiCse = new MultiCse();
+        SingleCse sAtA = new SingleCse();
+        sAtA.name = getRangeName(0, 1);
+        sAtA.ranges.add(Range.of(0, 1, false));
+        multiCse.cses.add(sAtA);
         return multiCse;
     }
 

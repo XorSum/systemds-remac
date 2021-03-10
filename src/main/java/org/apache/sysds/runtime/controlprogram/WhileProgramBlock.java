@@ -178,21 +178,18 @@ public class WhileProgramBlock extends ProgramBlock
 
 				long start2 = System.nanoTime();
 
-				LOG.info(RewriteLoopConstant.preLoop);
+//				LOG.info(RewriteLoopConstant.preLoop);
 
 //				if (RewriteLoopConstant.preLoop.size()>0) {
-					for (int i = 0; i  < RewriteLoopConstant.preLoop.size(); i++) {
-						LOG.info("execute pre loop statement block");
-						LOG.info(Explain.explain(RewriteLoopConstant.preLoop.get(i)));
-						DMLProgram dmlProg = new DMLProgram();
-						StatementBlock preLoop = RewriteLoopConstant.preLoop.get(i);
-						dmlProg.addStatementBlock(preLoop);
-						DMLTranslator dmlt = new DMLTranslator(dmlProg);
-						dmlt.constructLops(dmlProg);
-						Program rtProg = dmlt.getRuntimeProgram(dmlProg, ConfigurationManager.getDMLConfig());
-						rtProg.execute(ec);
-						LOG.info("pre execute done");
-					}
+				LOG.info("execute pre loop statement block");
+				LOG.info("preLoopStatementBlock:\n"+ RewriteLoopConstant.preLoopStatementBlock);
+				DMLProgram dmlProg = new DMLProgram();
+				dmlProg.addStatementBlock(RewriteLoopConstant.preLoopStatementBlock);
+				DMLTranslator dmlt = new DMLTranslator(dmlProg);
+				dmlt.constructLops(dmlProg);
+				Program rtProg = dmlt.getRuntimeProgram(dmlProg, ConfigurationManager.getDMLConfig());
+				rtProg.execute(ec);
+				LOG.info("pre execute done");
 //				}
 				long end2 = System.nanoTime();
 				LOG.info("pre loop time = " + ((end2-start2) / 1e9) + "s");

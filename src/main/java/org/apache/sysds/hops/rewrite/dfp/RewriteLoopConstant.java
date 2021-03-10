@@ -35,7 +35,15 @@ public class RewriteLoopConstant extends StatementBlockRewriteRule {
         return false;
     }
 
-    public static ArrayList<StatementBlock> preLoop = new ArrayList<>();
+//    public static ArrayList<StatementBlock> preLoop = new ArrayList<>();
+    public static StatementBlock preLoopStatementBlock;
+    ArrayList<Hop> twriteHops = new ArrayList<>();
+
+    static {
+        preLoopStatementBlock = new StatementBlock();
+        preLoopStatementBlock.setLiveIn(new VariableSet());
+        preLoopStatementBlock.setLiveOut(new VariableSet());
+    }
 
     @Override
     public List<StatementBlock> rewriteStatementBlock(StatementBlock sb, ProgramRewriteStatus state) {
@@ -65,7 +73,6 @@ public class RewriteLoopConstant extends StatementBlockRewriteRule {
         rewriteCoordinate.constantUtil = new ConstantUtil(variablesUpdated);
         rewriteCoordinate.variablesUpdated = variablesUpdated;
         rewriteCoordinate.iterationNumber = iterationNumber;
-        ArrayList<Hop> twriteHops = new ArrayList<>();
         for (int k = 0; k < sb.getHops().size(); k++) {
             Hop hop = sb.getHops().get(k);
             Hop copy = deepCopyHopsDag(hop);
@@ -75,11 +82,12 @@ public class RewriteLoopConstant extends StatementBlockRewriteRule {
             twriteHops.addAll(mySolution.preLoopConstants);
         }
         if (twriteHops.size() > 0) {
-            StatementBlock preStatmentBlock = new StatementBlock();
-            preStatmentBlock.setLiveIn(sb.liveIn());
-            preStatmentBlock.setLiveOut(sb.liveIn());  // 这里没写错,就该这样写
-            preStatmentBlock.setHops(twriteHops);
-            preLoop.add(preStatmentBlock);
+//                preLoopStatementBlock = new StatementBlock();
+//                preLoopStatementBlock.setLiveIn(sb.liveIn());
+//                preLoopStatementBlock.setLiveOut(sb.liveIn());  // 这里没写错,就该这样写
+            preLoopStatementBlock.liveIn().addVariables(sb.liveIn());
+            preLoopStatementBlock.liveOut().addVariables(sb.liveIn());
+            preLoopStatementBlock.setHops(twriteHops);
         }
         res.clear();
         res.add(sb);
