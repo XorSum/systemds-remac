@@ -705,6 +705,16 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     private MySolution testManual(Hop template, ArrayList<Range> blockRanges, MultiCse multiCse, boolean liftConstant) {
         LOG.debug(multiCse);
+        for (int i = 0; i < multiCse.cses.size(); i++) {
+            SingleCse si = multiCse.cses.get(i);
+            for (int j = i + 1; j < multiCse.cses.size(); j++) {
+                SingleCse sj = multiCse.cses.get(j);
+                if (si.conflict(sj)) {
+                    LOG.error("cse conflict " + si + " " + sj);
+                    System.exit(-1);
+                }
+            }
+        }
         Hop result = createHop(multiCse, template, blockRanges);
         result = deepCopyHopsDag(result);
         rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
@@ -765,6 +775,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         sAtahg.ranges.add(Range.of(52, 55, false));
         return sAtahg;
     }
+
     private SingleCse createSingleCseBfgsDtatad() {
         SingleCse sDtatad = new SingleCse();
         sDtatad.name = getRangeName(5, 10);
@@ -774,6 +785,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         sDtatad.ranges.add(Range.of(50, 55, false));
         return sDtatad;
     }
+
     private SingleCse createSingleCseBfgsAtah() {
         SingleCse sAtah = new SingleCse();
         sAtah.name = getRangeName(34, 36);
@@ -781,6 +793,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         sAtah.ranges.add(Range.of(43, 45, true));
         return sAtah;
     }
+
     private SingleCse createSingleCseBfgsHy() {
         SingleCse sHy = new SingleCse();
         sHy.name = getRangeName(5, 9);
@@ -793,6 +806,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         sHy.ranges.add(Range.of(50, 54, true));
         return sHy;
     }
+
     private SingleCse createSingleCseBfgsY() {
         SingleCse sY = new SingleCse();
         sY.name = getRangeName(5, 8);
@@ -806,7 +820,28 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         sY.ranges.add(Range.of(50, 53, true));
         return sY;
     }
+
     private SingleCse createSingleCseBfgsD() {
+        SingleCse sd = new SingleCse();
+        sd.name = getRangeName(1, 2);
+        sd.ranges.add(Range.of(1, 2, false));
+        sd.ranges.add(Range.of(3, 4, true));
+        sd.ranges.add(Range.of(5, 6, true));
+        sd.ranges.add(Range.of(11, 12, false));
+        sd.ranges.add(Range.of(13, 14, true));
+        sd.ranges.add(Range.of(15, 16, true));
+        sd.ranges.add(Range.of(21, 22, true));
+        sd.ranges.add(Range.of(28, 29, false));
+        sd.ranges.add(Range.of(30, 31, false));
+        sd.ranges.add(Range.of(32, 33, true));
+        sd.ranges.add(Range.of(37, 38, true));
+        sd.ranges.add(Range.of(46, 47, false));
+        sd.ranges.add(Range.of(48, 49, true));
+        sd.ranges.add(Range.of(50, 51, true));
+        return sd;
+    }
+
+    private SingleCse createSingleCseBfgsDFull() {
         SingleCse sd = new SingleCse();
         sd.name = getRangeName(1, 2);
         sd.ranges.add(Range.of(1, 2, false));
@@ -826,6 +861,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         sd.ranges.add(Range.of(46, 47, false));
         sd.ranges.add(Range.of(48, 49, true));
         sd.ranges.add(Range.of(50, 51, true));
+        sd.ranges.add(Range.of(54, 55, false));
         return sd;
     }
 
@@ -904,7 +940,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         MultiCse multiCse = new MultiCse();
         multiCse.cses.add(createSingleCseDfpAta());
         SingleCse sD = createSingleCseDfpD();
-        sD.ranges.add(Range.of(28,29,false));
+        sD.ranges.add(Range.of(28, 29, false));
         multiCse.cses.add(sD);
         multiCse.cses.add(createSingleCseDfpDtd());
         multiCse.cses.add(createSingleCseDfpHata());
@@ -946,9 +982,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     private MultiCse createMultiCseBfgsAtaDtd() {
         MultiCse multiCse = new MultiCse();
-        SingleCse sD = createSingleCseBfgsD();
-        sD.ranges.add(Range.of(54,55,false));
-        multiCse.cses.add(sD);
+        multiCse.cses.add(createSingleCseBfgsDFull());
         multiCse.cses.add(createSingleCseBfgsAta());
         multiCse.cses.add(createSingleCseBfgsDtd4());
         multiCse.cses.add(createSingleCseBfgsAtad());
