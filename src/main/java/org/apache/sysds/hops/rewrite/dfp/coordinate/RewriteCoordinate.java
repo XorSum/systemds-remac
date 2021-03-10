@@ -172,23 +172,31 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 mySolution = testManual(template,blockRanges,multiCse,true);
                 LOG.info("return bfgs-ata");
             } else if (manualType.equals("gd-ata")) {
-                if (leaves.size()==28) {
-                    MultiCse multiCse = createMultiCseGdAta();
-                    mySolution = testManual(template, blockRanges, multiCse, true);
-                    LOG.info("return gd-ata dist");
-                }else if (leaves.size()==6) {
+//                if (leaves.size()==28) {
+//                    MultiCse multiCse = createMultiCseGdAta();
+//                    mySolution = testManual(template, blockRanges, multiCse, true);
+//                    LOG.info("return gd-ata dist");
+//                } else
+                if (leaves.size()==6) {
                     MultiCse multiCse = createMultiCseGdAtaTheta();
                     mySolution = testManual(template, blockRanges, multiCse, true);
                     LOG.info("return gd-ata theta");
                 }
-            } else if (manualType.equals("gd-atb") && leaves.size() == 28) {
-                MultiCse multiCse = createMultiCseGdAtb();
+            } else if (manualType.equals("gd-atb")) {
                 VariableSet aSet = new VariableSet();
                 aSet.addVariable("theta", null);
                 constantUtil.variablesUpdated = aSet;
                 constantUtil.isGdAtb = true;
-                mySolution = testManual(template,blockRanges,multiCse,true);
-                LOG.info("return gd-atb");
+//                if (leaves.size() == 28) {
+//                    MultiCse multiCse = createMultiCseGdAtb();
+//                    mySolution = testManual(template, blockRanges, multiCse, true);
+//                    LOG.info("return gd-atb");
+//                } else
+                if (leaves.size()==6) {
+                    MultiCse multiCse = createMultiCseGdAtbTheta();
+                    mySolution = testManual(template, blockRanges, multiCse, true);
+                    LOG.info("return gd-atb theta");
+                }
             } else if (manualType.equals("dfp-spores-ata") && leaves.size() == 11) {
                 MultiCse multiCse = createMultiCseDfpSporseAta();
                 VariableSet aSet = new VariableSet();
@@ -698,8 +706,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         estimate(solution, true);
         long end = System.nanoTime();
         estimateTime += end - start;
-        //LOG.debug(solution);
-        System.out.println("manual solution:\n"+solution);
+//        LOG.debug(solution);
+        LOG.info("manual solution:\n"+solution);
         return solution;
     }
 
@@ -1060,6 +1068,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         multiCse.cses.add(sAtB);
         return multiCse;
     }
+
     private MultiCse createMultiCseGdAtaTheta() {
         MultiCse multiCse = new MultiCse();
         SingleCse sAtA = new SingleCse();
@@ -1073,6 +1082,14 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return multiCse;
     }
 
+    private MultiCse createMultiCseGdAtbTheta() {
+        MultiCse multiCse = new MultiCse();
+        SingleCse sAtB = new SingleCse();
+        sAtB.name = getRangeName(4, 5);
+        sAtB.ranges.add(Range.of(4, 5, false));
+        multiCse.cses.add(sAtB);
+        return multiCse;
+    }
 
     private MultiCse createMultiCseGdAtb() {
         MultiCse multiCse = new MultiCse();
