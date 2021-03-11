@@ -782,7 +782,7 @@ public abstract class Hop implements ParseInfo {
 
 	public abstract Lop constructLops();
 
-	protected abstract ExecType optFindExecType();
+	public abstract ExecType optFindExecType();
 	
 	public abstract String getOpString();
 

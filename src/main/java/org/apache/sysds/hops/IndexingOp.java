@@ -328,7 +328,7 @@ public class IndexingOp extends Hop
 	}
 
 	@Override
-	protected ExecType optFindExecType() {
+    public ExecType optFindExecType() {
 		
 		checkAndSetForcedPlatform();
 		
