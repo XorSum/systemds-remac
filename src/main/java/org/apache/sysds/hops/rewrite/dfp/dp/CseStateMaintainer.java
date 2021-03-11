@@ -1,6 +1,8 @@
 package org.apache.sysds.hops.rewrite.dfp.dp;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.SingleCse;
 
 import java.util.ArrayList;
@@ -10,6 +12,7 @@ import java.util.Map;
 
 public class CseStateMaintainer {
 
+    protected static final Log LOG = LogFactory.getLog(CseStateMaintainer.class.getName());
 
     Counter<Pair<Integer, Integer>> rangeCounter = new Counter<>();
     Counter<SingleCse> cseCounter = new Counter<>();
@@ -166,7 +169,7 @@ public class CseStateMaintainer {
                     break;
             }
         }
-//        System.out.println("uncertain: " + uncertainNum + " useful: " + usefulNum + " useless: " + uselessNum);
+        LOG.info("uncertain: " + uncertainNum + " useful: " + usefulNum + " useless: " + uselessNum);
     }
 
 }
