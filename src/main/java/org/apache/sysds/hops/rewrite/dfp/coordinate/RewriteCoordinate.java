@@ -727,6 +727,12 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         long end = System.nanoTime();
         estimateTime += end - start;
 //        LOG.debug(solution);
+
+        for (Hop h: solution.preLoopConstants) {
+            h.resetVisitStatusForced(new HashSet<>());
+        }
+        solution.body.resetVisitStatusForced(new HashSet<>());
+
         LOG.info("manual solution:\n" + solution);
         return solution;
     }

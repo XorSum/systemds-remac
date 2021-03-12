@@ -7,7 +7,7 @@ import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.MySolution;
 import org.apache.sysds.parser.VariableSet;
-
+import org.apache.sysds.utils.Explain;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -36,6 +36,9 @@ public class ConstantUtil {
         rFindConstant(hop);
         // step 2. 把top常量替换为tread，把twrite放入哈希表
         hop.resetVisitStatusForced(new HashSet<>());
+//        System.out.println("before collect constant");
+//        System.out.println(Explain.explain(hop));
+//        System.out.println(constantTable);
         collectConstantHops(hop, topConstantHops);
         hop.resetVisitStatusForced(new HashSet<>());
         // step 3. 创建solution
@@ -80,7 +83,9 @@ public class ConstantUtil {
     private void collectConstantHops(Hop hop,
                                             Map<Long, Pair<Hop, Hop>> topConstantHops) {
         if (hop.isVisited()) return;
-        if (constantTable.get(hop.getHopID())) return;
+//        if (constantTable.get(hop.getHopID())) return;
+        if (constantTable.get(hop.getHopID()) && !HopRewriteUtils.isTransposeOperation(hop)) return;
+//        System.out.println("collect constant hops visit "+hop.getHopID()+" "+hop.getName());
         for (int i = 0; i < hop.getInput().size(); i++) {
             Hop child = hop.getInput().get(i);
             Long id = child.getHopID();
