@@ -847,6 +847,14 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return sd;
     }
 
+    private SingleCse createSingleCseBfgsDYtH() {
+        SingleCse sd = new SingleCse();
+        sd.name = getRangeName(30, 36);
+        sd.ranges.add(Range.of(30, 36, false));
+        sd.ranges.add(Range.of(43, 49, true));
+        return sd;
+    }
+
     private SingleCse createSingleCseBfgsDFull() {
         SingleCse sd = new SingleCse();
         sd.name = getRangeName(1, 2);
@@ -994,6 +1002,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         multiCse.cses.add(createSingleCseBfgsAtad());
         multiCse.cses.add(createSingleCseBfgsAtah());
         multiCse.cses.add(createSingleCseBfgsDtatad());
+        multiCse.cses.add(createSingleCseBfgsDYtH());
         return multiCse;
     }
 
@@ -1005,6 +1014,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         multiCse.cses.add(createSingleCseBfgsDtd2());
         multiCse.cses.add(createSingleCseBfgsAta());
         multiCse.cses.add(createSingleCseBfgsDtatad());
+        multiCse.cses.add(createSingleCseBfgsDYtH());
         return multiCse;
     }
 
@@ -1016,6 +1026,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         multiCse.cses.add(createSingleCseBfgsD());
         multiCse.cses.add(createSingleCseBfgsDtd2());
         multiCse.cses.add(createSingleCseBfgsDtatad());
+        multiCse.cses.add(createSingleCseBfgsDYtH());
         return multiCse;
     }
 
