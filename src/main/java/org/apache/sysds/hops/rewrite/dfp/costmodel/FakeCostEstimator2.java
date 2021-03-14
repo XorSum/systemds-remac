@@ -365,7 +365,7 @@ public class FakeCostEstimator2 {
             MMNode tmp = getMMNode(inst.inputs[i].getName());
             summary = createMMNode(summary, tmp, SparsityEstimator.OpCode.PLUS);
         }
-        setMMNode(inst.output.getName(), summary, Types.ExecType.SPARK);
+        setMMNode(inst.output.getName(), summary, Types.ExecType.CP);
         DataCharacteristics dc = getDC(summary);
         double cost = CpuSpeed * dc.getNonZeros() * (inst.inputs.length - 1);
         computeCostSummary += cost;
