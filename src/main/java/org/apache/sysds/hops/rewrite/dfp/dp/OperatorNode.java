@@ -1,6 +1,7 @@
 package org.apache.sysds.hops.rewrite.dfp.dp;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.sysds.hops.AggBinaryOp;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.estim.MMNode;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.SingleCse;
@@ -22,6 +23,8 @@ public class OperatorNode {
     ArrayList<OperatorNode> inputs = new ArrayList<>();
     boolean isConstant = false;
     boolean isTranspose = false;
+    boolean isXtXv = false;
+    AggBinaryOp.MMultMethod method = null;
     MMNode mmNode = null;
 //    SparsityEstimator.OpCode opCode = null;
 
@@ -52,7 +55,7 @@ public class OperatorNode {
             sb.append(",");
         }
         sb.append("],");
-        if (mmNode!=null) {
+        if (mmNode != null) {
             sb.append(mmNode.getDataCharacteristics());
             sb.append(",");
         }
@@ -61,6 +64,9 @@ public class OperatorNode {
         sb.append(accCost);
         sb.append(",");
         sb.append(range);
+        if (method != null) {
+            sb.append("," + method);
+        }
         if (isConstant) sb.append(",constant");
         if (isTranspose) sb.append(",transpose");
         sb.append(",[");
@@ -86,7 +92,7 @@ public class OperatorNode {
 //                sb.append(on.ranges);
 //            }
 //            sb.append("]");
-        sb.append("}\n");
+        sb.append("}");
         return sb.toString();
     }
 
