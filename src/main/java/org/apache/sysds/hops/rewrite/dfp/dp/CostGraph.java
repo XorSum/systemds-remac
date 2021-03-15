@@ -18,10 +18,13 @@ import org.apache.sysds.hops.rewrite.dfp.coordinate.SingleCse;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
 import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
 import org.apache.sysds.parser.VariableSet;
-import org.apache.sysds.utils.Explain;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static org.apache.sysds.utils.Statistics.getJVMgcCount;
+import static org.apache.sysds.utils.Statistics.getJVMgcTime;
 
 public class CostGraph {
     protected static final Log LOG = LogFactory.getLog(CostGraph.class.getName());
@@ -45,6 +48,10 @@ public class CostGraph {
                                                      ArrayList<Leaf> leaves,
                                                      ArrayList<Hop> hops) {
         LOG.info("begin test Operator Graph");
+        System.out.println("before build cost graph");
+        System.out.println("Total JVM GC count:\t\t" + getJVMgcCount() + ".\n");
+        System.out.println("Total JVM GC time:\t\t" + ((double) getJVMgcTime()) / 1000 + " sec.\n");
+
         int maxIndex = 0;
         HashSet<Pair<Integer, Integer>> ranges = new HashSet<>();
 
@@ -90,7 +97,7 @@ public class CostGraph {
             maxIndex = Math.max(maxIndex, mutableInt.getValue() - 1);
             analyzeOperatorConstant(node);
             analyzeOperatorCost(node, new HashSet<>());
-            LOG.info(explainOpNode(node,0));
+            LOG.info(explainOpNode(node, 0));
 //            LOG.info(explainOpNodeJson(node,0));
             p.node = node;
         }
@@ -100,10 +107,16 @@ public class CostGraph {
 //        }
 
         // 回收mnc使用的内存
-        for (MMNode mmNode: nodeCostEstimator.range2mmnode.values()) {
+        for (MMNode mmNode : nodeCostEstimator.range2mmnode.values()) {
             mmNode.setSynopsis(null);
         }
         nodeCostEstimator.range2mmnode.clear();
+
+        System.gc();
+
+        System.out.println("after build cost graph");
+        System.out.println("Total JVM GC count:\t\t" + getJVMgcCount() + ".\n");
+        System.out.println("Total JVM GC time:\t\t" + ((double) getJVMgcTime()) / 1000 + " sec.\n");
 
         CseStateMaintainer MAINTAINER = new CseStateMaintainer();
         MAINTAINER.initRangeCounter(range2acnode);
@@ -118,6 +131,10 @@ public class CostGraph {
         long end = System.nanoTime();
         dynamicProgramTime += end - start;
 
+        System.out.println("after dynamic programming");
+        System.out.println("Total JVM GC count:\t\t" + getJVMgcCount() + ".\n");
+        System.out.println("Total JVM GC time:\t\t" + ((double) getJVMgcTime()) / 1000 + " sec.\n");
+
 //        && list2.get(i).accCost <= bestsinglecsenode.accCost
 //        for (int i = 0; i < 30 && i < result.size(); i++) {
 //            System.out.println(result.get(i));
@@ -129,6 +146,9 @@ public class CostGraph {
 
 //        return range2acnode.get(Pair.of(0, maxIndex));
         LOG.info("end test Operator Graph");
+
+//        if (emptyPair.getRight().getName().equals("h"))
+//            System.exit(0);
         return result;
     }
 
@@ -183,7 +203,7 @@ public class CostGraph {
     }
 
 
-    public static String explainOpNode(OperatorNode node,int d) {
+    public static String explainOpNode(OperatorNode node, int d) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < d; i++) sb.append(" ");
         sb.append("{").append(node).append("\n");
@@ -196,15 +216,15 @@ public class CostGraph {
     }
 
 
-    public static String explainOpNodeJson(OperatorNode node,int d) {
+    public static String explainOpNodeJson(OperatorNode node, int d) {
         StringBuilder sb = new StringBuilder();
-      //  for (int i = 0; i < d; i++) sb.append(" ");
+        //  for (int i = 0; i < d; i++) sb.append(" ");
         sb.append("{").append("\"op\":\"").append(node).append("\"");
         for (int i = 0; i < node.inputs.size(); i++) {
             sb.append(",\"in").append(i).append("\":");
             sb.append(explainOpNodeJson(node.inputs.get(i), d + 1));
         }
-      //  for (int i = 0; i < d; i++) sb.append(" ");
+        //  for (int i = 0; i < d; i++) sb.append(" ");
         sb.append("}");
         return sb.toString();
     }
@@ -357,7 +377,7 @@ public class CostGraph {
 
         long start = System.nanoTime();
 
-        NodeCost thisCostDetail  = this.nodeCostEstimator.getNodeCost(node);
+        NodeCost thisCostDetail = this.nodeCostEstimator.getNodeCost(node);
 
         long end = System.nanoTime();
         estimateTime += end - start;
@@ -365,8 +385,8 @@ public class CostGraph {
         if (!range2acnode.containsKey(node.range)) {
             OperatorNode node1 = node.copyWithoutDependencies();
             node1.thisCost = thisCostDetail.getSummary();
-            node1.thisCostDetails = new NodeCost(thisCostDetail.shuffleCost,thisCostDetail.broadcastCost,
-                    thisCostDetail.computeCost,thisCostDetail.collectCost);
+            node1.thisCostDetails = new NodeCost(thisCostDetail.shuffleCost, thisCostDetail.broadcastCost,
+                    thisCostDetail.computeCost, thisCostDetail.collectCost);
             node1.accCostDetails = new NodeCost(node.accCostDetails.shuffleCost, node.accCostDetails.broadcastCost,
                     node.accCostDetails.computeCost, node.accCostDetails.collectCost);
             // node1.accCost = accCost;
@@ -391,17 +411,17 @@ public class CostGraph {
         }
         if (csesize > 0) {
 //            thisCost = thisCost / csesize;
-            thisCostDetail.shuffleCost/=csesize;
-            thisCostDetail.broadcastCost/=csesize;
-            thisCostDetail.computeCost/=csesize;
-            thisCostDetail.collectCost/=csesize;
+            thisCostDetail.shuffleCost /= csesize;
+            thisCostDetail.broadcastCost /= csesize;
+            thisCostDetail.computeCost /= csesize;
+            thisCostDetail.collectCost /= csesize;
             //   accCost = accCost / csesize;
         }
         if (node.isConstant) {
-            thisCostDetail.shuffleCost/=iterationNumber;
-            thisCostDetail.broadcastCost/=iterationNumber;
-            thisCostDetail.computeCost/=iterationNumber;
-            thisCostDetail.collectCost/=iterationNumber;
+            thisCostDetail.shuffleCost /= iterationNumber;
+            thisCostDetail.broadcastCost /= iterationNumber;
+            thisCostDetail.computeCost /= iterationNumber;
+            thisCostDetail.collectCost /= iterationNumber;
         }
         //  accCost += thisCost;
         //  node.accCost = accCost;
@@ -482,53 +502,34 @@ public class CostGraph {
                 if (lac == null || rac == null) continue;
                 ArrayList<OperatorNode> lops = lac.getOperatorNodes(MAINTAINER);
                 ArrayList<OperatorNode> rops = rac.getOperatorNodes(MAINTAINER);
-                Collection<OperatorNode> mids = acNode.drange2operatornodes.get(drange).values();
+                ArrayList<OperatorNode> mids = new ArrayList<>(acNode.drange2operatornodes.get(drange).values());
 //                System.out.println();
                 LOG.info("  " + lRange + " " + rRange + " " + lops.size() + " " + rops.size() + " " + mids.size());
 //                System.out.println(lops);
 //                System.out.println(rops);
 //                System.out.println(mids);
 
-                ArrayList<Triple<OperatorNode, OperatorNode, OperatorNode>> tasks = new ArrayList<>();
-                for (OperatorNode operatorNode : mids) {
-                    for (OperatorNode operatorNode1 : lops) {
-                        if (operatorNode1 == null) continue;
-                        for (OperatorNode operatorNode2 : rops) {
-                            if (operatorNode2 == null) continue;
-                            tasks.add(Triple.of(operatorNode1, operatorNode, operatorNode2));
-                        }
-                    }
-                }
-
-                List<OperatorNode> tmp = tasks
-                        .parallelStream()
-                        .filter(triple -> check(triple.getLeft(), triple.getRight(), triple.getMiddle().dependencies))
-                        .map(triple -> createOperatorNode(triple.getLeft(), lRange, triple.getRight(), rRange, triple.getMiddle(), boundery))
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
-//                System.out.println(tmp);
-                allResults.addAll(tmp);
-
-/*
-                for (OperatorNode operatorNode : mids) {
-                    for (OperatorNode operatorNode1 : lops) {
-                        if (operatorNode1 == null) continue;
-                        for (OperatorNode operatorNode2 : rops) {
-                            if (operatorNode2 == null) continue;
-                            if (check(operatorNode1, operatorNode2, operatorNode.dependencies)) {
-                                OperatorNode tmp = createOperatorNode(operatorNode1, lRange, operatorNode2, rRange, operatorNode, boundery);
-                                if (tmp != null) {  // && testttt(tmp.dependencies)
-                                    allResults.add(tmp);
-//                                      System.out.println(tmp);
-                                }
+                Stream<Triple<OperatorNode, OperatorNode, OperatorNode>> tmp3 = lops.stream().flatMap(lop -> {
+                    ArrayList<Triple<OperatorNode, OperatorNode, OperatorNode>> arrayList = new ArrayList<>();
+                    for (OperatorNode mid : mids) {
+                        for (OperatorNode rop : rops) {
+                            if (check(lop, rop, mid.dependencies)) {
+                                arrayList.add(Triple.of(lop, mid, rop));
                             }
                         }
                     }
-                }
-*/
+                    return arrayList.stream();
+                });
 
+                List<OperatorNode> tmp = tmp3
+                        .map(triple -> createOperatorNode(triple.getLeft(), lRange, triple.getRight(), rRange, triple.getMiddle(), boundery))
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList());
+                allResults.addAll(tmp);
             }
             LOG.info("boundery: " + boundery + " all size: " + allResults.size());
+            LOG.info("Total JVM GC count:\t\t" + getJVMgcCount() + ".");
+            LOG.info("Total JVM GC time:\t\t" + ((double) getJVMgcTime()) / 1000 + " sec.");
 
             classifyOperatorNode(MAINTAINER, allResults, acNode);
 
@@ -557,43 +558,9 @@ public class CostGraph {
                 range2acnode.put(boundery, new ACNode());
             } else {
                 LOG.info("boundery: " + boundery + " uncertainACs size: " + range2acnode.get(boundery).uncertainACs.size());
-//                if (boundery.getLeft()==25&&boundery.getRight()==27) {
-//                    ArrayList<OperatorNode> ops = range2acnode.get(boundery).getOperatorNodes(MAINTAINER);
-//                    LOG.info(ops);
-//                }
-//                boolean have23 = false;
-//                for (OperatorNode operatorNode: range2acnode.get(boundery).uncertainACs.values()) {
-//                    for (SingleCse singleCse: operatorNode.dependencies) {
-//                        for (Range r: singleCse.ranges) {
-//                            if (r.left==2&&r.right==3) {
-//                                have23 = true;
-//                            }
-//                        }
-//                    }
-//                    for (SingleCse singleCse: operatorNode.oldDependencies) {
-//                        for (Range r: singleCse.ranges) {
-//                            if (r.left==2&&r.right==3) {
-//                                have23 = true;
-//                            }
-//                        }
-//                    }
-//                }
-//                LOG.info("boundery: " + boundery + " have23: "+have23);
-
             }
-//            System.out.println(boundery + " min ac: ");
-//            System.out.println(acNode.minAC);
-//            if (acNode.minAC==null) {
-//                System.out.println(acNode.drange2operatornodes.values());
-//            }
+
             MAINTAINER.printCseNumStats();
-
-
-//            if (boundery.getLeft() == 1 && boundery.getRight() == 10) {
-//                ACNode acNode1 = range2acnode.get(boundery);
-//                System.out.println("x");
-//            }
-
 
         }
 
@@ -753,17 +720,17 @@ public class CostGraph {
         node.accCost = lNode.accCost + rNode.accCost + node.thisCost;
         node.thisCostDetails = originNode.thisCostDetails;
 
-        node.accCostDetails = NodeCost.add(lNode.accCostDetails,originNode.thisCostDetails,rNode.accCostDetails);
+        node.accCostDetails = NodeCost.add(lNode.accCostDetails, originNode.thisCostDetails, rNode.accCostDetails);
 
-        assert node.accCostDetails.collectCost<Double.MAX_VALUE;
+        assert node.accCostDetails.collectCost < Double.MAX_VALUE;
 
-        assert node.accCostDetails.shuffleCost<Double.MAX_VALUE;
+        assert node.accCostDetails.shuffleCost < Double.MAX_VALUE;
 
-        assert node.accCostDetails.broadcastCost<Double.MAX_VALUE;
+        assert node.accCostDetails.broadcastCost < Double.MAX_VALUE;
 
-        assert node.accCostDetails.computeCost<Double.MAX_VALUE;
+        assert node.accCostDetails.computeCost < Double.MAX_VALUE;
 
-        assert (Math.abs(node.accCost-node.accCostDetails.getSummary())<1e-3);
+        assert (Math.abs(node.accCost - node.accCostDetails.getSummary()) < 1e-3);
 
 //        if (node.isXtXv) {
 //            if (node.isTranspose)

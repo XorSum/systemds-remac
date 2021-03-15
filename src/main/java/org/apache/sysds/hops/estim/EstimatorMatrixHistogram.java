@@ -235,7 +235,13 @@ public class EstimatorMatrixHistogram extends SparsityEstimator
 		private final int rNdiv2, cNdiv2;       //number of rows/cols with nnz > #cols/2 and #rows/2
 		private boolean fullDiag;               //true if there exists a full diagonal of nonzeros
 		private MatrixBlock _data = null; //optional leaf data
-		
+
+		@Override
+		protected void finalize() throws Throwable {
+			super.finalize();
+			System.out.println("matrix histogram released");
+		}
+
 		public MatrixHistogram(MatrixBlock in, boolean useExcepts) {
 			// 1) allocate basic synopsis
 			final int m = in.getNumRows();
