@@ -6,6 +6,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.sysds.common.Types;
 import org.apache.sysds.hops.*;
+import org.apache.sysds.hops.estim.EstimatorBasicAvg;
 import org.apache.sysds.hops.estim.EstimatorMatrixHistogram;
 import org.apache.sysds.hops.estim.MMNode;
 import org.apache.sysds.hops.estim.SparsityEstimator;
@@ -40,8 +41,8 @@ public class FakeCostEstimator2 {
     public static long defaultBlockSize = 1000;
     public static ExecutionContext ec = null;
 
-    //            private static SparsityEstimator estimator = new EstimatorBasicAvg();
-    private static EstimatorMatrixHistogram estimator = new EstimatorMatrixHistogram();
+                private static SparsityEstimator estimator = new EstimatorBasicAvg();
+//    private static EstimatorMatrixHistogram estimator = new EstimatorMatrixHistogram();
 
     //public static double miniumCostBoundery = Double.MAX_VALUE;
 
@@ -298,8 +299,8 @@ public class FakeCostEstimator2 {
     }
 
     private static DataCharacteristics getDC(MMNode mmNode) throws Exception {
-        DataCharacteristics dc = estimator.estim(mmNode, false);
-//        DataCharacteristics dc = estimator.estim(mmNode);
+//        DataCharacteristics dc = estimator.estim(mmNode, false);
+        DataCharacteristics dc = estimator.estim(mmNode);
         if (dc.getRows() < 0 || dc.getCols() < 0) throw new Exception("dc<0");
         if (MMShowCostFlag) {
             LOG.info("dc " + dc);
