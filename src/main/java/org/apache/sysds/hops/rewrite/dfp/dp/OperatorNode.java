@@ -20,6 +20,8 @@ public class OperatorNode {
     ArrayList<Hop> hops = new ArrayList<>();
     double thisCost = Double.MAX_VALUE;
     public double accCost = Double.MAX_VALUE;
+    public NodeCost thisCostDetails = NodeCost.INF();
+    public NodeCost accCostDetails = NodeCost.INF();
     ArrayList<OperatorNode> inputs = new ArrayList<>();
     boolean isConstant = false;
     boolean isTranspose = false;
@@ -62,6 +64,10 @@ public class OperatorNode {
         sb.append(thisCost);
         sb.append(",");
         sb.append(accCost);
+        sb.append(",");
+        sb.append(thisCostDetails);
+        sb.append(",");
+        sb.append(accCostDetails);
         sb.append(",");
         sb.append(range);
         if (method != null) {

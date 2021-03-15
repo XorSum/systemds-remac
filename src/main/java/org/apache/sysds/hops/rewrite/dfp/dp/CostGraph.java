@@ -90,7 +90,7 @@ public class CostGraph {
             maxIndex = Math.max(maxIndex, mutableInt.getValue() - 1);
             analyzeOperatorConstant(node);
             analyzeOperatorCost(node, new HashSet<>());
-//            LOG.info(explainOpNode(node,0));
+            LOG.info(explainOpNode(node,0));
 //            LOG.info(explainOpNodeJson(node,0));
             p.node = node;
         }
@@ -342,12 +342,13 @@ public class CostGraph {
     void analyzeOperatorCost(OperatorNode node, HashSet<OperatorNode> visited) {
         if (visited.contains(node)) return;
         //  double accCost = 0;
-        double thisCost = 0;
+        //double thisCost = 0;
 //        if (node.hops.get(0) instanceof BinaryOp) {
 //            System.out.println("x");
 //        }
         if (node.inputs.size() == 0) {
             node.accCost = 0;
+            node.accCostDetails = NodeCost.ZERO();
         }
         for (int i = 0; i < node.inputs.size(); i++) {
             analyzeOperatorCost(node.inputs.get(i), visited);
@@ -355,13 +356,19 @@ public class CostGraph {
         }
 
         long start = System.nanoTime();
-        thisCost = this.nodeCostEstimator.getNodeCost(node);
+
+        NodeCost thisCostDetail  = this.nodeCostEstimator.getNodeCost(node);
+
         long end = System.nanoTime();
         estimateTime += end - start;
 
         if (!range2acnode.containsKey(node.range)) {
             OperatorNode node1 = node.copyWithoutDependencies();
-            node1.thisCost = thisCost;
+            node1.thisCost = thisCostDetail.getSummary();
+            node1.thisCostDetails = new NodeCost(thisCostDetail.shuffleCost,thisCostDetail.broadcastCost,
+                    thisCostDetail.computeCost,thisCostDetail.collectCost);
+            node1.accCostDetails = new NodeCost(node.accCostDetails.shuffleCost, node.accCostDetails.broadcastCost,
+                    node.accCostDetails.computeCost, node.accCostDetails.collectCost);
             // node1.accCost = accCost;
             //   acNode.operatorNodes.add(node1);
             ACNode acNode = new ACNode();
@@ -383,18 +390,23 @@ public class CostGraph {
             }
         }
         if (csesize > 0) {
-            thisCost = thisCost / csesize;
+//            thisCost = thisCost / csesize;
+            thisCostDetail.shuffleCost/=csesize;
+            thisCostDetail.broadcastCost/=csesize;
+            thisCostDetail.computeCost/=csesize;
+            thisCostDetail.collectCost/=csesize;
             //   accCost = accCost / csesize;
         }
         if (node.isConstant) {
-            //todo: iterationNumber
-            thisCost /= iterationNumber;
-//            thisCost /= 100;
-            //  accCost /= 100;
+            thisCostDetail.shuffleCost/=iterationNumber;
+            thisCostDetail.broadcastCost/=iterationNumber;
+            thisCostDetail.computeCost/=iterationNumber;
+            thisCostDetail.collectCost/=iterationNumber;
         }
         //  accCost += thisCost;
         //  node.accCost = accCost;
-        node.thisCost = thisCost;
+        node.thisCostDetails = thisCostDetail;
+        node.thisCost = thisCostDetail.getSummary();
         // if (node.range.getLeft()==2&&node.range.getRight()==3)   System.out.println(thisCost);
         //  System.out.println(node);
         range2acnode.get(node.range).addOperatorNode(node);
@@ -487,6 +499,7 @@ public class CostGraph {
                         }
                     }
                 }
+
                 List<OperatorNode> tmp = tasks
                         .parallelStream()
                         .filter(triple -> check(triple.getLeft(), triple.getRight(), triple.getMiddle().dependencies))
@@ -717,7 +730,11 @@ public class CostGraph {
         node.method = originNode.method;
 
         //   node.range = originNode.range; //Pair.of(lNode.range.getLeft(), rNode.range.getRight());
-        //  System.out.println(lNode.range + " " + rNode.range + " " + node.range);
+//        LOG.info(lNode.range + " " + rNode.range + " " + node.range +"\n"
+//                +lNode.thisCostDetails+" "+lNode.accCostDetails+"\n"
+//                +originNode.thisCostDetails+" "+originNode.accCostDetails+"\n"
+//                +rNode.thisCostDetails+" "+rNode.accCostDetails+"\n"
+//        );
         node.inputs.add(lNode);
         node.inputs.add(rNode);
 
@@ -734,6 +751,20 @@ public class CostGraph {
         node.hops.addAll(originNode.hops);
 
         node.accCost = lNode.accCost + rNode.accCost + node.thisCost;
+        node.thisCostDetails = originNode.thisCostDetails;
+
+        node.accCostDetails = NodeCost.add(lNode.accCostDetails,originNode.thisCostDetails,rNode.accCostDetails);
+
+        assert node.accCostDetails.collectCost<Double.MAX_VALUE;
+
+        assert node.accCostDetails.shuffleCost<Double.MAX_VALUE;
+
+        assert node.accCostDetails.broadcastCost<Double.MAX_VALUE;
+
+        assert node.accCostDetails.computeCost<Double.MAX_VALUE;
+
+        assert (Math.abs(node.accCost-node.accCostDetails.getSummary())<1e-3);
+
 //        if (node.isXtXv) {
 //            if (node.isTranspose)
 //            LOG.info("DP XtXv");
