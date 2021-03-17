@@ -278,8 +278,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 OperatorNode operatorNode = operatorNodeArrayList.get(i);
                 MultiCse multiCse = createMultiCseFromOperatorNode(operatorNode);
                 if (multiCse != null) {
-                    LOG.info(CostGraph.explainOpNode(operatorNode,0));
+//                    LOG.info(CostGraph.explainOpNode(operatorNode,0));
                     multiCseArrayList.add(multiCse);
+                    /*
                     boolean hasConstant = false;
                     for (SingleCse singleCse: multiCse.cses) {
                         for (Range range: singleCse.ranges) {
@@ -291,9 +292,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                         solution = constantUtil.liftLoopConstant(solution.body);
                         solution.multiCse = multiCse;
                     }
-                    double rcost =   estimate(solution,true);
+                    double rcost =   estimate(solution,false);
                     double dpcost = operatorNode.accCost*iterationNumber;
                     LOG.info("candidate multi cse:  rtcost=" +rcost+", dpcost=" + dpcost +"\n" + operatorNode.accCostDetails+"\n" + multiCse);
+                     */
                 }
                 if (i==200){
                     break;

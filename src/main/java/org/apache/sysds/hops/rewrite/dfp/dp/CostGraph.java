@@ -97,7 +97,7 @@ public class CostGraph {
             maxIndex = Math.max(maxIndex, mutableInt.getValue() - 1);
             analyzeOperatorConstant(node);
             analyzeOperatorCost(node, new HashSet<>());
-            LOG.info(explainOpNode(node, 0));
+//            LOG.info(explainOpNode(node, 0));
 //            LOG.info(explainOpNodeJson(node,0));
             p.node = node;
         }
@@ -509,17 +509,19 @@ public class CostGraph {
 //                System.out.println(rops);
 //                System.out.println(mids);
 
-                Stream<Triple<OperatorNode, OperatorNode, OperatorNode>> tmp3 = lops.stream().flatMap(lop -> {
-                    ArrayList<Triple<OperatorNode, OperatorNode, OperatorNode>> arrayList = new ArrayList<>();
-                    for (OperatorNode mid : mids) {
-                        for (OperatorNode rop : rops) {
-                            if (check(lop, rop, mid.dependencies)) {
-                                arrayList.add(Triple.of(lop, mid, rop));
+                Stream<Triple<OperatorNode, OperatorNode, OperatorNode>> tmp3 = lops
+                        .parallelStream()
+                        .flatMap(lop -> {
+                            ArrayList<Triple<OperatorNode, OperatorNode, OperatorNode>> arrayList = new ArrayList<>();
+                            for (OperatorNode mid : mids) {
+                                for (OperatorNode rop : rops) {
+                                    if (check(lop, rop, mid.dependencies)) {
+                                        arrayList.add(Triple.of(lop, mid, rop));
+                                    }
+                                }
                             }
-                        }
-                    }
-                    return arrayList.stream();
-                });
+                            return arrayList.stream();
+                        });
 
                 List<OperatorNode> tmp = tmp3
                         .map(triple -> createOperatorNode(triple.getLeft(), lRange, triple.getRight(), rRange, triple.getMiddle(), boundery))
@@ -718,6 +720,7 @@ public class CostGraph {
         node.hops.addAll(originNode.hops);
 
         node.accCost = lNode.accCost + rNode.accCost + node.thisCost;
+
         node.thisCostDetails = originNode.thisCostDetails;
 
         node.accCostDetails = NodeCost.add(lNode.accCostDetails, originNode.thisCostDetails, rNode.accCostDetails);
