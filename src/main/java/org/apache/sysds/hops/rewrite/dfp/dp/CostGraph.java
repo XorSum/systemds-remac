@@ -60,14 +60,14 @@ public class CostGraph {
         //  System.out.println(Explain.explain(emptyPair.getRight()));
         //explainOperatorNode(emptyNode,0);
         analyzeOperatorRange(emptyNode, emptyPair.getLeft(), new MutableInt(0));
-        analyzeOperatorCost(emptyNode, new HashSet<>());
+        analyzeOperatorCostTemplate(emptyNode, new HashSet<>());
         rGetRanges(emptyNode, ranges);
 
         for (Hop hop : hops) {
             OperatorNode node = createOperatorGraph(hop, false);
             MutableInt mutableInt = new MutableInt(0);
             analyzeOperatorRange(node, emptyPair.getLeft(), mutableInt);
-            analyzeOperatorCost(node, new HashSet<>());
+            analyzeOperatorCostTemplate(node, new HashSet<>());
 //            LOG.info(CostGraph.explainOpNode(node,0));
         }
 
@@ -359,46 +359,45 @@ public class CostGraph {
         return ans;
     }
 
+    void analyzeOperatorCostTemplate(OperatorNode node, HashSet<OperatorNode> visited) {
+        if (visited.contains(node)) return;
+        if (node.inputs.size() == 0) {
+            node.accCost = 0;
+            node.accCostDetails = NodeCost.ZERO();
+        }
+        for (int i = 0; i < node.inputs.size(); i++) {
+            analyzeOperatorCostTemplate(node.inputs.get(i), visited);
+        }
+        long start = System.nanoTime();
+        NodeCost thisCostDetail = this.nodeCostEstimator.getNodeCost(node);
+        long end = System.nanoTime();
+        estimateTime += end - start;
+        node.thisCost = thisCostDetail.getSummary();
+        node.thisCostDetails = thisCostDetail;
+        if (!range2acnode.containsKey(node.range)) {
+            ACNode acNode = new ACNode();
+            acNode.range = node.range;
+            acNode.emptyOpnode = node;
+            range2acnode.put(node.range, acNode);
+        }
+        visited.add(node);
+    }
+
     void analyzeOperatorCost(OperatorNode node, HashSet<OperatorNode> visited) {
         if (visited.contains(node)) return;
-        //  double accCost = 0;
-        //double thisCost = 0;
-//        if (node.hops.get(0) instanceof BinaryOp) {
-//            System.out.println("x");
-//        }
         if (node.inputs.size() == 0) {
             node.accCost = 0;
             node.accCostDetails = NodeCost.ZERO();
         }
         for (int i = 0; i < node.inputs.size(); i++) {
             analyzeOperatorCost(node.inputs.get(i), visited);
-            //    accCost += node.inputs.get(i).accCost;
         }
 
         long start = System.nanoTime();
-
         NodeCost thisCostDetail = this.nodeCostEstimator.getNodeCost(node);
-
         long end = System.nanoTime();
         estimateTime += end - start;
 
-        if (!range2acnode.containsKey(node.range)) {
-            OperatorNode node1 = node.copyWithoutDependencies();
-            node1.thisCost = thisCostDetail.getSummary();
-            node1.thisCostDetails = new NodeCost(thisCostDetail.shuffleCost, thisCostDetail.broadcastCost,
-                    thisCostDetail.computeCost, thisCostDetail.collectCost);
-            node1.accCostDetails = new NodeCost(node.accCostDetails.shuffleCost, node.accCostDetails.broadcastCost,
-                    node.accCostDetails.computeCost, node.accCostDetails.collectCost);
-            // node1.accCost = accCost;
-            //   acNode.operatorNodes.add(node1);
-            ACNode acNode = new ACNode();
-            acNode.range = node.range;
-            acNode.emptyOpnode = node1;
-            range2acnode.put(node.range, acNode);
-        }
-//        if (node.range.getLeft()==2&&node.range.getRight()==3)   System.out.println(node.range);
-//        if (node.range.getLeft()==2&&node.range.getRight()==3)   System.out.println(thisCost);
-        // accCost += thisCost;
         int csesize = 1;
         for (SingleCse singleCse : node.dependencies) {
             for (int i = 0; i < singleCse.ranges.size(); i++) {
