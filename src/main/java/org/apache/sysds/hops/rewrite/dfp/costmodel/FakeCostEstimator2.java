@@ -5,7 +5,6 @@ import org.apache.commons.lang3.tuple.Triple;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.sysds.common.Types;
-import org.apache.sysds.hops.*;
 import org.apache.sysds.hops.estim.EstimatorBasicAvg;
 import org.apache.sysds.hops.estim.EstimatorMatrixHistogram;
 import org.apache.sysds.hops.estim.MMNode;
@@ -32,6 +31,7 @@ public class FakeCostEstimator2 {
     protected static final Log LOG = LogFactory.getLog(FakeCostEstimator2.class.getName());
 
     public static final long workNumber = 6;
+    public static final long executorCores = 24;
 
     public static double CpuSpeed = 1.0;
     public static double ShuffleSpeed = 5.0;
@@ -850,7 +850,7 @@ public class FakeCostEstimator2 {
 
 
     public static double computeCostSPMM(DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
-        double result = CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc2.getSparsity() * 1.5 / OptimizerUtils.getNumReducers(false);
+        double result = CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc2.getSparsity() * 1.5 / getNumberReducers();
         return result;
     }
 
@@ -880,13 +880,13 @@ public class FakeCostEstimator2 {
         double shuffleCost = Double.MAX_VALUE;
         long r2 = reducerNumber(dc3.getRows(), dc3.getCols());
         if (t.getCacheType() == MapMult.CacheType.LEFT) {
-            long r1 = Math.min(OptimizerUtils.getNumReducers(false), (long) Math.ceil((double) dc2.getRows() / defaultBlockSize));
+            long r1 = Math.min(getNumberReducers(), (long) Math.ceil((double) dc2.getRows() / defaultBlockSize));
             double br = Math.ceil(Math.log(Math.min(r1, workNumber)));
             broadcastCost = BroadCaseSpeed * matrixSize(dc1) * br;
             shuffleCost = ShuffleSpeed * matrixSize(dc3) * r1 / r2;
             computeCost = computeCostSPMM(dc1, dc2, dc3);
         } else if (t.getCacheType() == MapMult.CacheType.RIGHT) {
-            long r1 = Math.min(OptimizerUtils.getNumReducers(false), (long) Math.ceil((double) dc1.getCols() / defaultBlockSize));
+            long r1 = Math.min(getNumberReducers(), (long) Math.ceil((double) dc1.getCols() / defaultBlockSize));
             double br = Math.ceil(Math.log(Math.min(r1, workNumber)));
             broadcastCost = BroadCaseSpeed * matrixSize(dc2) * br;
             shuffleCost = ShuffleSpeed * matrixSize(dc3) * r1 / r2;
@@ -920,7 +920,7 @@ public class FakeCostEstimator2 {
         DataCharacteristics dc3 = getDC(out);
 
         long r = Math.min((long) Math.ceil((double) dc2.getRows() / defaultBlockSize), //max used reducers
-                OptimizerUtils.getNumReducers(false)); //available reducer
+                getNumberReducers()); //available reducer
 
         double shuffleCost1 = ShuffleSpeed * (matrixSize(dc1) + matrixSize(dc2)) / r;
         double shuffleCost2 = ShuffleSpeed * matrixSize(dc3) * r / reducerNumber(dc3.getRows(), dc3.getCols());
@@ -955,7 +955,7 @@ public class FakeCostEstimator2 {
         long k = (long) Math.ceil((double) dc2.getRows() / defaultBlockSize);
 
         double rmm_nred = Math.min((double) m1_nrb * m2_ncb, //max used reducers
-                OptimizerUtils.getNumReducers(false)); //available reducers
+                getNumberReducers()); //available reducers
 
         double shuffleCost1 = ShuffleSpeed * (m2_ncb * matrixSize(dc1) + m1_nrb * matrixSize(dc2)) / rmm_nred;
         double shuffleCost2 = ShuffleSpeed * (matrixSize(dc3) * k) / rmm_nred;
@@ -987,7 +987,7 @@ public class FakeCostEstimator2 {
         DataCharacteristics dc3 = getDC(out);
 
         long reducer = (long) Math.ceil(Math.max(dc1.getRows(), dc1.getCols()) * 1.0 / defaultBlockSize);
-        reducer = Math.min(reducer, OptimizerUtils.getNumReducers(false));
+        reducer = Math.min(reducer, getNumberReducers());
         reducer = Math.max(reducer, 1);
         double computeCost = CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc1.getSparsity() / reducer;
         double reduceCost = BroadCaseSpeed * MatrixBlock.estimateSizeInMemory(dc3.getRows(), dc3.getRows(), dc3.getSparsity()) * reducer;
@@ -1136,7 +1136,7 @@ public class FakeCostEstimator2 {
             out = createMMNode(Xt, Xv, SparsityEstimator.OpCode.MM);
             DataCharacteristics dc3 = getDC(out);
             long reducer = reducerNumber(dc1.getRows(), dc1.getCols());
-            reducer = Math.min(reducer, OptimizerUtils.getNumReducers(false));
+            reducer = Math.min(reducer, getNumberReducers());
             double computeCost = 1.5 * CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols() * (dc1.getSparsity() * dc2.getSparsity() + dc1.getSparsity()) / reducer;
             double broadcastCost = BroadCaseSpeed * MatrixBlock.estimateSizeInMemory(dc2.getRows(), dc2.getCols(), dc2.getSparsity()) * Math.ceil(Math.log(workNumber));
             double reduceCost = BroadCaseSpeed * MatrixBlock.estimateSizeInMemory(dc3.getRows(), dc3.getRows(), dc3.getSparsity());
@@ -1194,10 +1194,10 @@ public class FakeCostEstimator2 {
     }
 
     public static long reducerNumber(long rows, long cols) {
-        if (defaultBlockSize <= 0) return OptimizerUtils.getNumReducers(false);
+        if (defaultBlockSize <= 0) return getNumberReducers();
         long nrb = (long) Math.ceil((double) rows / defaultBlockSize);
         long ncb = (long) Math.ceil((double) cols / defaultBlockSize);
-        long numReducer = Math.min(nrb * ncb, OptimizerUtils.getNumReducers(false));
+        long numReducer = Math.min(nrb * ncb, getNumberReducers());
         numReducer = Math.max(numReducer, 1);
         return numReducer;
     }
@@ -1219,7 +1219,11 @@ public class FakeCostEstimator2 {
         return 0;
     }
 
-
+    public static long getNumberReducers() {
+        return workNumber*executorCores;
+    }
+    
+    
 ////////////////////////////////////////////////////////////////////
 //                   print instructions                           //
 ////////////////////////////////////////////////////////////////////

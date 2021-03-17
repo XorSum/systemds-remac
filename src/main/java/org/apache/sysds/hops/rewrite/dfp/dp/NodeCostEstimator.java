@@ -12,7 +12,6 @@ import org.apache.sysds.hops.estim.SparsityEstimator;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
 import org.apache.sysds.lops.LopProperties;
-import org.apache.sysds.runtime.controlprogram.context.SparkExecutionContext;
 import org.apache.sysds.runtime.matrix.data.MatrixBlock;
 import org.apache.sysds.runtime.meta.DataCharacteristics;
 
@@ -271,7 +270,7 @@ public class NodeCostEstimator {
         AggBinaryOp.MMultMethod method = c.getMMultMethod();
 
         System.out.println("method = " + method);
-        System.out.println("reducers = " + OptimizerUtils.getNumReducers(false));
+        System.out.println("reducers = " + getNumberReducers());
         System.out.println("cost tsmm = " + costtsmm);
         System.out.println("cost cpmm = " + costcp);
         System.out.println("cost rmm = " + costr);
@@ -295,13 +294,13 @@ public class NodeCostEstimator {
 //        }
         long r2 = reducerNumber(dc3.getRows(), dc3.getCols());
         if (isLeft) {
-            long r1 = Math.min(OptimizerUtils.getNumReducers(false), (long) Math.ceil((double) dc2.getRows() / defaultBlockSize));
+            long r1 = Math.min(getNumberReducers(), (long) Math.ceil((double) dc2.getRows() / defaultBlockSize));
             double br = Math.ceil(Math.log(Math.min(r1, workNumber)));
             broadcastCost = BroadCaseSpeed * matrixSize(dc1) * br;
             shuffleCost = ShuffleSpeed * matrixSize(dc3) * r1 / r2;
             computeCost = computeCostSPMM(dc1, dc2, dc3);
         } else {
-            long r1 = Math.min(OptimizerUtils.getNumReducers(false), (long) Math.ceil((double) dc1.getCols() / defaultBlockSize));
+            long r1 = Math.min(getNumberReducers(), (long) Math.ceil((double) dc1.getCols() / defaultBlockSize));
             double br = Math.ceil(Math.log(Math.min(r1, workNumber)));
             broadcastCost = BroadCaseSpeed * matrixSize(dc2) * br;
             shuffleCost = ShuffleSpeed * matrixSize(dc3) * r1 / r2;
@@ -322,7 +321,7 @@ public class NodeCostEstimator {
     NodeCost  eCPMM(AggBinaryOp hop,
                  DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
         long r = Math.min((long) Math.ceil((double) dc2.getRows() / defaultBlockSize), //max used reducers
-                OptimizerUtils.getNumReducers(false)); //available reducer
+                getNumberReducers()); //available reducer
 
         double shuffleCost1 = ShuffleSpeed * (matrixSize(dc1) + matrixSize(dc2)) / r;
         double shuffleCost2 = ShuffleSpeed * matrixSize(dc3) * r / reducerNumber(dc3.getRows(), dc3.getCols());
@@ -346,7 +345,7 @@ public class NodeCostEstimator {
         long k = (long) Math.ceil((double) dc2.getRows() / defaultBlockSize);
 
         double rmm_nred = Math.min((double) m1_nrb * m2_ncb, //max used reducers
-                OptimizerUtils.getNumReducers(false)); //available reducers
+                getNumberReducers()); //available reducers
 
         double shuffleCost1 = ShuffleSpeed * (m2_ncb * matrixSize(dc1) + m1_nrb * matrixSize(dc2)) / rmm_nred;
         double shuffleCost2 = ShuffleSpeed * (matrixSize(dc3) * k) / rmm_nred;
@@ -366,7 +365,7 @@ public class NodeCostEstimator {
     NodeCost  eTSMM(AggBinaryOp hop,
                  DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
         long reducer = (long) Math.ceil(Math.max(dc1.getRows(), dc1.getCols()) * 1.0 / defaultBlockSize);
-        reducer = Math.min(reducer, OptimizerUtils.getNumReducers(false));
+        reducer = Math.min(reducer, getNumberReducers());
         double computeCost = CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc1.getSparsity() / reducer;
         double shuffleCost = ShuffleSpeed * MatrixBlock.estimateSizeInMemory(dc3.getRows(), dc3.getRows(), dc3.getSparsity());
 //        return computeCost + shuffleCost;
@@ -377,8 +376,7 @@ public class NodeCostEstimator {
                        DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
         // todo transpose direction
         long reducer = reducerNumber(dc1.getRows(), dc1.getCols());
-        reducer = Math.min(reducer, OptimizerUtils.getNumReducers(false));
-        long executor = Math.min(reducer, SparkExecutionContext.getNumExecutors());
+        reducer = Math.min(reducer, getNumberReducers());
         double computeCost = 1.5 * CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols() * (dc1.getSparsity() * dc2.getSparsity() + dc1.getSparsity()) / reducer;
         double broadcastCost = BroadCaseSpeed * MatrixBlock.estimateSizeInMemory(dc2.getRows(), dc2.getCols(), dc2.getSparsity()) * Math.ceil(Math.log(workNumber));
         double reduceCost = BroadCaseSpeed * MatrixBlock.estimateSizeInMemory(dc3.getRows(), dc3.getRows(), dc3.getSparsity());
@@ -389,7 +387,7 @@ public class NodeCostEstimator {
     NodeCost  eZipMM(AggBinaryOp hop,
                   DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
         long reducer = (long) Math.ceil(Math.max(dc1.getRows(), dc1.getCols()) * 1.0 / defaultBlockSize);
-        reducer = Math.min(reducer, OptimizerUtils.getNumReducers(false));
+        reducer = Math.min(reducer, getNumberReducers());
         double computeCost = CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc2.getSparsity() / reducer;
         double reduceCost = BroadCaseSpeed * MatrixBlock.estimateSizeInMemory(dc3.getRows(), dc3.getRows(), dc3.getSparsity()) * reducer;
 //        return computeCost + reduceCost;
