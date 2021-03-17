@@ -138,13 +138,11 @@ public class NodeCostEstimator {
     }
 
     public NodeCost getNodeCost(OperatorNode opnode) {
-        // MMNode mmnode = addOpnode2Mmnode(opnode);
-        //System.out.println("hop " + opnode.hop.getOpString());
         NodeCost ans = NodeCost.INF();
         Hop hop = opnode.hops.get(0);
-        if (HopRewriteUtils.isMatrixMultiply(hop)) {
+        if (HopRewriteUtils.isMatrixMultiply(hop)) {  // 矩阵乘法
             ans = eMatrixMultiply(opnode, (AggBinaryOp) hop);
-        } else if (hop instanceof BinaryOp) {
+        } else if (hop instanceof BinaryOp) {   // 二元操作
             // System.out.println("binary op" + hop.getOpString());
             if (HopRewriteUtils.isBinaryMatrixScalarOperation(hop)) {
                 ans = eBinaryMatrixScalar(opnode, hop);
@@ -156,7 +154,7 @@ public class NodeCostEstimator {
             }
         } else if (Judge.isLeafMatrix(hop)) {
             ans = NodeCost.ZERO();
-        } else if (hop instanceof TernaryOp || hop instanceof NaryOp) {
+        } else if (hop instanceof TernaryOp || hop instanceof NaryOp) { // 多元操作
             ans = eBinaryMatrixMatrix(opnode, hop);
         } else {
             // System.out.println("unhandled operator type " + hop.getOpString());
@@ -164,20 +162,15 @@ public class NodeCostEstimator {
         }
         for (int i = 1; i < opnode.hops.size(); i++) {
             hop = opnode.hops.get(i);
-            if (Judge.isWrite(hop)) {
-//                ans += 0;
-            } else if (HopRewriteUtils.isUnary(hop, Types.OpOp1.CAST_AS_SCALAR)) {
-//                ans += 0;
-            } else if (HopRewriteUtils.isTransposeOperation(hop)) {
-                //  DataCharacteristics dc = getDC(opnode);
-                //  ans += dc.getNonZeros() * CpuSpeed;
-            } else if (hop instanceof BinaryOp) {
+            if (hop instanceof BinaryOp) {
                 if (hop.isMatrix()) {
                     DataCharacteristics dc = getDC(opnode);
-                    ans.computeCost += dc.getNonZeros() * CpuSpeed;
+                    if (hop.optFindExecType() == LopProperties.ExecType.SPARK) {
+                        ans.computeCost += dc.getNonZeros() * CpuSpeed / defaultWorkerNumber;
+                    } else {
+                        ans.computeCost += dc.getNonZeros() * CpuSpeed;
+                    }
                 }
-            } else {
-                //  System.out.println("unhandled operator type " + hop.getOpString());
             }
         }
         ans.collectCost += eCollectCost(opnode);
@@ -187,9 +180,6 @@ public class NodeCostEstimator {
         }
         return ans;
     }
-
-
-
 
 
     NodeCost eMatrixMultiply(OperatorNode node, AggBinaryOp hop) {
@@ -228,7 +218,7 @@ public class NodeCostEstimator {
             }
         } else {
             double computeCost = CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols();
-            ans = new NodeCost(0,0,computeCost,0);
+            ans = new NodeCost(0, 0, computeCost, 0);
         }
         return ans;
     }
@@ -259,11 +249,11 @@ public class NodeCostEstimator {
         NodeCostEstimator costEstimator = new NodeCostEstimator();
         NodeCost costtsmm = costEstimator.eTSMM(c, dc1, dc2, dc3);
 //        double costts2 =  costEstimator.eTSMM(c,dc2,dc1,dc3);
-        NodeCost  costcp = costEstimator.eCPMM(c, dc1, dc2, dc3);
-        NodeCost  costr = costEstimator.eRMM(c, dc1, dc2, dc3);
-        NodeCost  costzip = costEstimator.eZipMM(c, dc1, dc2, dc3);
+        NodeCost costcp = costEstimator.eCPMM(c, dc1, dc2, dc3);
+        NodeCost costr = costEstimator.eRMM(c, dc1, dc2, dc3);
+        NodeCost costzip = costEstimator.eZipMM(c, dc1, dc2, dc3);
         OperatorNode node = new OperatorNode();
-        NodeCost  costmapmm = costEstimator.eMapMM(node, c, AggBinaryOp.MMultMethod.MAPMM_R, dc1, dc2, dc3);
+        NodeCost costmapmm = costEstimator.eMapMM(node, c, AggBinaryOp.MMultMethod.MAPMM_R, dc1, dc2, dc3);
         double controlProgramMM = CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols();
 
         c.constructLops();
@@ -281,8 +271,8 @@ public class NodeCostEstimator {
     }
 
 
-    NodeCost  eMapMM(OperatorNode node, AggBinaryOp hop, AggBinaryOp.MMultMethod method,
-                  DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
+    NodeCost eMapMM(OperatorNode node, AggBinaryOp hop, AggBinaryOp.MMultMethod method,
+                    DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
         double broadcastCost = Double.MAX_VALUE;
         double computeCost = Double.MAX_VALUE;
         double shuffleCost = Double.MAX_VALUE;
@@ -295,13 +285,13 @@ public class NodeCostEstimator {
         long r2 = reducerNumber(dc3.getRows(), dc3.getCols());
         if (isLeft) {
             long r1 = Math.min(getNumberReducers(), (long) Math.ceil((double) dc2.getRows() / defaultBlockSize));
-            double br = Math.ceil(Math.log(Math.min(r1, workNumber)));
+            double br = Math.ceil(Math.log(Math.min(r1, defaultWorkerNumber)));
             broadcastCost = BroadCaseSpeed * matrixSize(dc1) * br;
             shuffleCost = ShuffleSpeed * matrixSize(dc3) * r1 / r2;
             computeCost = computeCostSPMM(dc1, dc2, dc3);
         } else {
             long r1 = Math.min(getNumberReducers(), (long) Math.ceil((double) dc1.getCols() / defaultBlockSize));
-            double br = Math.ceil(Math.log(Math.min(r1, workNumber)));
+            double br = Math.ceil(Math.log(Math.min(r1, defaultWorkerNumber)));
             broadcastCost = BroadCaseSpeed * matrixSize(dc2) * br;
             shuffleCost = ShuffleSpeed * matrixSize(dc3) * r1 / r2;
             computeCost = computeCostSPMM(dc1, dc2, dc3);
@@ -315,11 +305,11 @@ public class NodeCostEstimator {
             LOG.info("  end>>>");
         }
 //        return computeCost + shuffleCost + broadcastCost + collectCost;
-        return new NodeCost(shuffleCost,broadcastCost,computeCost,collectCost);
+        return new NodeCost(shuffleCost, broadcastCost, computeCost, collectCost);
     }
 
-    NodeCost  eCPMM(AggBinaryOp hop,
-                 DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
+    NodeCost eCPMM(AggBinaryOp hop,
+                   DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
         long r = Math.min((long) Math.ceil((double) dc2.getRows() / defaultBlockSize), //max used reducers
                 getNumberReducers()); //available reducer
 
@@ -335,11 +325,11 @@ public class NodeCostEstimator {
             LOG.info("  end>>>");
         }
 //        return shuffleCost1 + shuffleCost2 + computeCost;
-        return new NodeCost(shuffleCost1+shuffleCost2,0,computeCost,0);
+        return new NodeCost(shuffleCost1 + shuffleCost2, 0, computeCost, 0);
     }
 
-    NodeCost  eRMM(AggBinaryOp hop,
-                DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
+    NodeCost eRMM(AggBinaryOp hop,
+                  DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
         long m1_nrb = (long) Math.ceil((double) dc1.getRows() / defaultBlockSize); // number of row blocks in m1
         long m2_ncb = (long) Math.ceil((double) dc2.getCols() / defaultBlockSize); // number of column blocks in m2
         long k = (long) Math.ceil((double) dc2.getRows() / defaultBlockSize);
@@ -359,39 +349,39 @@ public class NodeCostEstimator {
             LOG.info("  end>>>");
         }
 //        return shuffleCost1 + shuffleCost2 + computeCost;
-        return new NodeCost(shuffleCost1+shuffleCost2,0,computeCost,0);
+        return new NodeCost(shuffleCost1 + shuffleCost2, 0, computeCost, 0);
     }
 
-    NodeCost  eTSMM(AggBinaryOp hop,
-                 DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
+    NodeCost eTSMM(AggBinaryOp hop,
+                   DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
         long reducer = (long) Math.ceil(Math.max(dc1.getRows(), dc1.getCols()) * 1.0 / defaultBlockSize);
         reducer = Math.min(reducer, getNumberReducers());
-        double computeCost = CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc1.getSparsity() / reducer;
+        double computeCost = CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc1.getSparsity() / defaultWorkerNumber;
         double shuffleCost = ShuffleSpeed * MatrixBlock.estimateSizeInMemory(dc3.getRows(), dc3.getRows(), dc3.getSparsity());
 //        return computeCost + shuffleCost;
-        return new NodeCost(shuffleCost,0,computeCost,collectCostSummary);
+        return new NodeCost(shuffleCost, 0, computeCost, collectCostSummary);
     }
 
-    NodeCost  eMapMMChain(AggBinaryOp hop,
-                       DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
+    NodeCost eMapMMChain(AggBinaryOp hop,
+                         DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
         // todo transpose direction
         long reducer = reducerNumber(dc1.getRows(), dc1.getCols());
         reducer = Math.min(reducer, getNumberReducers());
-        double computeCost = 1.5 * CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols() * (dc1.getSparsity() * dc2.getSparsity() + dc1.getSparsity()) / reducer;
-        double broadcastCost = BroadCaseSpeed * MatrixBlock.estimateSizeInMemory(dc2.getRows(), dc2.getCols(), dc2.getSparsity()) * Math.ceil(Math.log(workNumber));
+        double computeCost = 1.5 * CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols() * (dc1.getSparsity() * dc2.getSparsity() + dc1.getSparsity()) / defaultWorkerNumber;
+        double broadcastCost = BroadCaseSpeed * MatrixBlock.estimateSizeInMemory(dc2.getRows(), dc2.getCols(), dc2.getSparsity()) * Math.ceil(Math.log(defaultWorkerNumber));
         double reduceCost = BroadCaseSpeed * MatrixBlock.estimateSizeInMemory(dc3.getRows(), dc3.getRows(), dc3.getSparsity());
 //        return computeCost + reduceCost + broadcastCost;
-        return new NodeCost(0,broadcastCost,computeCost,reduceCost);
+        return new NodeCost(0, broadcastCost, computeCost, reduceCost);
     }
 
-    NodeCost  eZipMM(AggBinaryOp hop,
-                  DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
+    NodeCost eZipMM(AggBinaryOp hop,
+                    DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
         long reducer = (long) Math.ceil(Math.max(dc1.getRows(), dc1.getCols()) * 1.0 / defaultBlockSize);
         reducer = Math.min(reducer, getNumberReducers());
-        double computeCost = CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc2.getSparsity() / reducer;
+        double computeCost = CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc2.getSparsity() / defaultWorkerNumber;
         double reduceCost = BroadCaseSpeed * MatrixBlock.estimateSizeInMemory(dc3.getRows(), dc3.getRows(), dc3.getSparsity()) * reducer;
 //        return computeCost + reduceCost;
-        return  new NodeCost(0,0,computeCost,reduceCost);
+        return new NodeCost(0, 0, computeCost, reduceCost);
     }
 
 
@@ -404,13 +394,12 @@ public class NodeCostEstimator {
         }
         double cost = dc.getNonZeros() * CpuSpeed;
         if (hop.optFindExecType() == LopProperties.ExecType.SPARK) {
-            long exer = reducerNumber(dc.getRows(), dc.getCols());
-            cost /= exer;
+            cost /= defaultWorkerNumber;
         }
         if (hop.getOpString().equals("b(*)") || hop.getOpString().equals("b(/)")) {
             cost *= 2;
         }
-        return new NodeCost(0,0,cost,0);
+        return new NodeCost(0, 0, cost, 0);
     }
 
     NodeCost eBinaryMatrixMatrix(OperatorNode operatorNode, Hop hop) {
@@ -418,11 +407,11 @@ public class NodeCostEstimator {
         DataCharacteristics dc1 = getDC(operatorNode.inputs.get(1));
         double computeCost = 0, shuffleCost = 0;
         if (hop.optFindExecType() == LopProperties.ExecType.SPARK) {
-            long exer = reducerNumber(dc0.getRows(), dc0.getCols());
+            long reducerNumber = reducerNumber(dc0.getRows(), dc0.getCols());
             long size0 = MatrixBlock.estimateSizeInMemory(dc0.getRows(), dc0.getCols(), dc0.getSparsity());
             long size1 = MatrixBlock.estimateSizeInMemory(dc1.getRows(), dc1.getCols(), dc1.getSparsity());
-            computeCost = CpuSpeed * (dc0.getNonZeros() + dc1.getNonZeros()) / exer;
-            shuffleCost = ShuffleSpeed * (size0 + size1) / exer;
+            computeCost = CpuSpeed * (dc0.getNonZeros() + dc1.getNonZeros()) / defaultWorkerNumber;
+            shuffleCost = ShuffleSpeed * (size0 + size1) / reducerNumber;
         } else {
             computeCost = CpuSpeed * (dc0.getNonZeros() + dc1.getNonZeros());
         }
@@ -431,7 +420,7 @@ public class NodeCostEstimator {
         } else if (hop.getOpString().equals("b(/)")) {
             computeCost *= 4;
         }
-        return new NodeCost(shuffleCost,0,computeCost,0);
+        return new NodeCost(shuffleCost, 0, computeCost, 0);
 //        return computeCost + shuffleCost;
     }
 
