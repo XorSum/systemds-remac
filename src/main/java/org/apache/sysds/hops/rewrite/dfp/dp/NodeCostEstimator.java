@@ -27,9 +27,8 @@ public class NodeCostEstimator {
 
     protected static final Log LOG = LogFactory.getLog(NodeCostEstimator.class.getName());
 
-
-    //     private static SparsityEstimator estimator = new EstimatorBasicAvg();
-    private static EstimatorMatrixHistogram estimator = new EstimatorMatrixHistogram();
+    private static SparsityEstimator metadataEstimator = new EstimatorBasicAvg();
+    private static EstimatorMatrixHistogram mncEstimator = new EstimatorMatrixHistogram();
 
     public HashMap<Pair<Integer, Integer>, MMNode> range2mmnode = new HashMap<>();
 
@@ -44,17 +43,15 @@ public class NodeCostEstimator {
         if (hop.isScalar()) return null;
         if (Judge.isLeafMatrix(hop)) {
             DataCharacteristics dc = hop.getDataCharacteristics();
-//            if (estimator instanceof EstimatorMatrixHistogram) {
-            EstimatorMatrixHistogram.MatrixHistogram histogram = getMatrixHistogram(hop.getName());
-            if (histogram == null) {
-                //   System.out.println("histogram=null " + hop.getOpString());
-                dc.setNonZeros(dc.getRows() * dc.getCols());
-                histogram = createFullHistogram((int) dc.getRows(), (int) dc.getCols());
-            } else {
-                dc.setNonZeros(histogram.getNonZeros());
-            }
             ans = new MMNode(dc);
-            ans.setSynopsis(histogram);
+            if (useMncEstimator) {
+                EstimatorMatrixHistogram.MatrixHistogram histogram = getMatrixHistogram(hop.getName());
+                if (histogram == null) {
+                    dc.setNonZeros(dc.getRows() * dc.getCols());
+                    histogram = createFullHistogram((int) dc.getRows(), (int) dc.getCols());
+                }
+                ans.setSynopsis(histogram);
+            }
             if (opnode.isTranspose) ans = new MMNode(ans, SparsityEstimator.OpCode.TRANS);
 //            } else {
 //                if (dc.getNonZeros() < 0) {
@@ -125,8 +122,11 @@ public class NodeCostEstimator {
         DataCharacteristics dc = null;
         MMNode mmNode = addOpnode2Mmnode(opNode);
         try {
-            dc = estimator.estim(mmNode, false);
-//            dc = estimator.estim(mmNode);
+            if (useMncEstimator) {
+                dc = mncEstimator.estim(mmNode, false);
+            } else {
+                dc = metadataEstimator.estim(mmNode);
+            }
         } catch (Exception e) {
             e.printStackTrace();
 //            CostGraph.explainOperatorNode(opNode, 0);

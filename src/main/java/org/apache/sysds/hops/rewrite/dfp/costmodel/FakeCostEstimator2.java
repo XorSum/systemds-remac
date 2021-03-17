@@ -6,6 +6,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.sysds.common.Types;
 import org.apache.sysds.hops.*;
+import org.apache.sysds.hops.estim.EstimatorBasicAvg;
 import org.apache.sysds.hops.estim.EstimatorMatrixHistogram;
 import org.apache.sysds.hops.estim.MMNode;
 import org.apache.sysds.hops.estim.SparsityEstimator;
@@ -14,7 +15,6 @@ import org.apache.sysds.lops.MapMult;
 import org.apache.sysds.lops.MapMultChain;
 import org.apache.sysds.runtime.controlprogram.*;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
-import org.apache.sysds.runtime.controlprogram.context.SparkExecutionContext;
 import org.apache.sysds.runtime.instructions.Instruction;
 import org.apache.sysds.runtime.instructions.cp.*;
 import org.apache.sysds.runtime.instructions.spark.*;
@@ -40,8 +40,9 @@ public class FakeCostEstimator2 {
     public static long defaultBlockSize = 1000;
     public static ExecutionContext ec = null;
 
-    //            private static SparsityEstimator estimator = new EstimatorBasicAvg();
-    private static EstimatorMatrixHistogram estimator = new EstimatorMatrixHistogram();
+    public static boolean useMncEstimator = false;
+    private static SparsityEstimator metadataEstimator = new EstimatorBasicAvg();
+    private static EstimatorMatrixHistogram mncEstimator = new EstimatorMatrixHistogram();
 
     //public static double miniumCostBoundery = Double.MAX_VALUE;
 
@@ -249,7 +250,7 @@ public class FakeCostEstimator2 {
                     //     System.out.println("metadata " + name + " " + data.getMetaData());
                     DataCharacteristics characteristics = data.getMetaData().getDataCharacteristics();
                     MMNode mmNode = createMMNode(characteristics);
-                    if (estimator instanceof EstimatorMatrixHistogram) {
+                    if (useMncEstimator) {
                         DistributedScratch.ec = ec;
                         EstimatorMatrixHistogram.MatrixHistogram histogram = getMatrixHistogram(name);
                         if (histogram == null) {
@@ -298,9 +299,13 @@ public class FakeCostEstimator2 {
     }
 
     private static DataCharacteristics getDC(MMNode mmNode) throws Exception {
-        DataCharacteristics dc = estimator.estim(mmNode, false);
-//        DataCharacteristics dc = estimator.estim(mmNode);
-        if (dc.getRows() < 0 || dc.getCols() < 0) throw new Exception("dc<0");
+        DataCharacteristics dc;
+        if (useMncEstimator) {
+            dc = mncEstimator.estim(mmNode, false);
+        } else {
+            dc = metadataEstimator.estim(mmNode);
+        }
+        if (dc == null || dc.getRows() < 0 || dc.getCols() < 0) throw new Exception("dc<0");
         if (MMShowCostFlag) {
             LOG.info("dc " + dc);
         }

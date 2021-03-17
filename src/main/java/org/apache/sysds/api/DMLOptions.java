@@ -22,6 +22,7 @@ package org.apache.sysds.api;
 import java.util.HashMap;
 import java.util.Map;
 
+import breeze.util.Opt;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.Option;
@@ -31,6 +32,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
 import org.apache.sysds.common.Types.ExecMode;
 import org.apache.sysds.hops.OptimizerUtils;
+import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
 import org.apache.sysds.runtime.controlprogram.WhileProgramBlock;
 import org.apache.sysds.runtime.lineage.LineageCacheConfig.LineageCachePolicy;
 import org.apache.sysds.runtime.lineage.LineageCacheConfig.ReuseCacheType;
@@ -154,6 +156,9 @@ public class DMLOptions {
 					throw new org.apache.commons.cli.ParseException("Invalid argument specified for -gpu option");
 				}
 			}
+		}
+		if (line.hasOption("mnc")) {
+			FakeCostEstimator2.useMncEstimator = true;
 		}
 		if (line.hasOption("stop_exec")){
 			WhileProgramBlock.stopExec = true;
@@ -293,6 +298,8 @@ public class DMLOptions {
 			.create("checkPrivacy");
 		Option checkStopExec = OptionBuilder
 				.create("stop_exec");
+		Option checkMnc = OptionBuilder
+				.create("mnc");
 
 		options.addOption(configOpt);
 		options.addOption(cleanOpt);
@@ -307,6 +314,7 @@ public class DMLOptions {
 		options.addOption(fedOpt);
 		options.addOption(checkPrivacy);
 		options.addOption(checkStopExec);
+		options.addOption(checkMnc);
 
 		// Either a clean(-clean), a file(-f), a script(-s) or help(-help) needs to be specified
 		OptionGroup fileOrScriptOpt = new OptionGroup()
