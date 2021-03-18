@@ -13,6 +13,7 @@ import org.apache.sysds.hops.rewrite.dfp.MySolution;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
 import org.apache.sysds.hops.rewrite.dfp.dp.CostGraph;
+import org.apache.sysds.hops.rewrite.dfp.dp.NodeCost;
 import org.apache.sysds.hops.rewrite.dfp.dp.OperatorNode;
 import org.apache.sysds.hops.rewrite.dfp.dp.SinglePlan;
 import org.apache.sysds.hops.rewrite.dfp.utils.*;
@@ -79,6 +80,15 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
 
         MySolution originalSolution = new MySolution(root);
+
+        if (root.getName().equals("h")) {
+            System.out.println(Explain.explain(root));
+            CostGraph costGraph = new CostGraph(variablesUpdated,iterationNumber);
+            costGraph.estimateHopCost(root);
+          //  System.exit(0);
+        } else {
+          //  return originalSolution;
+        }
 
         try {
             LOG.trace(ec.getVariables().keySet());
@@ -280,30 +290,26 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 if (multiCse != null) {
 //                    LOG.info(CostGraph.explainOpNode(operatorNode,0));
                     multiCseArrayList.add(multiCse);
-                    /*
-                    boolean hasConstant = false;
-                    for (SingleCse singleCse: multiCse.cses) {
-                        for (Range range: singleCse.ranges) {
-                            if (isConstant(range.left,range.right)) hasConstant = true;
-                        }
-                    }
-                    MySolution solution = genSolution(multiCse,template,blockRanges);
-                    if (hasConstant) {
-                        solution = constantUtil.liftLoopConstant(solution.body);
-                        solution.multiCse = multiCse;
-                    }
-                    double rcost =   estimate(solution,false);
+                    Hop hop = createHop(multiCse, template, blockRanges);
+                    hop = copyAndEliminateHop(hop);
+                    MySolution    solution = constantUtilByTag.liftLoopConstant(hop);
+//                    solution.multiCse = multiCse;
                     double dpcost = operatorNode.accCost*iterationNumber;
-                    LOG.info("candidate multi cse:  rtcost=" +rcost+", dpcost=" + dpcost +"\n" + operatorNode.accCostDetails+"\n" + multiCse);
-                     */
-//                    Hop h = createHop(multiCse,template,blockRanges);
-//                    h.resetVisitStatusForced(new HashSet<>());
-//                    System.out.println(Explain.explain(h));
-//                    System.out.println("-----------------------");
-//                    MySolution solution = constantUtilByTag.liftLoopConstant(h);
-//                    System.out.println(solution);
-//                    System.out.println("=======================");
-                }
+                    NodeCost cost2 = NodeCost.ZERO();
+                    NodeCost cost3 = costGraph.estimateHopCost(solution.body);
+                    cost3.computeCost*=iterationNumber;
+                    cost3.shuffleCost*=iterationNumber;
+                    cost3.broadcastCost*=iterationNumber;
+                    cost3.collectCost*=iterationNumber;
+                    cost2 = NodeCost.add(cost2,cost3);
+                    for (Hop h: solution.preLoopConstants) {
+                        cost3 = costGraph.estimateHopCost(h);
+                        cost2 = NodeCost.add(cost2,cost3);
+                    }
+
+                    LOG.info("candidate multi cse:  rtcost=" +cost2.getSummary()+", dpcost=" + dpcost +"\n" + operatorNode.accCostDetails+"\n" + multiCse);
+
+                   }
                 if (i==200){
                     break;
                 }
