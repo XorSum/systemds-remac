@@ -726,6 +726,7 @@ public class CostGraph {
         return node;
     }
 
+    @Deprecated
     public NodeCost estimateHopCost(Hop hop) {
         OperatorNode node = createOperatorGraph(hop, false);
         MutableInt mutableInt = new MutableInt(0);
@@ -735,6 +736,7 @@ public class CostGraph {
         return cost;
     }
 
+    @Deprecated
     private NodeCost analyzeHopCost(OperatorNode node, HashSet<Hop> visited) {
 //        System.out.println(node);
         for (Hop hop : node.hops) {
