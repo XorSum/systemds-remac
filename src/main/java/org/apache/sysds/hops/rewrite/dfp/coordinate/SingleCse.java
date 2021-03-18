@@ -17,7 +17,7 @@ public class SingleCse {
 
     public String name = "";
 
-
+    public boolean isConstant = false;
 
 
     public SingleCse() {
@@ -100,9 +100,10 @@ public class SingleCse {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("SingleCse: name=");
-        sb.append(name);
+        sb.append(name).append(",");
 //        sb.append(" hash=");
 //        sb.append(hash);
+        if (isConstant) sb.append(" constant,");
         sb.append(" ranges=[");
         for (Range r : ranges) {
             sb.append(r.toString());

@@ -81,7 +81,7 @@ public class CostGraph {
             MutableInt mutableInt = new MutableInt(0);
             analyzeOperatorRange(node, cse, mutableInt);
             boolean certainused = rCheckCertainUsed(cse, ranges);
-            if (checkConstant(cse, leaves)) {
+            if (cse.isConstant) {
                 p.tag = SinglePlan.SinglePlanTag.constant;
                 //     System.out.println("Constant Cse: " + cse);
             } else {
@@ -150,22 +150,6 @@ public class CostGraph {
 //        if (emptyPair.getRight().getName().equals("h"))
 //            System.exit(0);
         return result;
-    }
-
-    boolean checkConstant(SingleCse cse, ArrayList<Leaf> leaves) {
-        boolean cons = true;
-        if (cse.ranges.size() < 1) return false;
-        for (int i = cse.ranges.get(0).left; i <= cse.ranges.get(0).right; i++) {
-            Hop hop = leaves.get(i).hop;
-            if (HopRewriteUtils.isTransposeOperation(hop)) {
-                hop = hop.getInput().get(0);
-            }
-            if (variablesUpdated.containsVariable(hop.getName())) {
-                cons = false;
-                break;
-            }
-        }
-        return cons;
     }
 
 

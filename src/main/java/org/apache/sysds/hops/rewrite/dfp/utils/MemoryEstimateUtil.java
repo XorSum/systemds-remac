@@ -1,17 +1,12 @@
 package org.apache.sysds.hops.rewrite.dfp.utils;
 
 import org.apache.sysds.common.Types;
-import org.apache.sysds.hops.AggBinaryOp;
 import org.apache.sysds.hops.DataOp;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.LiteralOp;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
 import org.apache.sysds.parser.VariableSet;
-import org.apache.sysds.runtime.matrix.data.MatrixBlock;
-import org.apache.sysds.runtime.matrix.operators.AggregateOperator;
-
-import static org.apache.sysds.hops.rewrite.dfp.utils.Reorder.reorder;
 
 public class MemoryEstimateUtil {
 
@@ -91,7 +86,8 @@ public class MemoryEstimateUtil {
         variableSet.addVariable("i",null);
         RewriteCoordinate rewriteCoordinate = new RewriteCoordinate(null,null);
         rewriteCoordinate.variablesUpdated = variableSet;
-        rewriteCoordinate.constantUtil = new ConstantUtil(variableSet);
+        //rewriteCoordinate.constantUtil = new ConstantUtil(variableSet);
+        rewriteCoordinate.constantUtilByTag = new ConstantUtilByTag();
         rewriteCoordinate.rewiteHopDag(root);
 
     }

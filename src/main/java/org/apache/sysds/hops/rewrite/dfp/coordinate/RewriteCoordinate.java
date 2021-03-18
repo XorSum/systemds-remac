@@ -20,7 +20,6 @@ import org.apache.sysds.parser.*;
 import org.apache.sysds.runtime.controlprogram.Program;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
 import org.apache.sysds.utils.Explain;
-import scala.Int;
 
 import java.util.*;
 
@@ -46,7 +45,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     // public boolean onlySearchConstantSubExp = false;
     public VariableSet variablesUpdated = null;
-    public ConstantUtil constantUtil = null; // new ConstantUtil(variablesUpdated);
+    public ConstantUtilByTag constantUtilByTag = null; // new ConstantUtil(variablesUpdated);
+//    public ConstantUtil constantUtil = null;
     public long iterationNumber = 2;
 
     // <configuration>
@@ -296,6 +296,13 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     double dpcost = operatorNode.accCost*iterationNumber;
                     LOG.info("candidate multi cse:  rtcost=" +rcost+", dpcost=" + dpcost +"\n" + operatorNode.accCostDetails+"\n" + multiCse);
                      */
+//                    Hop h = createHop(multiCse,template,blockRanges);
+//                    h.resetVisitStatusForced(new HashSet<>());
+//                    System.out.println(Explain.explain(h));
+//                    System.out.println("-----------------------");
+//                    MySolution solution = constantUtilByTag.liftLoopConstant(h);
+//                    System.out.println(solution);
+//                    System.out.println("=======================");
                 }
                 if (i==200){
                     break;
@@ -569,6 +576,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             if (rangesets.size() > 0) {
                 result.subList(0, rangesets.size()).clear();
             }
+        } else {
+            for (SingleCse singleCse: result) {
+                singleCse.isConstant = true;
+            }
         }
         return result;
     }
@@ -741,11 +752,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 }
                 if (hop != null) {
                     Hop copy = deepCopyHopsDag(hop);
-                    MySolution lseSolution = constantUtil.liftLoopConstant(copy);
-                    lseSolution.multiCse = c;
-                    solutions.add(lseSolution);
-                    MySolution cseSolution = new MySolution(c, hop);
-                    solutions.add(cseSolution);
+                    MySolution solution = constantUtilByTag.liftLoopConstant(copy);
+                    solution.multiCse = c;
+                    solutions.add(solution);
                 }
             } catch (Exception e) {
 //                System.out.println(multiCses.get(i));
@@ -780,7 +789,6 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     bestSolution = solution;
                     id = i;
                 }
-
             } catch (Exception e) {
                 LOG.error("estimate error");
             }
@@ -1083,6 +1091,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             children.add(s);
         }
         Hop ret = build_binary_tree_mmc(children);
+        ret.isConstant = rt.singleCse.isConstant;
         //           Hop ret = build_binary_tree_naive(children);
 //            if (!Judge.isSame(ret1,ret2)) {
 //                LOG.debug(MyExplain.myExplain(ret2));
@@ -1452,7 +1461,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         FakeCostEstimator2.ec = executionContext;
         DistributedScratch.ec = executionContext;
         // onlySearchConstantSubExp = true;
-        constantUtil = new ConstantUtil(variablesUpdated);
+        constantUtilByTag = new ConstantUtilByTag();
+//        constantUtil = new ConstantUtil(variablesUpdated);
     }
 
 
