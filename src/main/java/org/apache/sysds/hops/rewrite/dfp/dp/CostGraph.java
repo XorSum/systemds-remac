@@ -712,11 +712,11 @@ public class CostGraph {
             }
         }
 
-        if (node.accCost < Double.MAX_VALUE / 2 && Math.abs(node.accCost - node.accCostDetails.getSummary()) > 1e-3) {
-            System.out.println("acc cost error");
-            System.out.println(explainOpNode(node, 0));
-            System.exit(-117);
-        }
+//        if (node.accCost < Double.MAX_VALUE / 2 && Math.abs(node.accCost - node.accCostDetails.getSummary()) > 1000) {
+//            System.out.println("acc cost error");
+//            System.out.println(explainOpNode(node, 0));
+//            System.exit(-117);
+//        }
 
 //        System.out.println(node);
 //        System.out.println("cost : "+lNode.accCost+" "+rNode.accCost+" "+node.thisCost);
