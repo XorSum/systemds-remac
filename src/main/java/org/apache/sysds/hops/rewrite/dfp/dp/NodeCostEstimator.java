@@ -14,6 +14,8 @@ import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
 import org.apache.sysds.lops.LopProperties;
 import org.apache.sysds.runtime.matrix.data.MatrixBlock;
 import org.apache.sysds.runtime.meta.DataCharacteristics;
+import org.apache.sysds.runtime.meta.MatrixCharacteristics;
+import org.apache.sysds.utils.Explain;
 
 import java.util.HashMap;
 
@@ -134,6 +136,15 @@ public class NodeCostEstimator {
             System.exit(-1);
             //  dc = new MatrixCharacteristics(mmNode.getRows(), mmNode.getCols(), mmNode.getRows() * mmNode.getCols());
         }
+//        Hop h = opNode.hops.get(0);
+//        boolean check = (h.getDim1()==dc.getRows()&&h.getDim2()==dc.getCols()) ||
+//                (h.getDim2()==dc.getRows()&&h.getDim1()==dc.getCols());
+//        if (!check) {
+//            LOG.info(Explain.explain(h));
+//            LOG.info(dc);
+//            LOG.info(CostGraph.explainOpNode(opNode,0));
+//            LOG.info("^^^^^^^^^^^");
+//        }
         return dc;
     }
 
@@ -204,7 +215,7 @@ public class NodeCostEstimator {
                     break;
                 case MAPMM_CHAIN:
                     node.isXtXv = true;
-                    ans = eMapMMChain(hop, dc1, dc2, dc3);
+                    ans = eMapMMChain(node,hop);
                     break;
                 case ZIPMM:
                     ans = eZipMM(hop, dc1, dc2, dc3);
@@ -361,6 +372,29 @@ public class NodeCostEstimator {
 //        return computeCost + shuffleCost;
         return new NodeCost(shuffleCost, 0, computeCost, collectCostSummary);
     }
+
+    NodeCost eMapMMChain(OperatorNode node,AggBinaryOp hop){
+//        System.out.println("MAPMMCHAIN");
+        DataCharacteristics dc1,dc2,dc3;
+        dc3 = getDC(node);
+        if (!node.isTranspose) {
+            OperatorNode node2 = node.inputs.get(1);
+            OperatorNode nodeX = node2.inputs.get(0);
+            OperatorNode nodeV = node2.inputs.get(1);
+            dc1 = getDC(nodeX);
+            dc2 = getDC(nodeV);
+        } else {
+            OperatorNode node2 = node.inputs.get(0);
+            OperatorNode nodeXt = node2.inputs.get(1);
+            OperatorNode nodeVt = node2.inputs.get(0);
+            DataCharacteristics  dcXt = getDC(nodeXt);
+            DataCharacteristics dcVt = getDC(nodeVt);
+            dc1 = new MatrixCharacteristics(dcXt.getCols(),dcXt.getRows(),dcXt.getNonZeros());
+            dc2 = new MatrixCharacteristics(dcVt.getCols(),dcVt.getRows(),dcVt.getNonZeros());
+        }
+        return eMapMMChain(hop,dc1,dc2,dc3);
+    }
+
 
     NodeCost eMapMMChain(AggBinaryOp hop,
                          DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {

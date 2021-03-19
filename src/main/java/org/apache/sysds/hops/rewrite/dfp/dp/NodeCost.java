@@ -29,6 +29,34 @@ public class NodeCost {
         this.collectCost = collectCost;
     }
 
+    public void plus(NodeCost that) {
+        this.shuffleCost += that.shuffleCost;
+        this.broadcastCost += that.broadcastCost;
+        this.computeCost += that.computeCost;
+        this.collectCost += that.collectCost;
+    }
+
+    public void minus(NodeCost that) {
+        this.shuffleCost -= that.shuffleCost;
+        this.broadcastCost -= that.broadcastCost;
+        this.computeCost -= that.computeCost;
+        this.collectCost -= that.collectCost;
+    }
+
+    public void multiply(double x) {
+        this.shuffleCost *=x;
+        this.broadcastCost *=x;
+        this.computeCost *=x;
+        this.collectCost *=x;
+    }
+
+    public void plusMultiply(NodeCost that,double x) {
+        this.shuffleCost += that.shuffleCost*x;
+        this.broadcastCost += that.broadcastCost*x;
+        this.computeCost += that.computeCost*x;
+        this.collectCost += that.collectCost*x;
+    }
+
     public double getSummary() {
         return shuffleCost + broadcastCost + computeCost + collectCost;
     }

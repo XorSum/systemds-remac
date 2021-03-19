@@ -312,12 +312,12 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     LOG.info("candidate multi cse:  rcost=" +hcost+", dpcost=" + dpcost +", rate="+rate +"\n" + operatorNode.accCostDetails+"\n" + multiCse);
 
 
-                    if (rate>0.1) {
-                        LOG.info("RATE GREATER THAN 0.1");
-                        LOG.info(CostGraph.explainOpNode(operatorNode,0));
-                        LOG.info("------------------");
-                        LOG.info(CostGraph.explainOpNode(pair3.getRight(),0));
-                    }
+//                    if (rate>0.1) {
+//                        LOG.info("RATE GREATER THAN 0.1");
+//                        LOG.info(CostGraph.explainOpNode(operatorNode,0));
+//                        LOG.info("------------------");
+//                        LOG.info(CostGraph.explainOpNode(pair3.getRight(),0));
+//                    }
                    }
                 if (i==200){
                     break;

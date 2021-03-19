@@ -312,7 +312,7 @@ public class CostGraph {
             opIndex.increment();
         }
         int end = opIndex.getValue() - 1;
-        if (root.range==null) {
+        if (root.range == null) {
             root.range = Pair.of(begin, end);
 //        System.out.println("analyze range: " + root.range);
             for (Range range : cse.ranges) {
@@ -392,17 +392,11 @@ public class CostGraph {
         }
         if (csesize > 0) {
 //            thisCost = thisCost / csesize;
-            thisCostDetail.shuffleCost /= csesize;
-            thisCostDetail.broadcastCost /= csesize;
-            thisCostDetail.computeCost /= csesize;
-            thisCostDetail.collectCost /= csesize;
+            thisCostDetail.multiply(1.0 / csesize);
             //   accCost = accCost / csesize;
         }
         if (node.isConstant) {
-            thisCostDetail.shuffleCost /= iterationNumber;
-            thisCostDetail.broadcastCost /= iterationNumber;
-            thisCostDetail.computeCost /= iterationNumber;
-            thisCostDetail.collectCost /= iterationNumber;
+            thisCostDetail.multiply(1.0 / iterationNumber);
         }
         //  accCost += thisCost;
         //  node.accCost = accCost;
@@ -442,7 +436,10 @@ public class CostGraph {
                 acNode.addUncertainAC(node);
             } else {
                 removed2++;
-                if (acNode.certainAC == null || acNode.certainAC.accCost > node.accCost) {
+                if (acNode.certainAC == null
+                        || acNode.certainAC.accCost > node.accCost
+                        || ((Math.abs(acNode.certainAC.accCost - node.accCost) < 0.001)
+                        && acNode.certainAC.dependencies.size() + acNode.certainAC.oldDependencies.size() < node.dependencies.size() + node.oldDependencies.size())) {
                     acNode.certainAC = node;
                 }
             }
@@ -705,21 +702,21 @@ public class CostGraph {
 
         node.accCostDetails = NodeCost.add(lNode.accCostDetails, originNode.thisCostDetails, rNode.accCostDetails);
 
-        assert node.accCostDetails.collectCost < Double.MAX_VALUE;
+        if (node.isXtXv) {
+            if (!node.isTranspose) {
+                node.accCost -= rNode.thisCost;
+                node.accCostDetails.minus(rNode.thisCostDetails);
+            } else {
+                node.accCost -= lNode.thisCost;
+                node.accCostDetails.minus(lNode.thisCostDetails);
+            }
+        }
 
-        assert node.accCostDetails.shuffleCost < Double.MAX_VALUE;
-
-        assert node.accCostDetails.broadcastCost < Double.MAX_VALUE;
-
-        assert node.accCostDetails.computeCost < Double.MAX_VALUE;
-
-        assert (Math.abs(node.accCost - node.accCostDetails.getSummary()) < 1e-3);
-
-//        if (node.isXtXv) {
-//            if (node.isTranspose)
-//            LOG.info("DP XtXv");
-//            node.accCost -= rNode.thisCost;
-//        }
+        if (node.accCost < Double.MAX_VALUE / 2 && Math.abs(node.accCost - node.accCostDetails.getSummary()) > 1e-3) {
+            System.out.println("acc cost error");
+            System.out.println(explainOpNode(node, 0));
+            System.exit(-117);
+        }
 
 //        System.out.println(node);
 //        System.out.println("cost : "+lNode.accCost+" "+rNode.accCost+" "+node.thisCost);
@@ -727,14 +724,14 @@ public class CostGraph {
     }
 
 
-    public Pair<NodeCost,OperatorNode> estimateHopCost(Hop hop) {
+    public Pair<NodeCost, OperatorNode> estimateHopCost(Hop hop) {
         OperatorNode node = createOperatorGraph(hop, false);
         MutableInt mutableInt = new MutableInt(0);
         analyzeOperatorRange(node, new SingleCse(), mutableInt);
         NodeCost cost = analyzeHopCost(node, new HashSet<>());
 //        System.out.println("all cost = "+cost);
-    //    NodeCost cost = NodeCost.ZERO();
-        return Pair.of(cost,node);
+        //    NodeCost cost = NodeCost.ZERO();
+        return Pair.of(cost, node);
     }
 
 
@@ -758,10 +755,7 @@ public class CostGraph {
         long start = System.nanoTime();
         NodeCost thisCostDetail = this.nodeCostEstimator.getNodeCost(node);
         if (hasCons) {
-            thisCostDetail.collectCost/=iterationNumber;
-            thisCostDetail.computeCost/=iterationNumber;
-            thisCostDetail.broadcastCost/=iterationNumber;
-            thisCostDetail.shuffleCost/=iterationNumber;
+            thisCostDetail.multiply(1.0 / iterationNumber);
         }
         node.thisCostDetails = thisCostDetail;
         node.thisCost = thisCostDetail.getSummary();

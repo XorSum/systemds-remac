@@ -48,8 +48,12 @@ public class OperatorNode {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("ON{[");
-//        sb.append(hop.getOpString());
+        sb.append("ON{");
+        sb.append(thisCost);
+        sb.append(",");
+        sb.append(accCost);
+        sb.append(",");
+        sb.append("[");
         for (Hop h : hops) {
             sb.append(h.getOpString());
             sb.append(" ");
@@ -61,10 +65,6 @@ public class OperatorNode {
             sb.append(mmNode.getDataCharacteristics());
             sb.append(",");
         }
-        sb.append(thisCost);
-        sb.append(",");
-        sb.append(accCost);
-        sb.append(",");
         sb.append(thisCostDetails);
         sb.append(",");
         sb.append(accCostDetails);
