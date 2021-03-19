@@ -23,8 +23,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.apache.sysds.utils.Statistics.getJVMgcCount;
-import static org.apache.sysds.utils.Statistics.getJVMgcTime;
+import static org.apache.sysds.utils.Statistics.*;
 
 public class CostGraph {
     protected static final Log LOG = LogFactory.getLog(CostGraph.class.getName());
@@ -299,7 +298,6 @@ public class CostGraph {
     }
 
     void analyzeOperatorRange(OperatorNode root, SingleCse cse, MutableInt opIndex) {
-        if (root.range!=null) return;
         int begin = opIndex.getValue();
 //        if (root==null||root.inputs==null) {
 //            System.out.println(root);
@@ -314,11 +312,13 @@ public class CostGraph {
             opIndex.increment();
         }
         int end = opIndex.getValue() - 1;
-        root.range = Pair.of(begin, end);
+        if (root.range==null) {
+            root.range = Pair.of(begin, end);
 //        System.out.println("analyze range: " + root.range);
-        for (Range range : cse.ranges) {
-            if ((range.left == begin && range.right == end) || (range.left == end && range.right == begin)) {
-                root.dependencies.add(cse);
+            for (Range range : cse.ranges) {
+                if ((range.left == begin && range.right == end) || (range.left == end && range.right == begin)) {
+                    root.dependencies.add(cse);
+                }
             }
         }
     }
@@ -726,23 +726,28 @@ public class CostGraph {
         return node;
     }
 
-    @Deprecated
-    public NodeCost estimateHopCost(Hop hop) {
+
+    public Pair<NodeCost,OperatorNode> estimateHopCost(Hop hop) {
         OperatorNode node = createOperatorGraph(hop, false);
         MutableInt mutableInt = new MutableInt(0);
         analyzeOperatorRange(node, new SingleCse(), mutableInt);
         NodeCost cost = analyzeHopCost(node, new HashSet<>());
 //        System.out.println("all cost = "+cost);
-        return cost;
+    //    NodeCost cost = NodeCost.ZERO();
+        return Pair.of(cost,node);
     }
 
-    @Deprecated
+
     private NodeCost analyzeHopCost(OperatorNode node, HashSet<Hop> visited) {
 //        System.out.println(node);
+        boolean hasCons = false;
         for (Hop hop : node.hops) {
             if (visited.contains(hop)) {
                 //  System.out.println("replicate: " + node);
                 return NodeCost.ZERO();
+            }
+            if (hop.isConstant) {
+                hasCons = true;
             }
         }
         NodeCost ans = NodeCost.ZERO();
@@ -752,7 +757,14 @@ public class CostGraph {
         }
         long start = System.nanoTime();
         NodeCost thisCostDetail = this.nodeCostEstimator.getNodeCost(node);
+        if (hasCons) {
+            thisCostDetail.collectCost/=iterationNumber;
+            thisCostDetail.computeCost/=iterationNumber;
+            thisCostDetail.broadcastCost/=iterationNumber;
+            thisCostDetail.shuffleCost/=iterationNumber;
+        }
         node.thisCostDetails = thisCostDetail;
+        node.thisCost = thisCostDetail.getSummary();
 //        LOG.info(node);
         long end = System.nanoTime();
         estimateTime += end - start;

@@ -292,23 +292,32 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     multiCseArrayList.add(multiCse);
                     Hop hop = createHop(multiCse, template, blockRanges);
                     hop = copyAndEliminateHop(hop);
-                    MySolution    solution = constantUtilByTag.liftLoopConstant(hop);
+                //    MySolution    solution = constantUtilByTag.liftLoopConstant(hop);
 //                    solution.multiCse = multiCse;
-                    double dpcost = operatorNode.accCost*iterationNumber;
-                    NodeCost cost2 = NodeCost.ZERO();
-                    NodeCost cost3 = costGraph.estimateHopCost(solution.body);
-                    cost3.computeCost*=iterationNumber;
-                    cost3.shuffleCost*=iterationNumber;
-                    cost3.broadcastCost*=iterationNumber;
-                    cost3.collectCost*=iterationNumber;
-                    cost2 = NodeCost.add(cost2,cost3);
-                    for (Hop h: solution.preLoopConstants) {
-                        cost3 = costGraph.estimateHopCost(h);
-                        cost2 = NodeCost.add(cost2,cost3);
+                    double dpcost = operatorNode.accCost;
+                    Pair<NodeCost,OperatorNode> pair3 = costGraph.estimateHopCost(hop);
+                    NodeCost cost3 = pair3.getLeft();
+//                    cost3.computeCost*=iterationNumber;
+//                    cost3.shuffleCost*=iterationNumber;
+//                    cost3.broadcastCost*=iterationNumber;
+//                    cost3.collectCost*=iterationNumber;
+//                    cost2 = NodeCost.add(cost2,cost3);
+//                    for (Hop h: solution.preLoopConstants) {
+//                        Pair<NodeCost,OperatorNode> pair4 =costGraph.estimateHopCost(h);
+//                        cost3 = pair4.getLeft();
+//                        cost2 = NodeCost.add(cost2,cost3);
+//                    }
+                    double hcost = cost3.getSummary();
+                    double rate = (dpcost-hcost)/hcost;
+                    LOG.info("candidate multi cse:  rcost=" +hcost+", dpcost=" + dpcost +", rate="+rate +"\n" + operatorNode.accCostDetails+"\n" + multiCse);
+
+
+                    if (rate>0.1) {
+                        LOG.info("RATE GREATER THAN 0.1");
+                        LOG.info(CostGraph.explainOpNode(operatorNode,0));
+                        LOG.info("------------------");
+                        LOG.info(CostGraph.explainOpNode(pair3.getRight(),0));
                     }
-
-                    LOG.info("candidate multi cse:  rtcost=" +cost2.getSummary()+", dpcost=" + dpcost +"\n" + operatorNode.accCostDetails+"\n" + multiCse);
-
                    }
                 if (i==200){
                     break;
