@@ -12,6 +12,7 @@ import org.apache.sysds.hops.estim.SparsityEstimator;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
 import org.apache.sysds.lops.LopProperties;
+import org.apache.sysds.runtime.controlprogram.caching.MatrixObject;
 import org.apache.sysds.runtime.matrix.data.MatrixBlock;
 import org.apache.sysds.runtime.meta.DataCharacteristics;
 import org.apache.sysds.runtime.meta.MatrixCharacteristics;
@@ -43,15 +44,30 @@ public class NodeCostEstimator {
         Hop hop = opnode.hops.get(0);
         if (hop.isScalar()) return null;
         if (Judge.isLeafMatrix(hop)) {
-            DataCharacteristics dc = hop.getDataCharacteristics();
-            ans = new MMNode(dc);
             if (useMncEstimator) {
                 EstimatorMatrixHistogram.MatrixHistogram histogram = getMatrixHistogram(hop.getName());
+                DataCharacteristics dc = hop.getDataCharacteristics();
                 if (histogram == null) {
                     dc.setNonZeros(dc.getRows() * dc.getCols());
                     histogram = createFullHistogram((int) dc.getRows(), (int) dc.getCols());
+//                    LOG.info("get by mnc null "+hop.getName()+" "+dc);
+                }else {
+//                    LOG.info("get by mnc not null "+hop.getName()+" "+histogram.getNonZeros());
                 }
+                ans = new MMNode(dc);
                 ans.setSynopsis(histogram);
+            } else {
+                MatrixObject matrixBlock = (MatrixObject) ec.getVariable(hop.getName());
+                DataCharacteristics dc;
+                if (matrixBlock!=null) {
+                    dc = matrixBlock.getDataCharacteristics();
+//                    LOG.info("get by metadata not null "+hop.getName()+" "+dc);
+                } else {
+                    dc = hop.getDataCharacteristics();
+//                    LOG.info("get by metadata null "+hop.getName()+" "+dc);
+                }
+                ans = new MMNode(dc);
+                ans.setDataCharacteristics(dc);
             }
             if (opnode.isTranspose) ans = new MMNode(ans, SparsityEstimator.OpCode.TRANS);
 //            } else {

@@ -288,11 +288,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 OperatorNode operatorNode = operatorNodeArrayList.get(i);
                 MultiCse multiCse = createMultiCseFromOperatorNode(operatorNode);
                 if (multiCse != null) {
-//                    LOG.info(CostGraph.explainOpNode(operatorNode,0));
                     multiCseArrayList.add(multiCse);
                     Hop hop = createHop(multiCse, template, blockRanges);
                     hop = copyAndEliminateHop(hop);
-                //    MySolution    solution = constantUtilByTag.liftLoopConstant(hop);
 //                    solution.multiCse = multiCse;
                     double dpcost = operatorNode.accCost;
                     Pair<NodeCost,OperatorNode> pair3 = costGraph.estimateHopCost(hop);
@@ -310,8 +308,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     double hcost = cost3.getSummary();
                     double rate = (dpcost-hcost)/hcost;
                     LOG.info("candidate multi cse:  rcost=" +hcost+", dpcost=" + dpcost +", rate="+rate +"\n" + operatorNode.accCostDetails+"\n" + multiCse);
-
-
+                    LOG.info(CostGraph.explainOpNode(operatorNode,0));
+//                    MySolution    solution = constantUtilByTag.liftLoopConstant(hop);
+//                    estimate(solution,true);
 //                    if (rate>0.1) {
 //                        LOG.info("RATE GREATER THAN 0.1");
 //                        LOG.info(CostGraph.explainOpNode(operatorNode,0));

@@ -506,9 +506,6 @@ public class CostGraph {
                         .collect(Collectors.toList());
                 allResults.addAll(tmp);
             }
-            LOG.info("boundery: " + boundery + " all size: " + allResults.size());
-            LOG.info("Total JVM GC count:\t\t" + getJVMgcCount() + ".");
-            LOG.info("Total JVM GC time:\t\t" + ((double) getJVMgcTime()) / 1000 + " sec.");
 
             classifyOperatorNode(MAINTAINER, allResults, acNode);
 
@@ -674,6 +671,7 @@ public class CostGraph {
         OperatorNode node = new OperatorNode();
         node.range = midRange;
         node.method = originNode.method;
+        node.mmNode = originNode.mmNode;
 
         //   node.range = originNode.range; //Pair.of(lNode.range.getLeft(), rNode.range.getRight());
 //        LOG.info(lNode.range + " " + rNode.range + " " + node.range +"\n"
