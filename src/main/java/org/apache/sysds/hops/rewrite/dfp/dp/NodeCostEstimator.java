@@ -51,7 +51,7 @@ public class NodeCostEstimator {
                     dc.setNonZeros(dc.getRows() * dc.getCols());
                     histogram = createFullHistogram((int) dc.getRows(), (int) dc.getCols());
 //                    LOG.info("get by mnc null "+hop.getName()+" "+dc);
-                }else {
+                } else {
 //                    LOG.info("get by mnc not null "+hop.getName()+" "+histogram.getNonZeros());
                 }
                 ans = new MMNode(dc);
@@ -59,7 +59,7 @@ public class NodeCostEstimator {
             } else {
                 MatrixObject matrixBlock = (MatrixObject) ec.getVariable(hop.getName());
                 DataCharacteristics dc;
-                if (matrixBlock!=null) {
+                if (matrixBlock != null) {
                     dc = matrixBlock.getDataCharacteristics();
 //                    LOG.info("get by metadata not null "+hop.getName()+" "+dc);
                 } else {
@@ -231,7 +231,7 @@ public class NodeCostEstimator {
                     break;
                 case MAPMM_CHAIN:
                     node.isXtXv = true;
-                    ans = eMapMMChain(node,hop);
+                    ans = eMapMMChain(node, hop);
                     break;
                 case ZIPMM:
                     ans = eZipMM(hop, dc1, dc2, dc3);
@@ -253,47 +253,77 @@ public class NodeCostEstimator {
 
     public static void main(String[] args) {
 
-        long dim1 = 58400000;
-        long dim2 = 8692;
-        long nnz = 2277598765l;
 
-        DataOp a = new DataOp("a", Types.DataType.MATRIX, Types.ValueType.FP64,
-                Types.OpOpData.TRANSIENTREAD, "", dim1, dim2, nnz, 1000);
+        DataCharacteristics dc1_meta = new MatrixCharacteristics(58400000, 14955, 1000, 2277596265l);
+        DataCharacteristics dc1_t_meta = new MatrixCharacteristics(14955, 58400000, 1000, 2277596265l);
 
-        Hop b = HopRewriteUtils.createTranspose(a);
+        DataCharacteristics dc2_meta = new MatrixCharacteristics(14955, 1, 1000, 9454);
+        DataCharacteristics dc3_meta = new MatrixCharacteristics(58400000, 1, 1000, 58400000);
 
-        AggBinaryOp c = HopRewriteUtils.createMatrixMultiply(b, a);
+        DataCharacteristics dc1_mnc = new MatrixCharacteristics(58400000, 14955, 1000, 2277596265l);
+        DataCharacteristics dc1_t_mnc = new MatrixCharacteristics(14955,58400000,  1000, 2277596265l);
 
-        DataCharacteristics dc1 = b.getDataCharacteristics();
-        DataCharacteristics dc2 = a.getDataCharacteristics();
-        DataCharacteristics dc3 = c.getDataCharacteristics();
+        DataCharacteristics dc2_mnc = new MatrixCharacteristics(14955, 1, 1000, 14955);
+        DataCharacteristics dc3_mnc = new MatrixCharacteristics(58400000, 1, 1000, 58400000);
 
-        System.out.println(dc1);
-        System.out.println(dc2);
-        System.out.println(dc3);
+        DataCharacteristics dc_ata = new MatrixCharacteristics(14955, 14955, 1000, 223652025);
 
 
-        NodeCostEstimator costEstimator = new NodeCostEstimator();
-        NodeCost costtsmm = costEstimator.eTSMM(c, dc1, dc2, dc3);
-//        double costts2 =  costEstimator.eTSMM(c,dc2,dc1,dc3);
-        NodeCost costcp = costEstimator.eCPMM(c, dc1, dc2, dc3);
-        NodeCost costr = costEstimator.eRMM(c, dc1, dc2, dc3);
-        NodeCost costzip = costEstimator.eZipMM(c, dc1, dc2, dc3);
         OperatorNode node = new OperatorNode();
-        NodeCost costmapmm = costEstimator.eMapMM(node, c, AggBinaryOp.MMultMethod.MAPMM_R, dc1, dc2, dc3);
-        double controlProgramMM = CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols();
+        node.isTranspose = false;
+        MMShowCostFlag = true;
+        NodeCostEstimator estimator = new NodeCostEstimator();
+        useMncEstimator = false;
+        estimator.eCPMM(null,dc1_t_meta,dc1_meta,dc_ata);
+        useMncEstimator= true;
+        estimator.eCPMM(null,dc1_t_mnc,dc1_mnc,dc_ata);
 
-        c.constructLops();
-        AggBinaryOp.MMultMethod method = c.getMMultMethod();
 
-        System.out.println("method = " + method);
-        System.out.println("reducers = " + getNumberReducers());
-        System.out.println("cost tsmm = " + costtsmm);
-        System.out.println("cost cpmm = " + costcp);
-        System.out.println("cost rmm = " + costr);
-        System.out.println("cost zipmm = " + costzip);
-        System.out.println("cost mapmm = " + costmapmm);
-        System.out.println("cost control program mm = " + controlProgramMM);
+
+//        estimator.eMapMM(node,null, AggBinaryOp.MMultMethod.MAPMM_R,dc1_meta,dc2_meta,dc3_meta);
+//        estimator.eMapMM(node,null, AggBinaryOp.MMultMethod.MAPMM_R,dc1_mnc,dc2_mnc,dc3_mnc);
+
+//        long dim1 = 58400000;
+//        long dim2 = 8692;
+//        long nnz = 2277598765l;
+
+//        DataOp a = new DataOp("a", Types.DataType.MATRIX, Types.ValueType.FP64,
+//                Types.OpOpData.TRANSIENTREAD, "", dim1, dim2, nnz, 1000);
+//
+//        Hop b = HopRewriteUtils.createTranspose(a);
+//
+//        AggBinaryOp c = HopRewriteUtils.createMatrixMultiply(b, a);
+//
+//        DataCharacteristics dc1 = b.getDataCharacteristics();
+//        DataCharacteristics dc2 = a.getDataCharacteristics();
+//        DataCharacteristics dc3 = c.getDataCharacteristics();
+//
+//        System.out.println(dc1);
+//        System.out.println(dc2);
+//        System.out.println(dc3);
+//
+//
+//        NodeCostEstimator costEstimator = new NodeCostEstimator();
+//        NodeCost costtsmm = costEstimator.eTSMM(c, dc1, dc2, dc3);
+////        double costts2 =  costEstimator.eTSMM(c,dc2,dc1,dc3);
+//        NodeCost costcp = costEstimator.eCPMM(c, dc1, dc2, dc3);
+//        NodeCost costr = costEstimator.eRMM(c, dc1, dc2, dc3);
+//        NodeCost costzip = costEstimator.eZipMM(c, dc1, dc2, dc3);
+//        OperatorNode node = new OperatorNode();
+//        NodeCost costmapmm = costEstimator.eMapMM(node, c, AggBinaryOp.MMultMethod.MAPMM_R, dc1, dc2, dc3);
+//        double controlProgramMM = CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols();
+//
+//        c.constructLops();
+//        AggBinaryOp.MMultMethod method = c.getMMultMethod();
+//
+//        System.out.println("method = " + method);
+//        System.out.println("reducers = " + getNumberReducers());
+//        System.out.println("cost tsmm = " + costtsmm);
+//        System.out.println("cost cpmm = " + costcp);
+//        System.out.println("cost rmm = " + costr);
+//        System.out.println("cost zipmm = " + costzip);
+//        System.out.println("cost mapmm = " + costmapmm);
+//        System.out.println("cost control program mm = " + controlProgramMM);
 
     }
 
@@ -337,15 +367,28 @@ public class NodeCostEstimator {
 
     NodeCost eCPMM(AggBinaryOp hop,
                    DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
-        long r = Math.min((long) Math.ceil((double) dc2.getRows() / defaultBlockSize), //max used reducers
+        long r1 = Math.min((long) Math.ceil((double) dc2.getRows() / defaultBlockSize), //max used reducers
                 getNumberReducers()); //available reducer
-
-        double shuffleCost1 = ShuffleSpeed * (matrixSize(dc1) + matrixSize(dc2)) / r;
-        double shuffleCost2 = ShuffleSpeed * matrixSize(dc3) * r / reducerNumber(dc3.getRows(), dc3.getCols());
+        long r2 = reducerNumber(dc3.getRows(), dc3.getCols());
+        double shuffleCost1 = ShuffleSpeed * (matrixSize(dc1) + matrixSize(dc2)) / r1;
+        double middle_sparsity = 0;
+        if (useMncEstimator) {
+         //   middle_sparsity = dc3.getSparsity()*defaultBlockSize/dc1.getCols();
+            middle_sparsity = 1.0;
+        } else {
+            middle_sparsity =1- Math.pow(1- dc1.getSparsity()*dc2.getSparsity(),defaultBlockSize);
+        }
+        double shuffleCost2 = ShuffleSpeed * MatrixBlock.estimateSizeInMemory(dc3.getRows(), dc3.getCols(), middle_sparsity) * r1 /r2 ;
         double computeCost = computeCostSPMM(dc1, dc2, dc3);
-
         if (MMShowCostFlag) {
             LOG.info("begin<<< ");
+            LOG.info("dcA: "+dc1);
+            LOG.info("dcB: "+dc2);
+            LOG.info("dcC: "+dc3);
+            LOG.info("r1: "+r1);
+            LOG.info("r2: "+r2);
+            LOG.info("sparsity of middle: "+middle_sparsity);
+            LOG.info("matrix size of middle: "+MatrixBlock.estimateSizeInMemory(dc3.getRows(), dc3.getCols(), middle_sparsity));
             LOG.info("cpmm shuffle cost 1 = " + shuffleCost1);
             LOG.info("cpmm shuffle cost 2 = " + shuffleCost2);
             LOG.info("cpmm compute cost = " + computeCost);
@@ -389,9 +432,9 @@ public class NodeCostEstimator {
         return new NodeCost(shuffleCost, 0, computeCost, collectCostSummary);
     }
 
-    NodeCost eMapMMChain(OperatorNode node,AggBinaryOp hop){
+    NodeCost eMapMMChain(OperatorNode node, AggBinaryOp hop) {
 //        System.out.println("MAPMMCHAIN");
-        DataCharacteristics dc1,dc2,dc3;
+        DataCharacteristics dc1, dc2, dc3;
         dc3 = getDC(node);
         if (!node.isTranspose) {
             OperatorNode node2 = node.inputs.get(1);
@@ -403,12 +446,12 @@ public class NodeCostEstimator {
             OperatorNode node2 = node.inputs.get(0);
             OperatorNode nodeXt = node2.inputs.get(1);
             OperatorNode nodeVt = node2.inputs.get(0);
-            DataCharacteristics  dcXt = getDC(nodeXt);
+            DataCharacteristics dcXt = getDC(nodeXt);
             DataCharacteristics dcVt = getDC(nodeVt);
-            dc1 = new MatrixCharacteristics(dcXt.getCols(),dcXt.getRows(),dcXt.getNonZeros());
-            dc2 = new MatrixCharacteristics(dcVt.getCols(),dcVt.getRows(),dcVt.getNonZeros());
+            dc1 = new MatrixCharacteristics(dcXt.getCols(), dcXt.getRows(), dcXt.getNonZeros());
+            dc2 = new MatrixCharacteristics(dcVt.getCols(), dcVt.getRows(), dcVt.getNonZeros());
         }
-        return eMapMMChain(hop,dc1,dc2,dc3);
+        return eMapMMChain(hop, dc1, dc2, dc3);
     }
 
 
