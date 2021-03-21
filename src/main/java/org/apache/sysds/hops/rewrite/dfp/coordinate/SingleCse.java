@@ -17,7 +17,7 @@ public class SingleCse {
 
     public String name = "";
 
-
+    public boolean isConstant = false;
 
 
     public SingleCse() {
@@ -90,16 +90,20 @@ public class SingleCse {
             if (tmp.size()>0) count++;
         }
       //  return mask.size()==1;
-        return mask.size() == 1 && count == ranges.size() ;
+        if (innner.hash.left==innner.hash.right)
+            return mask.size()<=2 && count==ranges.size();
+        else
+            return mask.size() == 1 && count == ranges.size() ;
     }
 
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("SingleCse: name=");
-        sb.append(name);
+        sb.append(name).append(",");
 //        sb.append(" hash=");
 //        sb.append(hash);
+        if (isConstant) sb.append(" constant,");
         sb.append(" ranges=[");
         for (Range r : ranges) {
             sb.append(r.toString());

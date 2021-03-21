@@ -123,7 +123,7 @@ public class SpoofFusedOp extends MultiThreadedHop
 	}
 	
 	@Override
-	protected ExecType optFindExecType() {
+    public ExecType optFindExecType() {
 		
 		checkAndSetForcedPlatform();
 		

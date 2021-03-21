@@ -66,6 +66,7 @@ public abstract class Hop implements ParseInfo {
 	// static variable to assign an unique ID to every hop that is created
 	private static IDSequence _seqHopID = new IDSequence();
 	public boolean shouldPersist = false;
+	public boolean isConstant = false;
 	protected final long _ID;
 	protected String _name;
 	protected DataType _dataType;
@@ -782,7 +783,7 @@ public abstract class Hop implements ParseInfo {
 
 	public abstract Lop constructLops();
 
-	protected abstract ExecType optFindExecType();
+	public abstract ExecType optFindExecType();
 	
 	public abstract String getOpString();
 
@@ -1312,6 +1313,7 @@ public abstract class Hop implements ParseInfo {
 		if( withRefs )
 			throw new CloneNotSupportedException( "Hops deep copy w/ lops/inputs/parents not supported." );
 		shouldPersist = that.shouldPersist;
+		isConstant = that.isConstant;
 		_name = that._name;
 		_dataType = that._dataType;
 		_valueType = that._valueType;

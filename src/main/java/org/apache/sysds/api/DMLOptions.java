@@ -22,6 +22,7 @@ package org.apache.sysds.api;
 import java.util.HashMap;
 import java.util.Map;
 
+import breeze.util.Opt;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.Option;
@@ -158,9 +159,8 @@ public class DMLOptions {
 				}
 			}
 		}
-		if (line.hasOption("mnc")){
+		if (line.hasOption("mnc")) {
 			FakeCostEstimator2.useMncEstimator = true;
-			NodeCostEstimator.useMncEstimator = true;
 		}
 		if (line.hasOption("stop_exec")){
 			WhileProgramBlock.stopExec = true;

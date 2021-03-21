@@ -1,6 +1,7 @@
 package org.apache.sysds.hops.rewrite.dfp.coordinate;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.sysds.hops.Hop;
@@ -12,6 +13,7 @@ import org.apache.sysds.hops.rewrite.dfp.MySolution;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
 import org.apache.sysds.hops.rewrite.dfp.dp.CostGraph;
+import org.apache.sysds.hops.rewrite.dfp.dp.NodeCost;
 import org.apache.sysds.hops.rewrite.dfp.dp.OperatorNode;
 import org.apache.sysds.hops.rewrite.dfp.dp.SinglePlan;
 import org.apache.sysds.hops.rewrite.dfp.utils.*;
@@ -19,6 +21,7 @@ import org.apache.sysds.parser.*;
 import org.apache.sysds.runtime.controlprogram.Program;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
 import org.apache.sysds.utils.Explain;
+import org.w3c.dom.Node;
 
 import java.util.*;
 
@@ -84,11 +87,16 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             LOG.trace(ec.getVariables().keySet());
 //            FakeCostEstimator2.miniumCostBoundery = Double.MAX_VALUE;
             long start2 = System.nanoTime();
-            originalSolution.cost = estimate(originalSolution, true);
+//            CostGraph costGraph = new CostGraph(variablesUpdated,iterationNumber);
+//            Pair<NodeCost,OperatorNode> nodeCostOperatorNodePair = costGraph.estimateHopCost(root);
+//            LOG.info("original cost = "+nodeCostOperatorNodePair.getLeft());
+            // originalSolution.cost = estimate(originalSolution, true);
             long end2 = System.nanoTime();
             allGenerateCombinationsTime += end2 - start2;
-            estimateTime += end2 - start2;
-
+            CostGraph.estimateTime += end2 - start2;
+//            if (!"h".equals(root.getName())) {
+//                return originalSolution;
+//            }
             long start = System.nanoTime();
             LOG.info("original cost = " + originalSolution.cost);
 
@@ -289,6 +297,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //            }
 
 
+            ArrayList<Hop> hops = createHops(template,blockRanges);
+
             ArrayList<Pair<SingleCse, Hop>> list = genHopFromSingleCses(singleCses, template, blockRanges);
             SingleCse emptyCse = new SingleCse();
             emptyCse.hash = HashKey.of(0L, 0L);
@@ -313,21 +323,55 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //            operatorNodeArrayList.addAll(bestacnode.uncertainACs.values());
 //            operatorNodeArrayList.sort(Comparator.comparingDouble(a -> a.accCost));
 
-            ArrayList<OperatorNode> operatorNodeArrayList = costGraph.testOperatorGraph(singlePlans, pair, blockRanges, leaves);
-
+            ArrayList<OperatorNode> operatorNodeArrayList = costGraph.testOperatorGraph(singlePlans, pair, blockRanges, leaves,hops);
+            long start = System.nanoTime();
             ArrayList<MultiCse> multiCseArrayList = new ArrayList<>();
             for (int i = 0; i < operatorNodeArrayList.size(); i++) {
-                MultiCse multiCse = createMultiCseFromOperatorNode(operatorNodeArrayList.get(i));
-                if (multiCse != null) multiCseArrayList.add(multiCse);
+                OperatorNode operatorNode = operatorNodeArrayList.get(i);
+                MultiCse multiCse = createMultiCseFromOperatorNode(operatorNode);
+                if (multiCse != null) {
+                    multiCseArrayList.add(multiCse);
+                    Hop hop = createHop(multiCse, template, blockRanges);
+                    hop = copyAndEliminateHop(hop);
+//                    solution.multiCse = multiCse;
+                    double dpcost = operatorNode.accCost;
+                    Pair<NodeCost,OperatorNode> pair3 = costGraph.estimateHopCost(hop);
+                    NodeCost cost3 = pair3.getLeft();
+//                    cost3.computeCost*=iterationNumber;
+//                    cost3.shuffleCost*=iterationNumber;
+//                    cost3.broadcastCost*=iterationNumber;
+//                    cost3.collectCost*=iterationNumber;
+//                    cost2 = NodeCost.add(cost2,cost3);
+//                    for (Hop h: solution.preLoopConstants) {
+//                        Pair<NodeCost,OperatorNode> pair4 =costGraph.estimateHopCost(h);
+//                        cost3 = pair4.getLeft();
+//                        cost2 = NodeCost.add(cost2,cost3);
+//                    }
+                    double hcost = cost3.getSummary();
+                    double rate = (dpcost-hcost)/hcost;
+                    LOG.info("candidate multi cse:  rcost=" +hcost+", dpcost=" + dpcost +", rate="+rate +"\n" + operatorNode.accCostDetails+"\n" + multiCse);
+                    LOG.info(CostGraph.explainOpNode(operatorNode,0));
+//                    MySolution    solution = constantUtilByTag.liftLoopConstant(hop);
+//                    estimate(solution,true);
+//                    if (rate>0.1) {
+//                        LOG.info("RATE GREATER THAN 0.1");
+//                        LOG.info(CostGraph.explainOpNode(operatorNode,0));
+//                        LOG.info("------------------");
+//                        LOG.info(CostGraph.explainOpNode(pair3.getRight(),0));
+//                    }
+                   }
+                if (i==200){
+                    break;
+                }
             }
+
             LOG.info("candidate muti cse size = " + multiCseArrayList.size());
-            for (MultiCse cse : multiCseArrayList) {
-                LOG.info("candidate multi cse" + cse);
-            }
+           // System.exit(100);
 
             ArrayList<MySolution> mySolutions = genSolutions(multiCseArrayList, true, template, blockRanges);
             MySolution mySolution = selectSolution(mySolutions);
-
+            long end = System.nanoTime();
+            CostGraph.estimateTime += end - start;
             LOG.info("dynamic programming: ");
             LOG.info(mySolution);
             System.out.println("dynamic programming: ");
@@ -588,6 +632,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             if (rangesets.size() > 0) {
                 result.subList(0, rangesets.size()).clear();
             }
+        } else {
+            for (SingleCse singleCse: result) {
+                singleCse.isConstant = true;
+            }
         }
         return result;
     }
@@ -723,7 +771,21 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         else solution = new MySolution(result);
         solution.multiCse = multiCse;
         long start = System.nanoTime();
-        estimate(solution, true);
+        //estimate(solution, true);
+        NodeCost sum = NodeCost.ZERO();
+        CostGraph costGraph = new CostGraph(variablesUpdated,iterationNumber);
+        Pair<NodeCost,OperatorNode> nodeCostOperatorNodePair = costGraph.estimateHopCost(solution.body);
+        NodeCost body = nodeCostOperatorNodePair.getLeft();
+        LOG.info("body cost = "+body);
+        NodeCost preSum = NodeCost.ZERO();
+        for (Hop h: solution.preLoopConstants) {
+            Pair<NodeCost,OperatorNode> nodeCostOperatorNodePair2 = costGraph.estimateHopCost(h);
+            preSum.plus(nodeCostOperatorNodePair2.getLeft());
+        }
+        LOG.info("pre loop cost = "+preSum);
+        sum.plus(preSum);
+        sum.plusMultiply(body,iterationNumber);
+        LOG.info("all cost = "+sum);
         long end = System.nanoTime();
         estimateTime += end - start;
 //        LOG.debug(solution);
@@ -1157,11 +1219,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 }
                 if (hop != null) {
                     Hop copy = deepCopyHopsDag(hop);
-                    MySolution lseSolution = constantUtil.liftLoopConstant(copy);
-                    lseSolution.multiCse = c;
-                    solutions.add(lseSolution);
-                    MySolution cseSolution = new MySolution(c, hop);
-                    solutions.add(cseSolution);
+                    MySolution solution = constantUtil.liftLoopConstant(copy);
+                    solution.multiCse = c;
+                    solutions.add(solution);
                 }
             } catch (Exception e) {
 //                System.out.println(multiCses.get(i));
@@ -1186,7 +1246,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         for (int i = 0; i < solutions.size(); i++) {
             try {
                 MySolution solution = solutions.get(i);
-                solution.cost = estimate(solution, true);
+                solution.cost = estimate(solution, false);
                 if (showCost)
                     LOG.debug("cost=" + solution.cost);
                 if (bestSolution.body == null
@@ -1196,7 +1256,6 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     bestSolution = solution;
                     id = i;
                 }
-
             } catch (Exception e) {
                 LOG.error("estimate error");
             }
@@ -1499,6 +1558,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             children.add(s);
         }
         Hop ret = build_binary_tree_mmc(children);
+        ret.isConstant = rt.singleCse.isConstant;
         //           Hop ret = build_binary_tree_naive(children);
 //            if (!Judge.isSame(ret1,ret2)) {
 //                LOG.debug(MyExplain.myExplain(ret2));
@@ -1526,6 +1586,205 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         }
         return ret;
     }
+
+    void testCreateHops( Hop template, ArrayList<Range> blockRanges) {
+            ArrayList<Hop> hops = createHops(template,blockRanges);
+            if (hops!=null) {
+                HashSet<Pair<Long,Long>> ss = new HashSet<>();
+                for (Hop hop : hops) {
+//                    System.out.println(Explain.explain(hop));
+                     Pair<Long, Long> key =  Hash.hashHopDag(hop);
+                     ss.add(key);
+                }
+                LOG.info( "all trees size="+hops.size());
+                LOG.info( "hash set size="+ss.size());
+
+            }else {
+                System.exit(-100);
+            }
+    }
+
+    private ArrayList<Hop> createHops(Hop template, ArrayList<Range> blockRanges) {
+        try {
+            ArrayList<RangeTree> list = new ArrayList<>();
+            return createHopInner_s(list, template, blockRanges);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private ArrayList<Hop> createHopInner_s(ArrayList<RangeTree> list, Hop template, ArrayList<Range> blockRanges) {
+        try {
+            // 准备区间数组
+            for (int i = 0; i < leaves.size(); i++) {
+                boolean ok = true;
+                for (RangeTree rangeTree : list) {
+                    if (rangeTree.left == i && rangeTree.right == i) {
+                        ok = false;
+                        break;
+                    }
+                }
+                if (!ok) continue;
+                SingleCse sc = new SingleCse(Range.of(i, i, false), leaves.get(i).hop);
+                sc.name = getRangeName(i, i);
+                RangeTree rangeTree = new RangeTree(i, i, sc, false);
+                list.add(rangeTree);
+            }
+//            for (Range r : blockRanges) {
+            for (int i = 0; i < blockRanges.size(); i++) {
+                Range r = blockRanges.get(i);
+                boolean ok = true;
+                for (RangeTree rangeTree : list) {
+                    if (rangeTree.left == r.left && rangeTree.right == r.right) {
+                        ok = false;
+                        break;
+                    }
+                }
+                if (!ok) continue;
+                SingleCse sc = new SingleCse(Range.of(r.left, r.right, false), null);
+                sc.name = getRangeName(r);
+                list.add(new RangeTree(r.left, r.right, sc, isTranspose(r.left, r.right)));
+            }
+            // 把区间数组排序，先按右端点升序，再按左端点降序
+            list.sort((RangeTree ra, RangeTree rb) -> {
+                if (ra.right != rb.right)
+                    return ra.right - rb.right;
+//                if (rb.left - ra.left!=0)
+                return rb.left - ra.left;
+            });
+            // 用栈建起RangeTree
+            Stack<RangeTree> stack = new Stack<>();
+            for (int i = 0; i < list.size(); i++) {
+                RangeTree cur = list.get(i);
+                while (!stack.empty() && stack.peek().left >= cur.left) {
+                    cur.children.add(stack.pop());
+                }
+                Collections.reverse(cur.children);
+                stack.push(cur);
+            }
+            ArrayList<Hop> ret = new ArrayList<>();
+
+            for (RangeTree rt : stack) {
+                try {
+                    ArrayList<Hop> block_hops = rCreateHop_s(rt);
+                    assert block_hops != null;
+                    for (Hop block_hop : block_hops) {
+                        // 找到这个块的位置
+                        Hop copy = deepCopyHopsDag(template);
+                        Hop cur = copy;
+                        Hop parent = null;
+                        Leaf leaf1 = leaves.get(rt.left);
+                        Leaf leaf2 = leaves.get(rt.right);
+                        for (int i = 0; i < leaf1.depth && i < leaf2.depth; i++) {
+                            if (leaf1.path.get(i).equals(leaf2.path.get(i))) {
+                                parent = cur;
+                                assert cur != null;
+                                cur = cur.getInput().get(leaf1.path.get(i));
+                            } else {
+                                break;
+                            }
+                        }
+                        // 替换
+                        if (parent != null) {
+                            HopRewriteUtils.replaceChildReference(parent, cur, block_hop);
+                        } else {
+                            copy = block_hop;
+                        }
+                        ret.add(copy);
+                    }
+                }catch ( Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            return ret;
+        } catch (Exception e) {
+            LOG.warn("construct hops error");
+            return null;
+        }
+    }
+
+
+    private ArrayList<Hop> rCreateHop_s(RangeTree rt) {
+        ArrayList<Hop> children = new ArrayList<>();
+        for (RangeTree son : rt.children) {
+            Hop s = rCreateHop(son);
+            if (s == null) return null;
+            children.add(s);
+        }
+        ArrayList<Pair< HashSet<Triple<Integer, Integer,Integer>>,Hop>> hops = build_binary_trees_all(children);
+        ArrayList<Hop> ret = new ArrayList<>();
+        HashSet<Triple<Integer, Integer,Integer>> set = new HashSet<>();
+        for (Pair< HashSet<Triple<Integer, Integer,Integer>>,Hop> h: hops) {
+            int before = set.size();
+            set.addAll(h.getKey());
+            int after = set.size();
+            if (before!=after) {
+                ret.add(h.getValue());
+            }
+        }
+        LOG.info("rCreateHop_s "+children.size()+" -> "+ret.size());
+        return ret;
+    }
+
+
+    private ArrayList<Pair<HashSet<Triple<Integer, Integer,Integer>>,Hop>> build_binary_trees_all(ArrayList<Hop> mmChain) {
+        if (mmChain.size()==0) {
+            return new ArrayList<>();
+        }
+        if (mmChain.size()==1) {
+            ArrayList<Pair<HashSet<Triple<Integer, Integer,Integer>>,Hop>> hops = new ArrayList<>();
+            HashSet< Triple<Integer, Integer,Integer>> ss = new HashSet<>();
+            ss.add(Triple.of(0,0,0));
+             hops.add(Pair.of(ss, mmChain.get(0)));
+            return hops;
+        }
+        // dp(i,i) = mmc(i)
+        //  for l
+        //    for i
+        //        j = i + l-1
+        //      for k
+        //       dp(i,j) += dp(i,k)*dp(k+1,j)
+        int n = mmChain.size();
+        ArrayList<ArrayList<ArrayList< Pair<HashSet<Triple<Integer, Integer,Integer>>,Hop>  >>> hops = new ArrayList<>();
+        for (int i=0;i<n;i++) {
+            hops.add(new ArrayList<>());
+            for (int j=0;j<n;j++) {
+                hops.get(i).add(new ArrayList<>());
+            }
+        }
+        for (int i=0;i<n;i++) {
+            HashSet< Triple<Integer, Integer,Integer>> ss = new HashSet<>();
+            ss.add(Triple.of(i,i,i));
+            hops.get(i).get(i).add(  Pair.of(ss   ,mmChain.get(i) ) );
+        }
+        for (int l=2;l<=n;l++) {
+            for (int i=0;i+l-1<n;i++) {
+                int j = i + l-1;
+                ArrayList<Pair<HashSet<Triple<Integer, Integer,Integer>>,Hop>> tmp = new ArrayList<>();
+                for (int k=i;k<j;k++) {
+//                    ArrayList<Hop> a1 = hops.get(i).get(k);
+//                    ArrayList<Hop> a2 = hops.get(k+1).get(j);
+                    for (Pair<HashSet<Triple<Integer, Integer,Integer>>,Hop> h1: hops.get(i).get(k)) {
+                        for (Pair<HashSet<Triple<Integer, Integer,Integer>>,Hop> h2 : hops.get(k+1).get(j)) {
+                            Hop h = HopRewriteUtils.createMatrixMultiply(h1.getRight(), h2.getRight());
+                            HashSet<Triple<Integer,Integer,Integer>> key = new HashSet<>();
+                            key.addAll(h1.getKey());
+                            key.addAll(h2.getKey());
+                            key.add(Triple.of(i,k,j));
+                            tmp.add(Pair.of(key,h));
+                        }
+                    }
+                }
+                hops.get(i).set(j,tmp);
+            }
+        }
+        LOG.info("build_binary_trees_all "+mmChain.size()+" -> "+hops.get(0).get(n-1).size());
+
+        return hops.get(0).get(n-1);
+    }
+
+
 
     private Hop build_binary_tree_mmc(ArrayList<Hop> mmChain) {
         assert mmChain.size() > 0;

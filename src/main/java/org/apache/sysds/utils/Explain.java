@@ -603,6 +603,8 @@ public class Explain
 		if (hop.shouldPersist) sb.append(", persist");
 		else sb.append(", notPersist");
 
+		if (hop.isConstant) sb.append(", constantHop");
+
 		sb.append('\n');
 
 		hop.setVisited();

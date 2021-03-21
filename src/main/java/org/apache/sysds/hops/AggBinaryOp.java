@@ -380,7 +380,7 @@ public class AggBinaryOp extends MultiThreadedHop
 
 
 	@Override
-	protected ExecType optFindExecType()
+	public ExecType optFindExecType()
 	{
 		checkAndSetForcedPlatform();
 		

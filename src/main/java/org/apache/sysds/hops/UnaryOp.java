@@ -458,7 +458,7 @@ public class UnaryOp extends MultiThreadedHop
 	}
 	
 	@Override
-	protected ExecType optFindExecType() 
+    public ExecType optFindExecType()
 	{
 		checkAndSetForcedPlatform();
 		

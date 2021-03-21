@@ -1,6 +1,7 @@
 package org.apache.sysds.hops.rewrite.dfp.dp;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.sysds.hops.AggBinaryOp;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.estim.MMNode;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.SingleCse;
@@ -19,9 +20,13 @@ public class OperatorNode {
     ArrayList<Hop> hops = new ArrayList<>();
     double thisCost = Double.MAX_VALUE;
     public double accCost = Double.MAX_VALUE;
+    public NodeCost thisCostDetails = NodeCost.INF();
+    public NodeCost accCostDetails = NodeCost.INF();
     ArrayList<OperatorNode> inputs = new ArrayList<>();
     boolean isConstant = false;
     boolean isTranspose = false;
+    boolean isXtXv = false;
+    AggBinaryOp.MMultMethod method = null;
     MMNode mmNode = null;
 //    SparsityEstimator.OpCode opCode = null;
 
@@ -43,8 +48,12 @@ public class OperatorNode {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("ON{[");
-//        sb.append(hop.getOpString());
+        sb.append("ON{");
+        sb.append(thisCost);
+        sb.append(",");
+        sb.append(accCost);
+        sb.append(",");
+        sb.append("[");
         for (Hop h : hops) {
             sb.append(h.getOpString());
             sb.append(" ");
@@ -52,15 +61,18 @@ public class OperatorNode {
             sb.append(",");
         }
         sb.append("],");
-        if (mmNode!=null) {
+        if (mmNode != null) {
             sb.append(mmNode.getDataCharacteristics());
             sb.append(",");
         }
-        sb.append(thisCost);
+        sb.append(thisCostDetails);
         sb.append(",");
-        sb.append(accCost);
+        sb.append(accCostDetails);
         sb.append(",");
         sb.append(range);
+        if (method != null) {
+            sb.append("," + method);
+        }
         if (isConstant) sb.append(",constant");
         if (isTranspose) sb.append(",transpose");
         sb.append(",[");
@@ -86,7 +98,7 @@ public class OperatorNode {
 //                sb.append(on.ranges);
 //            }
 //            sb.append("]");
-        sb.append("}\n");
+        sb.append("}");
         return sb.toString();
     }
 

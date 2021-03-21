@@ -686,7 +686,7 @@ public class BinaryOp extends MultiThreadedHop
 	}
 	
 	@Override
-	protected ExecType optFindExecType() {
+    public ExecType optFindExecType() {
 		
 		checkAndSetForcedPlatform();
 		
