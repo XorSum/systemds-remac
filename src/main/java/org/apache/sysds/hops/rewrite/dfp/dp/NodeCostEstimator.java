@@ -141,6 +141,8 @@ public class NodeCostEstimator {
         try {
             if (useMncEstimator) {
                 dc = mncEstimator.estim(mmNode, false);
+                EstimatorMatrixHistogram.MatrixHistogram histogram = (EstimatorMatrixHistogram.MatrixHistogram) mmNode.getSynopsis();
+                opNode.cpmm_intern_sparsity = histogram.cpmm_intern_sparsity;
             } else {
                 dc = metadataEstimator.estim(mmNode);
             }
@@ -241,7 +243,7 @@ public class NodeCostEstimator {
                     break;
                 case CPMM:
                 default:
-                    ans = eCPMM(hop, dc1, dc2, dc3);
+                    ans = eCPMM(hop,node, dc1, dc2, dc3);
             }
         } else {
             double computeCost = CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols();
@@ -274,10 +276,9 @@ public class NodeCostEstimator {
         MMShowCostFlag = true;
         NodeCostEstimator estimator = new NodeCostEstimator();
         useMncEstimator = false;
-        estimator.eCPMM(null,dc1_t_meta,dc1_meta,dc_ata);
+        estimator.eCPMM(null,null,dc1_t_meta,dc1_meta,dc_ata);
         useMncEstimator= true;
-        estimator.eCPMM(null,dc1_t_mnc,dc1_mnc,dc_ata);
-
+        estimator.eCPMM(null,null,dc1_t_mnc,dc1_mnc,dc_ata);
 
 
 //        estimator.eMapMM(node,null, AggBinaryOp.MMultMethod.MAPMM_R,dc1_meta,dc2_meta,dc3_meta);
@@ -365,16 +366,16 @@ public class NodeCostEstimator {
         return new NodeCost(shuffleCost, broadcastCost, computeCost, collectCost);
     }
 
-    NodeCost eCPMM(AggBinaryOp hop,
+    NodeCost eCPMM(AggBinaryOp hop,OperatorNode operatorNode,
                    DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
         long r1 = Math.min((long) Math.ceil((double) dc2.getRows() / defaultBlockSize), //max used reducers
                 getNumberReducers()); //available reducer
         long r2 = reducerNumber(dc3.getRows(), dc3.getCols());
         double shuffleCost1 = ShuffleSpeed * (matrixSize(dc1) + matrixSize(dc2)) / r1;
         double middle_sparsity = 0;
-        if (useMncEstimator) {
+        if (useMncEstimator && operatorNode.cpmm_intern_sparsity>=0) {
          //   middle_sparsity = dc3.getSparsity()*defaultBlockSize/dc1.getCols();
-            middle_sparsity = 1.0;
+            middle_sparsity = operatorNode.cpmm_intern_sparsity;
         } else {
             middle_sparsity =1- Math.pow(1- dc1.getSparsity()*dc2.getSparsity(),defaultBlockSize);
         }

@@ -29,6 +29,7 @@ public class OperatorNode {
     AggBinaryOp.MMultMethod method = null;
     MMNode mmNode = null;
 //    SparsityEstimator.OpCode opCode = null;
+    double cpmm_intern_sparsity = -1;
 
     @Override
     public boolean equals(Object o) {
@@ -63,6 +64,7 @@ public class OperatorNode {
         sb.append("],");
         if (mmNode != null) {
             sb.append(mmNode.getDataCharacteristics());
+            sb.append(","+cpmm_intern_sparsity);
             sb.append(",");
         }
         sb.append(thisCostDetails);
