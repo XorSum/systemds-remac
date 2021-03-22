@@ -143,6 +143,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             // 生成singleCes
             ArrayList<SingleCse> singleCses = genSingleCse(djs, blockRanges);
 
+//            testBruteForce( singleCses, template,  blockRanges);
 
             long end = System.nanoTime();
             allGenerateOptionsTime += end - start;
@@ -335,7 +336,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     hop = copyAndEliminateHop(hop);
 //                    solution.multiCse = multiCse;
                     double dpcost = operatorNode.accCost;
-                    Pair<NodeCost,OperatorNode> pair3 = costGraph.estimateHopCost(hop);
+                    Triple<NodeCost,NodeCost,OperatorNode> pair3 = costGraph.estimateHopCost(hop);
                     NodeCost cost3 = pair3.getLeft();
 //                    cost3.computeCost*=iterationNumber;
 //                    cost3.shuffleCost*=iterationNumber;
@@ -766,26 +767,32 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         Hop result = createHop(multiCse, template, blockRanges);
         result = deepCopyHopsDag(result);
         rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
+
+        CostGraph costGraph = new CostGraph(variablesUpdated,iterationNumber);
+        FakeCostEstimator2.MMShowCostFlag = true;
+        Triple<NodeCost,NodeCost,OperatorNode> nodeCostOperatorNodePair = costGraph.estimateHopCost(result);
+        LOG.info("all cost detail="+nodeCostOperatorNodePair.getLeft());
+        LOG.info("constant cost detail="+nodeCostOperatorNodePair.getMiddle());
+        LOG.info(CostGraph.explainOpNode(nodeCostOperatorNodePair.getRight(),0));
+
         MySolution solution;
         if (liftConstant) solution = constantUtil.liftLoopConstant(result);
         else solution = new MySolution(result);
         solution.multiCse = multiCse;
         long start = System.nanoTime();
         //estimate(solution, true);
-        NodeCost sum = NodeCost.ZERO();
-        CostGraph costGraph = new CostGraph(variablesUpdated,iterationNumber);
-        Pair<NodeCost,OperatorNode> nodeCostOperatorNodePair = costGraph.estimateHopCost(solution.body);
-        NodeCost body = nodeCostOperatorNodePair.getLeft();
-        LOG.info("body cost = "+body);
-        NodeCost preSum = NodeCost.ZERO();
-        for (Hop h: solution.preLoopConstants) {
-            Pair<NodeCost,OperatorNode> nodeCostOperatorNodePair2 = costGraph.estimateHopCost(h);
-            preSum.plus(nodeCostOperatorNodePair2.getLeft());
-        }
-        LOG.info("pre loop cost = "+preSum);
-        sum.plus(preSum);
-        sum.plusMultiply(body,iterationNumber);
-        LOG.info("all cost = "+sum);
+//        NodeCost sum = NodeCost.ZERO();
+//        NodeCost body = nodeCostOperatorNodePair.getLeft();
+//        LOG.info("body cost = "+body);
+//        NodeCost preSum = NodeCost.ZERO();
+//        for (Hop h: solution.preLoopConstants) {
+//            Pair<NodeCost,OperatorNode> nodeCostOperatorNodePair2 = costGraph.estimateHopCost(h);
+//            preSum.plus(nodeCostOperatorNodePair2.getLeft());
+//        }
+//        LOG.info("pre loop cost = "+preSum);
+//        sum.plus(preSum);
+//        sum.plusMultiply(body,iterationNumber);
+//        LOG.info("all cost = "+sum);
         long end = System.nanoTime();
         estimateTime += end - start;
 //        LOG.debug(solution);
@@ -801,6 +808,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     private SingleCse createSingleCseBfgsAta() {
         SingleCse sAta = new SingleCse();
+        sAta.isConstant = true;
         sAta.name = getRangeName(39, 40);
         sAta.ranges.add(Range.of(39, 40, true));
         sAta.ranges.add(Range.of(52, 53, true));
@@ -965,6 +973,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     private SingleCse createSingleCseDfpAta() {
         SingleCse sAta = new SingleCse(); // ata
+        sAta.isConstant = true;
         sAta.name = getRangeName(2, 3);
         sAta.ranges.add(Range.of(2, 3, false));
         sAta.ranges.add(Range.of(8, 9, true));
@@ -1122,6 +1131,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         MultiCse multiCse = new MultiCse();
         SingleCse sAtA = new SingleCse();
         SingleCse sAtB = new SingleCse();
+        sAtA.isConstant = true;
+        sAtB.isConstant = true;
         sAtA.name = getRangeName(1, 2);
         sAtA.ranges.add(Range.of(1, 2, false));
         sAtB.name = getRangeName(4, 5);
@@ -1134,6 +1145,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     private MultiCse createMultiCseGdAtbTheta() {
         MultiCse multiCse = new MultiCse();
         SingleCse sAtB = new SingleCse();
+        sAtB.isConstant = true;
         sAtB.name = getRangeName(4, 5);
         sAtB.ranges.add(Range.of(4, 5, false));
         multiCse.cses.add(sAtB);
@@ -1143,6 +1155,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     private MultiCse createMultiCseGAtA() {
         MultiCse multiCse = new MultiCse();
         SingleCse sAtA = new SingleCse();
+        sAtA.isConstant = true;
         sAtA.name = getRangeName(0, 1);
         sAtA.ranges.add(Range.of(0, 1, false));
         multiCse.cses.add(sAtA);
