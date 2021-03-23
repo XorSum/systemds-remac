@@ -276,9 +276,9 @@ public class NodeCostEstimator {
         MMShowCostFlag = true;
         NodeCostEstimator estimator = new NodeCostEstimator();
         useMncEstimator = false;
-        estimator.eCPMM(null,null,dc1_t_meta,dc1_meta,dc_ata);
+        estimator.eCPMM(null,node,dc1_t_meta,dc1_meta,dc_ata);
         useMncEstimator= true;
-        estimator.eCPMM(null,null,dc1_t_mnc,dc1_mnc,dc_ata);
+        estimator.eCPMM(null,node,dc1_t_mnc,dc1_mnc,dc_ata);
 
 
 //        estimator.eMapMM(node,null, AggBinaryOp.MMultMethod.MAPMM_R,dc1_meta,dc2_meta,dc3_meta);
@@ -371,7 +371,8 @@ public class NodeCostEstimator {
         long r1 = Math.min((long) Math.ceil((double) dc2.getRows() / defaultBlockSize), //max used reducers
                 getNumberReducers()); //available reducer
         long r2 = reducerNumber(dc3.getRows(), dc3.getCols());
-        double shuffleCost1 = ShuffleSpeed * (matrixSize(dc1) + matrixSize(dc2)) / r1;
+//        double shuffleCost1 = ShuffleSpeed * (matrixSize(dc1) + matrixSize(dc2)) / r1;
+        double joinCost1 = JoinSpeed * (matrixSize(dc1) + matrixSize(dc2)) / r1;
         double middle_sparsity = 0;
         if (useMncEstimator && operatorNode.cpmm_intern_sparsity>=0) {
          //   middle_sparsity = dc3.getSparsity()*defaultBlockSize/dc1.getCols();
@@ -390,13 +391,13 @@ public class NodeCostEstimator {
             LOG.info("r2: "+r2);
             LOG.info("sparsity of middle: "+middle_sparsity);
             LOG.info("matrix size of middle: "+MatrixBlock.estimateSizeInMemory(dc3.getRows(), dc3.getCols(), middle_sparsity));
-            LOG.info("cpmm shuffle cost 1 = " + shuffleCost1);
-            LOG.info("cpmm shuffle cost 2 = " + shuffleCost2);
+            LOG.info("cpmm join cost = " + joinCost1);
+            LOG.info("cpmm shuffle cost = " + shuffleCost2);
             LOG.info("cpmm compute cost = " + computeCost);
             LOG.info("  end>>>");
         }
 //        return shuffleCost1 + shuffleCost2 + computeCost;
-        return new NodeCost(shuffleCost1 + shuffleCost2, 0, computeCost, 0);
+        return new NodeCost( shuffleCost2, 0, computeCost, 0,joinCost1 );
     }
 
     NodeCost eRMM(AggBinaryOp hop,

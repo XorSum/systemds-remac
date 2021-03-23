@@ -36,6 +36,7 @@ public class FakeCostEstimator2 {
     public static double CpuSpeed = 1.0;
     public static double ShuffleSpeed = 5.0;
     public static double BroadCaseSpeed = 3.0;
+    public static double JoinSpeed = 5.0;
 
     public static long defaultBlockSize = 1000;
     public static ExecutionContext ec = null;
