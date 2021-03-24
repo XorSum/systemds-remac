@@ -1,0 +1,30 @@
+
+
+ro = 1000
+co = 15000
+#sp = 0.2
+sp = 0.0026
+
+A1 = matrix(1,rows=1000,cols=100)
+A2 = rand(rows=ro, cols=co-100, min=0, max=1, sparsity=0.0019)
+A = cbind(A1,A2)
+
+#A = rand(rows=ro, cols=co, min=0, max=1, pdf="poisson", sparsity=sp,lambda=2.5)
+c = rand(rows=1, cols=co, min=0, max=1, pdf="poisson", sparsity=sp,lambda=2.5)
+
+#print(toString(A))
+#print(toString(c))
+
+d = colSums(A!=0)
+e = t(rowSums(A!=0))
+
+print(toString(d))
+
+print(toString(e))
+
+write(A,  "out/skewA100" , format='binary')
+write(c,  "out/skewC100" , format='binary')
+
+
+#write(A,  "out/skewA" , format='binary')
+#write(c,  "out/skewC" , format='binary')
