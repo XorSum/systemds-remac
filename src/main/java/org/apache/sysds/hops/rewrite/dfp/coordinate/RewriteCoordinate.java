@@ -253,6 +253,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //        LOG.info("constant cost detail=" + nodeCostOperatorNodePair.getMiddle());
         LOG.info("A3: ");
         LOG.info(CostGraph.explainOpNode(nodeCostOperatorNodePair.getRight(), 0));
+        LOG.info("A3 sparsity = "+nodeCostOperatorNodePair.getRight().mmNode.getDataCharacteristics().getSparsity());
     }
 
 

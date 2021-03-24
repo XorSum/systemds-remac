@@ -27,7 +27,7 @@ public class OperatorNode {
     boolean isTranspose = false;
     boolean isXtXv = false;
     AggBinaryOp.MMultMethod method = null;
-    MMNode mmNode = null;
+    public MMNode mmNode = null;
 //    SparsityEstimator.OpCode opCode = null;
     double cpmm_intern_sparsity = -1;
 
