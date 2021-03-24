@@ -50,10 +50,6 @@ public class OperatorNode {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("ON{");
-        sb.append(thisCost);
-        sb.append(",");
-        sb.append(accCost);
-        sb.append(",");
         sb.append("[");
         for (Hop h : hops) {
             sb.append(h.getOpString());
@@ -63,10 +59,17 @@ public class OperatorNode {
         }
         sb.append("],");
         if (mmNode != null) {
+            sb.append("sparsity=");
+            sb.append(mmNode.getDataCharacteristics().getSparsity());
+            sb.append(",");
             sb.append(mmNode.getDataCharacteristics());
-            sb.append(","+cpmm_intern_sparsity);
+            //  sb.append(","+cpmm_intern_sparsity);
             sb.append(",");
         }
+        sb.append(thisCost);
+        sb.append(",");
+        sb.append(accCost);
+        sb.append(",");
         sb.append(thisCostDetails);
         sb.append(",");
         sb.append(accCostDetails);

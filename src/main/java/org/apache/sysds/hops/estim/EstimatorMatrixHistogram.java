@@ -185,7 +185,7 @@ public class EstimatorMatrixHistogram extends SparsityEstimator
 				nnz += (long)h1.cNnz[j] * h2.rNnz[j];
 			double sparsity = OptimizerUtils.getSparsity(h1.getRows(), h2.getCols(), nnz);
 			cpmm_sparsity=sparsity* Math.min(1.0,1000.0/h1.getCols());
-			System.out.println("cpmm_sparsity:"+cpmm_sparsity);
+//			System.out.println("cpmm_sparsity:"+cpmm_sparsity);
 		}
 		//special case, with hybrid exact and approximate output
 		else if(h1.cNnz1e!=null || h2.rNnz1e != null) {
@@ -223,10 +223,11 @@ public class EstimatorMatrixHistogram extends SparsityEstimator
 				cpmm_sparsity_tmp = 0;
 			}
 			if (cpmm_sparsity_count!=0) {
-				System.out.println("cpmm_sparsity_sum:"+cpmm_sparsity_sum);
-				System.out.println("cpmm_sparsity_count:"+cpmm_sparsity_count);
+//				System.out.println("cpmm_sparsity_sum a :"+cpmm_sparsity_sum);
+//				System.out.println("spOutRest : "+spOutRest);
+//				System.out.println("cpmm_sparsity_count a :"+cpmm_sparsity_count);
 				cpmm_sparsity = cpmm_sparsity_sum / cpmm_sparsity_count;
-				System.out.println("cpmm_sparsity:"+cpmm_sparsity);
+//				System.out.println("cpmm_sparsity a :"+cpmm_sparsity);
 			}
 			nnz += (long)(spOutRest * mnOut);
 		}
@@ -255,14 +256,16 @@ public class EstimatorMatrixHistogram extends SparsityEstimator
 				cpmm_sparsity_tmp = 0;
 			}
 			if (cpmm_sparsity_count!=0) {
-				System.out.println("cpmm_sparsity_sum:" + cpmm_sparsity_sum);
-				System.out.println("cpmm_sparsity_count:" + cpmm_sparsity_count);
+//				System.out.println("cpmm_sparsity_sum b :" + cpmm_sparsity_sum);
+//				System.out.println("cpmm_sparsity_count b :" + cpmm_sparsity_count);
 				cpmm_sparsity = cpmm_sparsity_sum / cpmm_sparsity_count;
-				System.out.println("cpmm_sparsity:"+cpmm_sparsity);
+//				System.out.println("cpmm_sparsity b :"+cpmm_sparsity);
 			}
 			nnz = (long)(spOut * mnOut);
 		}
-		
+		double sparsity2 = OptimizerUtils.getSparsity(
+				h1.getRows(), h2.getCols(), nnz);
+//		System.out.println(" sparsity2: "+sparsity2);
 		if( _useExtended ) {
 			//exploit lower bound on nnz based on half-full rows/cols
 			//note: upper bound applied via modified output sizes
@@ -273,6 +276,7 @@ public class EstimatorMatrixHistogram extends SparsityEstimator
 		//compute final sparsity
 		double sparsity = OptimizerUtils.getSparsity(
 			h1.getRows(), h2.getCols(), nnz);
+//		System.out.println("final sparsity: "+sparsity);
 		return Pair.of(sparsity,cpmm_sparsity);
 	}
 	

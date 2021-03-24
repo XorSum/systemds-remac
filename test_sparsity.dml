@@ -1,0 +1,13 @@
+
+A = read("./out/skewA")
+
+A1 = A[,1000:2000]
+A2 = A[,3000:4000]
+
+i = 1
+while (i<10) {
+    A3 = t(A1) %*% A2
+    i = i + 1
+}
+
+print(toString(sum(A3)))

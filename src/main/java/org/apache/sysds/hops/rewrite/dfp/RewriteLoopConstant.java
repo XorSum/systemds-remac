@@ -76,10 +76,11 @@ public class RewriteLoopConstant extends StatementBlockRewriteRule {
         for (int k = 0; k < sb.getHops().size(); k++) {
             Hop hop = sb.getHops().get(k);
             Hop copy = deepCopyHopsDag(hop);
-            MySolution mySolution = rewriteCoordinate.rewiteHopDag(copy);
-            cost += mySolution.cost;
-            sb.getHops().set(k, mySolution.body);
-            twriteHops.addAll(mySolution.preLoopConstants);
+            rewriteCoordinate.testSparsity(copy);
+//            MySolution mySolution = rewriteCoordinate.rewiteHopDag(copy);
+//            cost += mySolution.cost;
+//            sb.getHops().set(k, mySolution.body);
+//            twriteHops.addAll(mySolution.preLoopConstants);
         }
         if (twriteHops.size() > 0) {
 //                preLoopStatementBlock = new StatementBlock();

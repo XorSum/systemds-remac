@@ -243,6 +243,18 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     }
 
+  public   void testSparsity(Hop hop) {
+        if (!hop.getName().equals("A3")) return;
+        Hop result = deepCopyHopsDag(hop);
+        result = reorder(result);
+        CostGraph costGraph = new CostGraph(variablesUpdated,iterationNumber);
+        Triple<NodeCost, NodeCost, OperatorNode> nodeCostOperatorNodePair = costGraph.estimateHopCost(result);
+//        LOG.info("all cost detail=" + nodeCostOperatorNodePair.getLeft());
+//        LOG.info("constant cost detail=" + nodeCostOperatorNodePair.getMiddle());
+        LOG.info("A3: ");
+        LOG.info(CostGraph.explainOpNode(nodeCostOperatorNodePair.getRight(), 0));
+    }
+
 
     MySolution testBruteForce(ArrayList<SingleCse> singleCses, Hop template, ArrayList<Range> blockRanges) {
         // 构造出所有的MultiCse
@@ -770,11 +782,13 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
         CostGraph costGraph = new CostGraph(variablesUpdated,iterationNumber);
         FakeCostEstimator2.MMShowCostFlag = true;
-        Triple<NodeCost,NodeCost,OperatorNode> nodeCostOperatorNodePair = costGraph.estimateHopCost(result);
-        LOG.info("all cost detail="+nodeCostOperatorNodePair.getLeft());
-        LOG.info("constant cost detail="+nodeCostOperatorNodePair.getMiddle());
-        LOG.info(CostGraph.explainOpNode(nodeCostOperatorNodePair.getRight(),0));
-
+        System.out.println(Explain.explain(result));
+        if (result.getName().equals("h")) {
+            Triple<NodeCost, NodeCost, OperatorNode> nodeCostOperatorNodePair = costGraph.estimateHopCost(result);
+            LOG.info("all cost detail=" + nodeCostOperatorNodePair.getLeft());
+            LOG.info("constant cost detail=" + nodeCostOperatorNodePair.getMiddle());
+            LOG.info(CostGraph.explainOpNode(nodeCostOperatorNodePair.getRight(), 0));
+        }
         MySolution solution;
         if (liftConstant) solution = constantUtil.liftLoopConstant(result);
         else solution = new MySolution(result);
