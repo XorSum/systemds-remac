@@ -22,6 +22,8 @@ package org.apache.sysds.hops.estim;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.NotImplementedException;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.sysds.hops.OptimizerUtils;
 import org.apache.sysds.runtime.data.DenseBlock;
 import org.apache.sysds.runtime.data.SparseBlock;
@@ -42,6 +44,8 @@ import java.util.stream.IntStream;
  */
 public class EstimatorMatrixHistogram extends SparsityEstimator
 {
+	protected final static Log LOG = LogFactory.getLog(EstimatorMatrixHistogram.class.getName());
+
 	//internal configurations
 	private static final boolean DEFAULT_USE_EXTENDED = true;
 	private static final boolean ADVANCED_SKETCH_PROP = false;
@@ -176,6 +180,7 @@ public class EstimatorMatrixHistogram extends SparsityEstimator
 	}
 	
 	private Pair<Double,Double> estimInternMM(MatrixHistogram h1, MatrixHistogram h2) {
+		LOG.info("estimInternMM begin <<< " +h1.getRows() +" "+h1.getCols() +" "+h2.getCols() );
 		long nnz = 0;
 		double cpmm_sparsity=-1;
 		//special case, with exact sparsity estimate, where the dot product
@@ -266,17 +271,31 @@ public class EstimatorMatrixHistogram extends SparsityEstimator
 		double sparsity2 = OptimizerUtils.getSparsity(
 				h1.getRows(), h2.getCols(), nnz);
 //		System.out.println(" sparsity2: "+sparsity2);
+
 		if( _useExtended ) {
 			//exploit lower bound on nnz based on half-full rows/cols
 			//note: upper bound applied via modified output sizes
 			nnz = (h1.rNdiv2 >= 0 && h2.cNdiv2 >= 0) ?
 				Math.max((long)h1.rNdiv2 * h2.cNdiv2, nnz) : nnz;
+			LOG.info("h1.rNdiv2="+h1.rNdiv2);
+			LOG.info("h2.cNdiv2="+h2.cNdiv2);
+			if (h1.rNdiv2 >= 0 && h2.cNdiv2 >= 0) {
+				LOG.info("h1.rNdiv2 >= 0 && h2.cNdiv2 >= 0");
+				long tmp = (long)h1.rNdiv2 * h2.cNdiv2;
+				if (tmp>nnz) {
+					nnz = tmp;
+					LOG.info("h1.rNdiv2 * h2.cNdiv2 > nnz");
+				}
+			}
 		}
 		
 		//compute final sparsity
 		double sparsity = OptimizerUtils.getSparsity(
 			h1.getRows(), h2.getCols(), nnz);
 //		System.out.println("final sparsity: "+sparsity);
+		LOG.info("nnz="+nnz);
+		LOG.info("sparsity="+sparsity);
+		LOG.info("estimInternMM end >>> " +h1.getRows() +" "+h1.getCols() +" "+h2.getCols() );
 		return Pair.of(sparsity,cpmm_sparsity);
 	}
 	
