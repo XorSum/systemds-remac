@@ -169,9 +169,15 @@ public class DMLOptions {
 			String manual_type = line.getOptionValue("manual_type");
 			RewriteCoordinate.manualType = manual_type;
 		}
-		if (line.hasOption("exec")){
+		if (line.hasOption("cpmm_intern_sparsity")) {
+			String sp = line.getOptionValue("cpmm_intern_sparsity");
+			NodeCostEstimator.CPMM_INTERN_SPARSITY = Double.valueOf(sp);
+			System.out.println("CPMM_INTERN_SPARSITY="+NodeCostEstimator.CPMM_INTERN_SPARSITY);
+		}
+
+		if (line.hasOption("exec")) {
 			String execMode = line.getOptionValue("exec");
-			if (execMode != null){
+			if (execMode != null) {
 				if (execMode.equalsIgnoreCase("singlenode")) dmlOptions.execMode = ExecMode.SINGLE_NODE;
 				else if (execMode.equalsIgnoreCase("hybrid")) dmlOptions.execMode = ExecMode.HYBRID;
 				else if (execMode.equalsIgnoreCase("spark")) dmlOptions.execMode = ExecMode.SPARK;
@@ -309,6 +315,9 @@ public class DMLOptions {
 				.create("manual_type");
 		Option checkMnc = OptionBuilder
 				.create("mnc");
+		Option cpmmSparsity = OptionBuilder
+				.hasOptionalArg()
+				.create("cpmm_intern_sparsity");
 
 		options.addOption(configOpt);
 		options.addOption(cleanOpt);
@@ -325,6 +334,7 @@ public class DMLOptions {
 		options.addOption(checkStopExec);
 		options.addOption(manualType);
 		options.addOption(checkMnc);
+		options.addOption(cpmmSparsity);
 
 		// Either a clean(-clean), a file(-f), a script(-s) or help(-help) needs to be specified
 		OptionGroup fileOrScriptOpt = new OptionGroup()

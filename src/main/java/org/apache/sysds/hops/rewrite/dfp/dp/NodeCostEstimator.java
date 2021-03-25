@@ -366,6 +366,8 @@ public class NodeCostEstimator {
         return new NodeCost(shuffleCost, broadcastCost, computeCost, collectCost);
     }
 
+    public static double CPMM_INTERN_SPARSITY = -1;
+
     NodeCost eCPMM(AggBinaryOp hop,OperatorNode operatorNode,
                    DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
         long r1 = Math.min((long) Math.ceil((double) dc2.getRows() / defaultBlockSize), //max used reducers
@@ -374,9 +376,10 @@ public class NodeCostEstimator {
 //        double shuffleCost1 = ShuffleSpeed * (matrixSize(dc1) + matrixSize(dc2)) / r1;
         double joinCost1 = JoinSpeed * (matrixSize(dc1) + matrixSize(dc2)) / r1;
         double middle_sparsity = 0;
-        if (useMncEstimator && operatorNode.cpmm_intern_sparsity>=0) {
+        if (useMncEstimator && CPMM_INTERN_SPARSITY>=0) {
          //   middle_sparsity = dc3.getSparsity()*defaultBlockSize/dc1.getCols();
-            middle_sparsity = operatorNode.cpmm_intern_sparsity;
+         //   middle_sparsity = operatorNode.cpmm_intern_sparsity;
+            middle_sparsity = CPMM_INTERN_SPARSITY;
         } else {
             middle_sparsity =1- Math.pow(1- dc1.getSparsity()*dc2.getSparsity(),defaultBlockSize);
         }

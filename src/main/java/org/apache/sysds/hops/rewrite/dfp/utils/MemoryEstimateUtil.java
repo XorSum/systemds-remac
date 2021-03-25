@@ -7,6 +7,7 @@ import org.apache.sysds.hops.LiteralOp;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
 import org.apache.sysds.parser.VariableSet;
+import org.apache.sysds.runtime.matrix.data.MatrixBlock;
 
 public class MemoryEstimateUtil {
 
@@ -77,18 +78,21 @@ public class MemoryEstimateUtil {
     }
 
     public static void main(String[] args) {
-        Hop root = createH(1000000,10000,100000000);
-        VariableSet variableSet = new VariableSet();
-        variableSet.addVariable("h",null);
-        variableSet.addVariable("g",null);
-        variableSet.addVariable("x",null);
-        variableSet.addVariable("d",null);
-        variableSet.addVariable("i",null);
-        RewriteCoordinate rewriteCoordinate = new RewriteCoordinate(null,null);
-        rewriteCoordinate.variablesUpdated = variableSet;
-        rewriteCoordinate.constantUtil = new ConstantUtil(variableSet);
-        rewriteCoordinate.rewiteHopDag(root);
+//        Hop root = createH(1000000,10000,100000000);
+//        VariableSet variableSet = new VariableSet();
+//        variableSet.addVariable("h",null);
+//        variableSet.addVariable("g",null);
+//        variableSet.addVariable("x",null);
+//        variableSet.addVariable("d",null);
+//        variableSet.addVariable("i",null);
+//        RewriteCoordinate rewriteCoordinate = new RewriteCoordinate(null,null);
+//        rewriteCoordinate.variablesUpdated = variableSet;
+//        rewriteCoordinate.constantUtil = new ConstantUtil(variableSet);
+//        rewriteCoordinate.rewiteHopDag(root);
 
+//        Hop h = tread("h",20000,20000,20000*20000);
+        double size =  MatrixBlock.estimateSizeInMemory(20000,20000,1.0);
+        System.out.println("size="+size);
     }
 
 }
