@@ -7,7 +7,9 @@ import org.apache.sysds.hops.LiteralOp;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
 import org.apache.sysds.parser.VariableSet;
+import org.apache.sysds.runtime.instructions.spark.utils.SparkUtils;
 import org.apache.sysds.runtime.matrix.data.MatrixBlock;
+import org.apache.sysds.runtime.meta.MatrixCharacteristics;
 
 public class MemoryEstimateUtil {
 
@@ -77,6 +79,12 @@ public class MemoryEstimateUtil {
         return h13564;
     }
 
+   static void printPatritions(String name,long r,long c,long nnz) {
+       MatrixCharacteristics dc1 = new MatrixCharacteristics(r,c,1000,nnz);
+       int p1 =   SparkUtils.getNumPreferredPartitions(dc1);
+       System.out.println(name+ ", dc: "+dc1+", partitions: "+p1);
+   }
+
     public static void main(String[] args) {
 //        Hop root = createH(1000000,10000,100000000);
 //        VariableSet variableSet = new VariableSet();
@@ -91,8 +99,25 @@ public class MemoryEstimateUtil {
 //        rewriteCoordinate.rewiteHopDag(root);
 
 //        Hop h = tread("h",20000,20000,20000*20000);
-        double size =  MatrixBlock.estimateSizeInMemory(20000,20000,1.0);
-        System.out.println("size="+size);
+//        double size =  MatrixBlock.estimateSizeInMemory(20000,20000,1.0);
+//        System.out.println("size="+size);
+//        double size1 =  MatrixBlock.estimateSizeInMemory(14955,14955,0.0026180407098227864);
+        double size1 =  MatrixBlock.estimateSizeInMemory(14955,14955,0.00210162714451911);
+
+        System.out.println("criteo_20000="+size1);
+//        double size2 =  MatrixBlock.estimateSizeInMemory(8692,8692,0.006952184527876477);
+        double size2 =  MatrixBlock.estimateSizeInMemory(8692,8692,0.00556222096943855);
+
+        System.out.println("criteo_40000="+size2);
+
+
+        printPatritions("criteo_0_1",116800000,47,3237650536l);
+        printPatritions("criteo_20000",58400000,14955,2277596265l);
+        printPatritions("criteo_40000",58400000,8692,2277598765l);
+        printPatritions("reddit_20000",104473929,20000,2014518046);
+        printPatritions("reddit_5000",104473929,5000,2012581099);
+        printPatritions("reddit_9_10",120000000,34,1676633971);
+
     }
 
 }

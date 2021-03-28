@@ -728,7 +728,10 @@ public class CostGraph {
         MutableInt mutableInt = new MutableInt(0);
         analyzeOperatorRange(node, new SingleCse(), mutableInt);
         NodeCost constantCost = NodeCost.ZERO();
+        long start = System.nanoTime();
         NodeCost cost = analyzeHopCost(node, new HashSet<>(), constantCost);
+        long end = System.nanoTime();
+        estimateTime += end - start;
 //        System.out.println("all cost = "+cost);
         //    NodeCost cost = NodeCost.ZERO();
         return Triple.of(cost,constantCost, node);
@@ -748,11 +751,6 @@ public class CostGraph {
             }
         }
         NodeCost ans = NodeCost.ZERO();
-        for (int i = 0; i < node.inputs.size(); i++) {
-            NodeCost tmp = analyzeHopCost(node.inputs.get(i), visited, constantCost);
-            ans = NodeCost.add(ans, tmp);
-        }
-        long start = System.nanoTime();
         NodeCost thisCostDetail = this.nodeCostEstimator.getNodeCost(node);
         if (hasCons) {
             thisCostDetail.multiply(1.0 / iterationNumber);
@@ -760,8 +758,10 @@ public class CostGraph {
         node.thisCostDetails = thisCostDetail;
         node.thisCost = thisCostDetail.getSummary();
 //        LOG.info(node);
-        long end = System.nanoTime();
-        estimateTime += end - start;
+        for (int i = 0; i < node.inputs.size(); i++) {
+            NodeCost tmp = analyzeHopCost(node.inputs.get(i), visited, constantCost);
+            ans = NodeCost.add(ans, tmp);
+        }
         ans = NodeCost.add(ans, thisCostDetail);
         if (hasCons) {
             constantCost.plus(ans);

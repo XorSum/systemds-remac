@@ -26,6 +26,9 @@ public class OperatorNode {
     boolean isConstant = false;
     boolean isTranspose = false;
     boolean isXtXv = false;
+    boolean shouldCollect = false;
+    boolean isSpark = false;
+    boolean isUsedByCp = false;
     AggBinaryOp.MMultMethod method = null;
     MMNode mmNode = null;
 //    SparsityEstimator.OpCode opCode = null;
@@ -50,10 +53,6 @@ public class OperatorNode {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("ON{");
-        sb.append(thisCost);
-        sb.append(",");
-        sb.append(accCost);
-        sb.append(",");
         sb.append("[");
         for (Hop h : hops) {
             sb.append(h.getOpString());
@@ -63,10 +62,17 @@ public class OperatorNode {
         }
         sb.append("],");
         if (mmNode != null) {
+            sb.append("sparsity=");
+            sb.append(mmNode.getDataCharacteristics().getSparsity());
+            sb.append(",");
             sb.append(mmNode.getDataCharacteristics());
-            sb.append(","+cpmm_intern_sparsity);
+            sb.append(",cis="+cpmm_intern_sparsity);
             sb.append(",");
         }
+        sb.append(thisCost);
+        sb.append(",");
+        sb.append(accCost);
+        sb.append(",");
         sb.append(thisCostDetails);
         sb.append(",");
         sb.append(accCostDetails);
@@ -77,6 +83,9 @@ public class OperatorNode {
         }
         if (isConstant) sb.append(",constant");
         if (isTranspose) sb.append(",transpose");
+        if (shouldCollect) sb.append(",collect");
+        if (isUsedByCp) sb.append(",usedByCp");
+        if (isSpark) sb.append(",isSpark");
         sb.append(",[");
         for (SingleCse singleCse : dependencies) {
             sb.append(singleCse.name);

@@ -101,22 +101,22 @@ public class DistributedScratch {
         livein.addVariable(name, new DataIdentifier(name, Types.DataType.MATRIX, Types.ValueType.FP64));
         liveout.addVariable(name, new DataIdentifier(name, Types.DataType.MATRIX, Types.ValueType.FP64));
 
-        String name_hr = "_sVar" + name + "hr";
+        String name_hr = "_sVarHr_" + name ;
         Hop tw_hr = HopRewriteUtils.createTransientWrite(name_hr, hr);
         hops.add(tw_hr);
         liveout.addVariable(name_hr, new DataIdentifier(name_hr, Types.DataType.MATRIX, Types.ValueType.INT64));
 
-        String name_hc = "_sVar" + name + "hc";
+        String name_hc = "_sVarHc_" + name ;
         Hop tw_hc = HopRewriteUtils.createTransientWrite(name_hc, hc);
         hops.add(tw_hc);
         liveout.addVariable(name_hc, new DataIdentifier(name_hc, Types.DataType.MATRIX, Types.ValueType.INT64));
 
-        String name_her = "_sVar" + name + "her";
+        String name_her = "_sVarHer_" + name ;
         liveout.addVariable(name_her, new DataIdentifier(name_her, Types.DataType.MATRIX, Types.ValueType.INT64));
         Hop tw_her = HopRewriteUtils.createTransientWrite(name_her, her);
         hops.add(tw_her);
 
-        String name_hec = "_sVar" + name + "hec";
+        String name_hec = "_sVarHec_" + name ;
         liveout.addVariable(name_hec, new DataIdentifier(name_hec, Types.DataType.MATRIX, Types.ValueType.INT64));
         Hop tw_hec = HopRewriteUtils.createTransientWrite(name_hec, hec);
         hops.add(tw_hec);
@@ -144,6 +144,11 @@ public class DistributedScratch {
         DataCharacteristics dc = mb.getDataCharacteristics();
         int[] r = new int[(int) dc.getRows()];
         for (int i = 0; i < dc.getRows(); i++) r[i] = (int) mb.getValue(i, 0);
+//        System.out.println(name);
+//        for (int i=0;i<dc.getRows();i++) {
+//            System.out.printf("%d ",r[i]);
+//        }
+//        System.out.println("");
         return r;
     }
 
@@ -152,6 +157,11 @@ public class DistributedScratch {
         DataCharacteristics dc = mb.getDataCharacteristics();
         int[] c = new int[(int) dc.getCols()];
         for (int i = 0; i < dc.getCols(); i++) c[i] = (int) mb.getValue(0, i);
+//        System.out.println(name);
+//        for (int i=0;i<dc.getCols();i++) {
+//            System.out.printf("%d ",c[i]);
+//        }
+//        System.out.println("");
         return c;
     }
 
@@ -166,10 +176,10 @@ public class DistributedScratch {
     private static EstimatorMatrixHistogram.MatrixHistogram getScrtchMatrixes(String name) {
         ArrayList<MatrixBlock> list = new ArrayList<>();
 
-        int[] r = getRowArray("_sVar" + name + "hr");
-        int[] r1e = getRowArray("_sVar" + name + "her");
-        int[] c = getColArray("_sVar" + name + "hc");
-        int[] c1e = getColArray("_sVar" + name + "hec");
+        int[] r = getRowArray("_sVarHr_" + name);
+        int[] r1e = getRowArray("_sVarHer_" + name);
+        int[] c = getColArray("_sVarHc_" + name);
+        int[] c1e = getColArray("_sVarHec_" + name);
         int rmax = 0;
         for (int i : r) {
             rmax = Math.max(i, rmax);

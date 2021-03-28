@@ -69,15 +69,12 @@ public class EstimatorMatrixHistogram extends SparsityEstimator
 		MatrixHistogram h1 = getCachedSynopsis(root.getLeft());
 		MatrixHistogram h2 = getCachedSynopsis(root.getRight());
 
-		double ret, cpmm_intern_sparsity=-1;
+		double  cpmm_intern_sparsity=-1;
 		//estimate output sparsity based on input histograms
 		if (root.getOp() == OpCode.MM) {
-			Pair<Double,Double> pair = estimInternMM(h1,h2);
-			ret = pair.getLeft();
-			cpmm_intern_sparsity = pair.getRight();
-		} else {
-			ret = estimIntern(h1, h2, root.getOp(), root.getMisc());
+			cpmm_intern_sparsity =  estimCpmmInternSparsity(h1,h2) ;
 		}
+		double ret = estimIntern(h1, h2, root.getOp(), root.getMisc());
 		if( topLevel ) { //fast-path final result
 			return MatrixHistogram.deriveOutputCharacteristics(
 				h1, h2, ret, root.getOp(), root.getMisc());
@@ -132,8 +129,8 @@ public class EstimatorMatrixHistogram extends SparsityEstimator
 	public double estimIntern(MatrixHistogram h1, MatrixHistogram h2, OpCode op, long[] misc) {
 		double msize = (double)h1.getRows()*h1.getCols();
 		switch (op) {
-//			case MM:
-//				return estimInternMM(h1, h2);
+			case MM:
+				return estimInternMM(h1, h2);
 			case MULT: {
 				final double scale = IntStream.range(0, h1.getCols())
 					.mapToDouble(j -> (double)h1.cNnz[j] * h2.cNnz[j]).sum()
@@ -174,18 +171,40 @@ public class EstimatorMatrixHistogram extends SparsityEstimator
 				throw new NotImplementedException();
 		}
 	}
-	
-	private Pair<Double,Double> estimInternMM(MatrixHistogram h1, MatrixHistogram h2) {
+
+	private double estimCpmmInternSparsity(MatrixHistogram h1,MatrixHistogram h2) {
+		System.out.println("h1.getRows(),  h1.getCols(), h2.getCols() = "+h1.getRows() +", "+h1.getCols()+", "+ h2.getCols());
+		double summary = Arrays.stream(h1.rNnz).parallel().mapToDouble(x-> {
+			double ans = 0;
+			for (long y: h2.cNnz) {
+				double s1 = (double)x / h1.getCols();
+				double s2 = (double)y / h2.getRows();
+				if (s1>1) {
+					s1 = 1;
+				}
+				if (s2>1) {
+					s2 = 1;
+				}
+				if (s1<0||s1>1||s2<0||s2>1) {
+					System.out.println("cmm_sp error "+x+" "+y+" "+s1+" "+s2);
+				} else {
+					double tmp = 1.0 - Math.pow(1.0 - s1 * s2, 1000);
+					ans += tmp;
+				}
+			}
+			return ans;
+		} ).sum();
+		double sparsity = (summary / h1.getRows()) / h2.getCols();
+		return sparsity;
+	}
+
+	private double estimInternMM(MatrixHistogram h1, MatrixHistogram h2) {
 		long nnz = 0;
-		double cpmm_sparsity=-1;
 		//special case, with exact sparsity estimate, where the dot product
 		//dot(h1.cNnz,h2rNnz) gives the exact number of non-zeros in the output
 		if( h1.rMaxNnz <= 1 || h2.cMaxNnz <= 1 ) {
 			for( int j=0; j<h1.getCols(); j++ )
 				nnz += (long)h1.cNnz[j] * h2.rNnz[j];
-			double sparsity = OptimizerUtils.getSparsity(h1.getRows(), h2.getCols(), nnz);
-			cpmm_sparsity=sparsity* Math.min(1.0,1000.0/h1.getCols());
-			System.out.println("cpmm_sparsity:"+cpmm_sparsity);
 		}
 		//special case, with hybrid exact and approximate output
 		else if(h1.cNnz1e!=null || h2.rNnz1e != null) {
@@ -196,9 +215,6 @@ public class EstimatorMatrixHistogram extends SparsityEstimator
 				(long)(h1.rNonEmpty-h1.rN1) * (h2.cNonEmpty-h2.cN1) :
 				(long)(h1.getRows()-h1.rN1) * (h2.getCols()-h2.cN1);
 			double spOutRest = 0;
-			double cpmm_sparsity_sum = 0;
-			double cpmm_sparsity_tmp = 0;
-			long cpmm_sparsity_count = 0;
 			for( int j=0; j<h1.getCols(); j++ ) {
 				//zero for non-existing extension vectors
 				int h1c1ej = (h1.cNnz1e != null) ? h1.cNnz1e[j] : 0;
@@ -210,23 +226,6 @@ public class EstimatorMatrixHistogram extends SparsityEstimator
 				double lsp = (double)(h1.cNnz[j]-h1c1ej) 
 					* (h2.rNnz[j]-h2r1ej) / mnOut;
 				spOutRest = spOutRest + lsp - spOutRest*lsp;
-				cpmm_sparsity_tmp = cpmm_sparsity_tmp + lsp - cpmm_sparsity_tmp*lsp;
-				if ((j+1)%1000==0) {
-					cpmm_sparsity_sum += cpmm_sparsity_tmp;
-					cpmm_sparsity_count += 1;
-					cpmm_sparsity_tmp = 0;
-				}
-			}
-			if (cpmm_sparsity_tmp>0) {
-				cpmm_sparsity_sum += cpmm_sparsity_tmp;
-				cpmm_sparsity_count += 1;
-				cpmm_sparsity_tmp = 0;
-			}
-			if (cpmm_sparsity_count!=0) {
-				System.out.println("cpmm_sparsity_sum:"+cpmm_sparsity_sum);
-				System.out.println("cpmm_sparsity_count:"+cpmm_sparsity_count);
-				cpmm_sparsity = cpmm_sparsity_sum / cpmm_sparsity_count;
-				System.out.println("cpmm_sparsity:"+cpmm_sparsity);
 			}
 			nnz += (long)(spOutRest * mnOut);
 		}
@@ -236,29 +235,9 @@ public class EstimatorMatrixHistogram extends SparsityEstimator
 				(long)h1.rNonEmpty * h2.cNonEmpty :
 				(long)h1.getRows() * h2.getCols();
 			double spOut = 0;
-			double cpmm_sparsity_sum = 0;
-			double cpmm_sparsity_tmp = 0;
-			long cpmm_sparsity_count = 0;
 			for( int j=0; j<h1.getCols(); j++ ) {
 				double lsp = (double) h1.cNnz[j] * h2.rNnz[j] / mnOut;
 				spOut = spOut + lsp - spOut*lsp;
-				cpmm_sparsity_tmp = cpmm_sparsity_tmp + lsp - cpmm_sparsity_tmp*lsp;
-				if ((j+1)%1000==0) {
-					cpmm_sparsity_sum += cpmm_sparsity_tmp;
-					cpmm_sparsity_count += 1;
-					cpmm_sparsity_tmp = 0;
-				}
-			}
-			if (cpmm_sparsity_tmp>0) {
-				cpmm_sparsity_sum += cpmm_sparsity_tmp;
-				cpmm_sparsity_count += 1;
-				cpmm_sparsity_tmp = 0;
-			}
-			if (cpmm_sparsity_count!=0) {
-				System.out.println("cpmm_sparsity_sum:" + cpmm_sparsity_sum);
-				System.out.println("cpmm_sparsity_count:" + cpmm_sparsity_count);
-				cpmm_sparsity = cpmm_sparsity_sum / cpmm_sparsity_count;
-				System.out.println("cpmm_sparsity:"+cpmm_sparsity);
 			}
 			nnz = (long)(spOut * mnOut);
 		}
@@ -271,9 +250,8 @@ public class EstimatorMatrixHistogram extends SparsityEstimator
 		}
 		
 		//compute final sparsity
-		double sparsity = OptimizerUtils.getSparsity(
+		return OptimizerUtils.getSparsity(
 			h1.getRows(), h2.getCols(), nnz);
-		return Pair.of(sparsity,cpmm_sparsity);
 	}
 	
 	public static class MatrixHistogram {
