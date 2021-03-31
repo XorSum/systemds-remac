@@ -315,7 +315,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 singlePlans.add(singlePlan);
             }
 
-            CostGraph costGraph = new CostGraph(variablesUpdated, iterationNumber);
+            CostGraph costGraph = new CostGraph(variablesUpdated, iterationNumber,ec);
 //        costGraph.testCostTree(list);
 //            ACNode bestacnode = costGraph.testOperatorGraph(singlePlans, pair, blockRanges, leaves);
 //            ArrayList<OperatorNode> operatorNodeArrayList = new ArrayList<>();
@@ -768,7 +768,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         result = deepCopyHopsDag(result);
         rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
 
-        CostGraph costGraph = new CostGraph(variablesUpdated,iterationNumber);
+        CostGraph costGraph = new CostGraph(variablesUpdated,iterationNumber,ec);
         FakeCostEstimator2.MMShowCostFlag = true;
         Triple<NodeCost,NodeCost,OperatorNode> nodeCostOperatorNodePair = costGraph.estimateHopCost(result);
         LOG.info("all cost detail="+nodeCostOperatorNodePair.getLeft());

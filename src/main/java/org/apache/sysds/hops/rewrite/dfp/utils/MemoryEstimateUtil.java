@@ -7,83 +7,97 @@ import org.apache.sysds.hops.LiteralOp;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
 import org.apache.sysds.parser.VariableSet;
+import org.apache.sysds.runtime.controlprogram.context.SparkExecutionContext;
 import org.apache.sysds.runtime.instructions.spark.utils.SparkUtils;
 import org.apache.sysds.runtime.matrix.data.MatrixBlock;
+import org.apache.sysds.runtime.meta.DataCharacteristics;
 import org.apache.sysds.runtime.meta.MatrixCharacteristics;
 
 public class MemoryEstimateUtil {
 
-    private static DataOp tread(String name,  long dim1,long dim2,long  nnz ) {
+    private static DataOp tread(String name, long dim1, long dim2, long nnz) {
         DataOp a = new DataOp(name, Types.DataType.MATRIX, Types.ValueType.FP64,
                 Types.OpOpData.TRANSIENTREAD, "", dim1, dim2, nnz, 1000);
-        return  a;
+        return a;
     }
 
     private static Hop t(Hop a) {
         return HopRewriteUtils.createTranspose(a);
     }
 
-    private static Hop multi(Hop a,Hop b) {
-        return HopRewriteUtils.createMatrixMultiply(a,b);
+    private static Hop multi(Hop a, Hop b) {
+        return HopRewriteUtils.createMatrixMultiply(a, b);
     }
 
-    public static Hop createH(long dim1,long dim2,long  nnz  ) {
-//        (13567) TRead h [300,300,1000,-1] [0,0,1 -> 1MB], CP, notPersist
-        Hop h13567 = tread("h",dim2,dim2,dim2*dim2);
-//        (13573) TRead a [10000,300,1000,3000000] [0,0,23 -> 23MB], CP, notPersist
-        Hop h13573 = tread("a",dim1,dim2,nnz);
-//        (13572) r(r') (13573) [300,10000,1000,3000000] [23,0,23 -> 46MB], SPARK, notPersist
-        Hop h13572 = HopRewriteUtils.createTranspose(h13573);
-//        (13576) TRead g [300,1,1000,-1] [0,0,0 -> 0MB], CP, notPersist
-        Hop h13576 = tread("g",dim2,1,dim2);
-//        (13575) ba(+*) (13567,13576) [300,1,1000,-1] [1,0,0 -> 1MB], SPARK, notPersist
-        Hop h13575 = HopRewriteUtils.createMatrixMultiply(h13567,h13576);
-//        (13574) ba(+*) (13573,13575) [10000,1,1000,-1] [23,0,0 -> 23MB], SPARK, notPersist
-        Hop h13574 = HopRewriteUtils.createMatrixMultiply(h13573,h13575);
-//        (13571) ba(+*) (13572,13574) [300,1,1000,-1] [23,0,0 -> 23MB], SPARK, notPersist
-        Hop h13571 = HopRewriteUtils.createMatrixMultiply(h13572,h13574);
-//        (13570) ba(+*) (13567,13571) [300,1,1000,-1] [1,0,0 -> 1MB], SPARK, notPersist
-        Hop h13570 = HopRewriteUtils.createMatrixMultiply(h13567,h13571);
-//        (13580) r(r') (13575) [1,300,1000,-1] [0,0,0 -> 0MB], SPARK, notPersist
-        Hop h13580 = HopRewriteUtils.createTranspose(h13575);
-//        (13579) ba(+*) (13580,13572) [1,10000,1000,-1] [23,0,0 -> 23MB], SPARK, notPersist
-        Hop h13579 = HopRewriteUtils.createMatrixMultiply(h13580,h13572);
-//        (13578) ba(+*) (13579,13573) [1,300,1000,-1] [23,0,0 -> 23MB], SPARK, notPersist
-        Hop h13578 = HopRewriteUtils.createMatrixMultiply(h13579,h13573);
-//        (13577) ba(+*) (13578,13567) [1,300,1000,-1] [1,0,0 -> 1MB], SPARK, notPersist
-        Hop h13577 = HopRewriteUtils.createMatrixMultiply(h13578,h13567);
-//        (13569) ba(+*) (13570,13577) [300,300,1000,-1] [0,0,1 -> 1MB], SPARK, notPersist
-        Hop h13569 = HopRewriteUtils.createMatrixMultiply(h13570,h13577);
-//        (13582) ba(+*) (13578,13570) [1,1,1000,-1] [0,0,0 -> 0MB], SPARK, notPersist
-        Hop h13582 = HopRewriteUtils.createMatrixMultiply(h13578,h13570);
-//        (13581) u(castdts) (13582) [0,0,0,-1] [0,0,0 -> 0MB], SPARK, notPersist
-        Hop h13581 = HopRewriteUtils.createUnary(h13582, Types.OpOp1.CAST_AS_DOUBLE);
-//        (13568) b(/) (13569,13581) [300,300,1000,-1] [1,0,1 -> 1MB], SPARK, notPersist
-        Hop h13568 = HopRewriteUtils.createBinary(h13569,h13581, Types.OpOp2.DIV);
-//        (13566) b(-) (13567,13568) [300,300,1000,-1] [1,0,1 -> 2MB], SPARK, notPersist
-        Hop h13566 = HopRewriteUtils.createBinary(h13567,h13568, Types.OpOp2.MINUS);
-//        (13584) ba(+*) (13575,13580) [300,300,1000,-1] [0,0,1 -> 1MB], SPARK, notPersist
-        Hop h13584 = HopRewriteUtils.createMatrixMultiply(h13575,h13580);
-//        (13587) ba(+*) (13578,13575) [1,1,1000,-1] [0,0,0 -> 0MB], SPARK, notPersist
-        Hop h13587 = HopRewriteUtils.createMatrixMultiply(h13578,h13575);
-//        (13586) u(castdts) (13587) [0,0,0,-1] [0,0,0 -> 0MB], SPARK, notPersist
-        Hop h13586 = HopRewriteUtils.createUnary(h13587, Types.OpOp1.CAST_AS_DOUBLE);
-//        (13585) b(*) (13586) [0,0,0,-1] [0,0,0 -> 0MB], SPARK, notPersist
-        Hop h13585 = HopRewriteUtils.createBinary(h13586,new LiteralOp(2), Types.OpOp2.MULT);
-//        (13583) b(/) (13584,13585) [300,300,1000,-1] [1,0,1 -> 1MB], SPARK, notPersist
-        Hop h13583 = HopRewriteUtils.createBinary(h13584,h13585, Types.OpOp2.DIV);
-//        (13565) b(+) (13566,13583) [300,300,1000,-1] [1,0,1 -> 2MB], SPARK, notPersist
-        Hop h13565 = HopRewriteUtils.createBinary(h13566,h13583, Types.OpOp2.PLUS);
-//        (13564) TWrite h (13565) [300,300,1000,-1] [1,0,0 -> 1MB], SPARK, notPersist
-        Hop h13564 = HopRewriteUtils.createTransientWrite("h",h13565);
-        return h13564;
+    public static Hop createH(long dim1, long dim2, long nnz) {
+        Hop h67 = tread("h", dim2, dim2, dim2 * dim2);
+        Hop h73 = tread("a", dim1, dim2, nnz);
+        Hop h72 = HopRewriteUtils.createTranspose(h73);
+        Hop h76 = tread("g", dim2, 1, dim2);
+        Hop h75 = HopRewriteUtils.createMatrixMultiply(h67, h76);
+        Hop h74 = HopRewriteUtils.createMatrixMultiply(h73, h75);
+        Hop h71 = HopRewriteUtils.createMatrixMultiply(h72, h74);
+        Hop h70 = HopRewriteUtils.createMatrixMultiply(h67, h71);
+        Hop h80 = HopRewriteUtils.createTranspose(h75);
+        Hop h79 = HopRewriteUtils.createMatrixMultiply(h80, h72);
+        Hop h78 = HopRewriteUtils.createMatrixMultiply(h79, h73);
+        Hop h77 = HopRewriteUtils.createMatrixMultiply(h78, h67);
+        Hop h69 = HopRewriteUtils.createMatrixMultiply(h70, h77);
+        Hop h82 = HopRewriteUtils.createMatrixMultiply(h78, h70);
+        Hop h81 = HopRewriteUtils.createUnary(h82, Types.OpOp1.CAST_AS_DOUBLE);
+        Hop h68 = HopRewriteUtils.createBinary(h69, h81, Types.OpOp2.DIV);
+        Hop h66 = HopRewriteUtils.createBinary(h67, h68, Types.OpOp2.MINUS);
+        Hop h84 = HopRewriteUtils.createMatrixMultiply(h75, h80);
+        Hop h87 = HopRewriteUtils.createMatrixMultiply(h78, h75);
+        Hop h86 = HopRewriteUtils.createUnary(h87, Types.OpOp1.CAST_AS_DOUBLE);
+        Hop h85 = HopRewriteUtils.createBinary(h86, new LiteralOp(2), Types.OpOp2.MULT);
+        Hop h83 = HopRewriteUtils.createBinary(h84, h85, Types.OpOp2.DIV);
+        Hop h65 = HopRewriteUtils.createBinary(h66, h83, Types.OpOp2.PLUS);
+        Hop h64 = HopRewriteUtils.createTransientWrite("h", h65);
+        return h64;
     }
 
-   static void printPatritions(String name,long r,long c,long nnz) {
-       MatrixCharacteristics dc1 = new MatrixCharacteristics(r,c,1000,nnz);
-       int p1 =   SparkUtils.getNumPreferredPartitions(dc1);
-       System.out.println(name+ ", dc: "+dc1+", partitions: "+p1);
-   }
+    static void printPatritions(String name, long r, long c, long nnz) {
+        MatrixCharacteristics dc1 = new MatrixCharacteristics(r, c, 1000, nnz);
+        int p1 = SparkUtils.getNumPreferredPartitions(dc1);
+        System.out.println(name + ", dc: " + dc1 + ", partitions: " + p1);
+    }
+
+    private static int getPreferredParJoin(DataCharacteristics mc1, DataCharacteristics mc2, int numPar1, int numPar2) {
+//        int defPar = SparkExecutionContext.getDefaultParallelism(true);
+        int defPar = 144;
+        int maxParIn = Math.max(numPar1, numPar2);
+        int maxSizeIn = SparkUtils.getNumPreferredPartitions(mc1) +
+                SparkUtils.getNumPreferredPartitions(mc2);
+        int tmp = (mc1.dimsKnown(true) && mc2.dimsKnown(true)) ?
+                Math.max(maxSizeIn, maxParIn) : maxParIn;
+        return (tmp > defPar / 2) ? Math.max(tmp, defPar) : tmp;
+    }
+
+    private static int getMaxParJoin(DataCharacteristics mc1, DataCharacteristics mc2) {
+        return mc1.colsKnown() ? (int) mc1.getNumColBlocks() :
+                mc2.rowsKnown() ? (int) mc2.getNumRowBlocks() :
+                        Integer.MAX_VALUE;
+    }
+
+    private static void cpmmPatritions(String name, long r, long c, long nnz) {
+        MatrixCharacteristics mc1 = new MatrixCharacteristics(c, r, 1000, nnz);
+        MatrixCharacteristics mc2 = new MatrixCharacteristics(r, c, 1000, nnz);
+        int numPreferred = getPreferredParJoin(mc1, mc2, 863, 863);
+        int numMaxJoin = getMaxParJoin(mc1, mc2);
+        int numPartJoin = Math.min(numMaxJoin, numPreferred);
+        System.out.println(name + ", " + numPreferred + ", " + numMaxJoin + ", " + numPartJoin);
+    }
+
+    private static void cpmmPatritions() {
+        cpmmPatritions("criteo_0_1", 116800000, 47, 3237650536l);
+        cpmmPatritions("criteo_20000", 58400000, 14955, 2277596265l);
+        cpmmPatritions("criteo_40000", 58400000, 8692, 2277598765l);
+        cpmmPatritions("reddit_20000", 104473929, 20000, 2014518046);
+        cpmmPatritions("reddit_5000", 104473929, 5000, 2012581099);
+        cpmmPatritions("reddit_9_10", 120000000, 34, 1676633971);
+    }
+
 
     public static void main(String[] args) {
 //        Hop root = createH(1000000,10000,100000000);
@@ -102,21 +116,30 @@ public class MemoryEstimateUtil {
 //        double size =  MatrixBlock.estimateSizeInMemory(20000,20000,1.0);
 //        System.out.println("size="+size);
 //        double size1 =  MatrixBlock.estimateSizeInMemory(14955,14955,0.0026180407098227864);
-        double size1 =  MatrixBlock.estimateSizeInMemory(14955,14955,0.00210162714451911);
+        double size1 = MatrixBlock.estimateSizeInMemory(14955, 14955, 0.00210162714451911);
 
-        System.out.println("criteo_20000="+size1);
+        System.out.println("criteo_20000=" + size1);
 //        double size2 =  MatrixBlock.estimateSizeInMemory(8692,8692,0.006952184527876477);
-        double size2 =  MatrixBlock.estimateSizeInMemory(8692,8692,0.00556222096943855);
+        double size2 = MatrixBlock.estimateSizeInMemory(8692, 8692, 0.00556222096943855);
 
-        System.out.println("criteo_40000="+size2);
+        System.out.println("criteo_40000=" + size2);
 
 
-        printPatritions("criteo_0_1",116800000,47,3237650536l);
-        printPatritions("criteo_20000",58400000,14955,2277596265l);
-        printPatritions("criteo_40000",58400000,8692,2277598765l);
-        printPatritions("reddit_20000",104473929,20000,2014518046);
-        printPatritions("reddit_5000",104473929,5000,2012581099);
-        printPatritions("reddit_9_10",120000000,34,1676633971);
+        printPatritions("criteo_0_1", 116800000, 47, 3237650536l);
+        printPatritions("criteo_20000", 58400000, 14955, 2277596265l);
+        printPatritions("criteo_40000", 58400000, 8692, 2277598765l);
+        printPatritions("reddit_20000", 104473929, 20000, 2014518046);
+        printPatritions("reddit_5000", 104473929, 5000, 2012581099);
+        printPatritions("reddit_9_10", 120000000, 34, 1676633971);
+
+        printPatritions("criteo_0_1", 47, 116800000, 3237650536l);
+        printPatritions("criteo_20000", 14955, 58400000, 2277596265l);
+        printPatritions("criteo_40000", 8692, 58400000, 2277598765l);
+        printPatritions("reddit_20000", 20000, 104473929, 2014518046);
+        printPatritions("reddit_5000", 5000, 104473929, 2012581099);
+        printPatritions("reddit_9_10", 34, 120000000, 1676633971);
+
+        cpmmPatritions();
 
     }
 

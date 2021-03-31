@@ -3,7 +3,7 @@ package org.apache.sysds.hops.rewrite.dfp.dp;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.sysds.common.Types;
+import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.sysds.hops.*;
 import org.apache.sysds.hops.estim.EstimatorBasicAvg;
 import org.apache.sysds.hops.estim.EstimatorMatrixHistogram;
@@ -13,11 +13,12 @@ import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
 import org.apache.sysds.lops.LopProperties;
 import org.apache.sysds.runtime.controlprogram.caching.MatrixObject;
+import org.apache.sysds.runtime.controlprogram.context.SparkExecutionContext;
 import org.apache.sysds.runtime.instructions.spark.utils.SparkUtils;
 import org.apache.sysds.runtime.matrix.data.MatrixBlock;
+import org.apache.sysds.runtime.matrix.data.MatrixIndexes;
 import org.apache.sysds.runtime.meta.DataCharacteristics;
 import org.apache.sysds.runtime.meta.MatrixCharacteristics;
-import org.apache.sysds.utils.Explain;
 
 import java.util.HashMap;
 
@@ -28,12 +29,17 @@ import static org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2.MMS
 
 public class NodeCostEstimator {
 
+    private SparkExecutionContext sec;
     protected static final Log LOG = LogFactory.getLog(NodeCostEstimator.class.getName());
 
     private static SparsityEstimator metadataEstimator = new EstimatorBasicAvg();
     private static EstimatorMatrixHistogram mncEstimator = new EstimatorMatrixHistogram();
 
     public HashMap<Pair<Integer, Integer>, MMNode> range2mmnode = new HashMap<>();
+
+    public NodeCostEstimator(SparkExecutionContext sec) {
+        this.sec =   sec;
+    }
 
     public MMNode addOpnode2Mmnode(OperatorNode opnode) {
         if (opnode.mmNode != null) return opnode.mmNode;
@@ -58,7 +64,7 @@ public class NodeCostEstimator {
                 ans = new MMNode(dc);
                 ans.setSynopsis(histogram);
             } else {
-                MatrixObject matrixBlock = (MatrixObject) ec.getVariable(hop.getName());
+                MatrixObject matrixBlock = (MatrixObject) sec.getVariable(hop.getName());
                 DataCharacteristics dc;
                 if (matrixBlock != null) {
                     dc = matrixBlock.getDataCharacteristics();
@@ -141,8 +147,22 @@ public class NodeCostEstimator {
             System.exit(-1);
             //  dc = new MatrixCharacteristics(mmNode.getRows(), mmNode.getCols(), mmNode.getRows() * mmNode.getCols());
         }
-        int p1 =   SparkUtils.getNumPreferredPartitions(dc);
-        LOG.info("get dc: "+dc+", partitions: "+p1);
+        int p1 = SparkUtils.getNumPreferredPartitions(dc);
+        LOG.info("get dc: " + dc + ", partitions: " + p1);
+
+//        System.out.println(ec.getVariables());
+
+        String name = opNode.hops.get(0).getName();
+        if (opNode.inputs.size()==0 && sec.containsVariable(name)) {
+            JavaPairRDD<MatrixIndexes,MatrixBlock> in1 = sec.getBinaryMatrixBlockRDDHandleForVariable(name);
+            MatrixObject matrixObject = sec.getMatrixObject(name);
+            if (matrixObject!=null) {
+                System.out.println("matrixObject: "+ name+", partitions: "+matrixObject.getPartitionSize());
+                System.out.println("rdd: "+ name+", partitions: "+in1.getNumPartitions());
+                System.out.println("");
+            }
+        }
+
 //        Hop h = opNode.hops.get(0);
 //        boolean check = (h.getDim1()==dc.getRows()&&h.getDim2()==dc.getCols()) ||
 //                (h.getDim2()==dc.getRows()&&h.getDim1()==dc.getCols());
@@ -158,17 +178,17 @@ public class NodeCostEstimator {
     public NodeCost getNodeCost(OperatorNode opnode) {
         NodeCost ans = NodeCost.INF();
         Hop hop = opnode.hops.get(0);
-        if (hop.optFindExecType()== LopProperties.ExecType.CP) {
-            for (OperatorNode input: opnode.inputs) {
+        if (hop.optFindExecType() == LopProperties.ExecType.CP) {
+            for (OperatorNode input : opnode.inputs) {
                 input.isUsedByCp = true;
             }
         }
-        for (int i=0;i<opnode.hops.size();i++) {
+        for (int i = 0; i < opnode.hops.size(); i++) {
             if (opnode.hops.get(i).optFindExecType() == LopProperties.ExecType.CP) {
                 opnode.isUsedByCp = true;
             }
         }
-        if ( opnode.hops.get(0).optFindExecType()== LopProperties.ExecType.SPARK) {
+        if (opnode.hops.get(0).optFindExecType() == LopProperties.ExecType.SPARK) {
             opnode.isSpark = true;
         }
         if (HopRewriteUtils.isMatrixMultiply(hop)) {  // 矩阵乘法
@@ -279,7 +299,7 @@ public class NodeCostEstimator {
         OperatorNode node = new OperatorNode();
         node.isTranspose = false;
         MMShowCostFlag = true;
-        NodeCostEstimator estimator = new NodeCostEstimator();
+        NodeCostEstimator estimator = new NodeCostEstimator(null);
         useMncEstimator = false;
         estimator.eCPMM(null, node, dc1_t_meta, dc1_meta, dc_ata);
         useMncEstimator = true;

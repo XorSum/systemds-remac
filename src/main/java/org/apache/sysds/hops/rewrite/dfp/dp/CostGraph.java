@@ -18,6 +18,8 @@ import org.apache.sysds.hops.rewrite.dfp.coordinate.SingleCse;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
 import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
 import org.apache.sysds.parser.VariableSet;
+import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
+import org.apache.sysds.runtime.controlprogram.context.SparkExecutionContext;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -28,12 +30,14 @@ import static org.apache.sysds.utils.Statistics.*;
 public class CostGraph {
     protected static final Log LOG = LogFactory.getLog(CostGraph.class.getName());
 
-    public CostGraph(VariableSet variablesUpdated, long iterationNumber) {
+    public CostGraph(VariableSet variablesUpdated, long iterationNumber,ExecutionContext ec) {
         this.variablesUpdated = variablesUpdated;
         this.iterationNumber = iterationNumber;
-        this.nodeCostEstimator = new NodeCostEstimator();
+        this.ec = ec;
+        this.nodeCostEstimator = new NodeCostEstimator((SparkExecutionContext)ec);
     }
 
+    private ExecutionContext ec;
     NodeCostEstimator nodeCostEstimator;
     long iterationNumber = 2;
     public VariableSet variablesUpdated = null;
