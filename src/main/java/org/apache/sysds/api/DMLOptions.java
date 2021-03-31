@@ -33,6 +33,7 @@ import org.apache.commons.cli.PosixParser;
 import org.apache.sysds.common.Types.ExecMode;
 import org.apache.sysds.hops.OptimizerUtils;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
+import org.apache.sysds.hops.rewrite.dfp.costmodel.CostModelCommon;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
 import org.apache.sysds.hops.rewrite.dfp.dp.NodeCostEstimator;
 import org.apache.sysds.runtime.controlprogram.WhileProgramBlock;
@@ -160,7 +161,7 @@ public class DMLOptions {
 			}
 		}
 		if (line.hasOption("mnc")) {
-			FakeCostEstimator2.useMncEstimator = true;
+			CostModelCommon.useMncEstimator = true;
 		}
 		if (line.hasOption("stop_exec")){
 			WhileProgramBlock.stopExec = true;

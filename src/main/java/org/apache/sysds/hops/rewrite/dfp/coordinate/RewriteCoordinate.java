@@ -10,6 +10,7 @@ import org.apache.sysds.hops.rewrite.dfp.AnalyzeSymmetryMatrix;
 import org.apache.sysds.hops.rewrite.dfp.DisjointSet;
 import org.apache.sysds.hops.rewrite.dfp.Leaf;
 import org.apache.sysds.hops.rewrite.dfp.MySolution;
+import org.apache.sysds.hops.rewrite.dfp.costmodel.CostModelCommon;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
 import org.apache.sysds.hops.rewrite.dfp.dp.CostGraph;
@@ -21,7 +22,6 @@ import org.apache.sysds.parser.*;
 import org.apache.sysds.runtime.controlprogram.Program;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
 import org.apache.sysds.utils.Explain;
-import org.w3c.dom.Node;
 
 import java.util.*;
 
@@ -769,7 +769,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
 
         CostGraph costGraph = new CostGraph(variablesUpdated,iterationNumber,ec);
-        FakeCostEstimator2.MMShowCostFlag = true;
+        CostModelCommon.MMShowCostFlag = true;
         Triple<NodeCost,NodeCost,OperatorNode> nodeCostOperatorNodePair = costGraph.estimateHopCost(result);
         LOG.info("all cost detail="+nodeCostOperatorNodePair.getLeft());
         LOG.info("constant cost detail="+nodeCostOperatorNodePair.getMiddle());
@@ -1298,7 +1298,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         double cost = 0;
         if (showDetails) {
             LOG.debug("runtime program<<<");
-            FakeCostEstimator2.MMShowCostFlag = true;
+            CostModelCommon.MMShowCostFlag = true;
         }
         try {
             FakeCostEstimator2.ec = ec;
@@ -1317,7 +1317,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 Program program = constructProgramBlocks(h, statementBlock);
                 if (showDetails)
                     LOG.debug(Explain.explain(program));
-                preCost += FakeCostEstimator2.estimate(program);
+                preCost += FakeCostEstimator2.estimateRuntimeProgram(program);
                 preloopShuffleCost += FakeCostEstimator2.shuffleCostSummary;
                 preloopBroadcastCost += FakeCostEstimator2.broadcastCostSummary;
                 preloopComputeCost += FakeCostEstimator2.computeCostSummary;
@@ -1329,7 +1329,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 LOG.debug(Explain.explain(programBlocks));
 //            cost = CostEstimationWrapper.getTimeEstimate(programBlocks, ec);
 //            if (preCost <= FakeCostEstimator2.miniumCostBoundery) {
-            bodyCost = FakeCostEstimator2.estimate(programBlocks);
+            bodyCost = FakeCostEstimator2.estimateRuntimeProgram(programBlocks);
             bodyShuffleCost += FakeCostEstimator2.shuffleCostSummary;
             bodyBroadcastCost += FakeCostEstimator2.broadcastCostSummary;
             bodyComputeCost += FakeCostEstimator2.computeCostSummary;
@@ -1375,7 +1375,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         }
         if (showDetails) {
             LOG.debug("runtime program>>>");
-            FakeCostEstimator2.MMShowCostFlag = false;
+            CostModelCommon.MMShowCostFlag = false;
         }
         //  FakeCostEstimator2.cleanUnusedMMNode();
         return cost;

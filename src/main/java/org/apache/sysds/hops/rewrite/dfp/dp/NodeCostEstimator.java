@@ -5,7 +5,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.sysds.hops.*;
-import org.apache.sysds.hops.estim.EstimatorBasicAvg;
 import org.apache.sysds.hops.estim.EstimatorMatrixHistogram;
 import org.apache.sysds.hops.estim.MMNode;
 import org.apache.sysds.hops.estim.SparsityEstimator;
@@ -24,16 +23,13 @@ import java.util.HashMap;
 
 import static org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch.createFullHistogram;
 import static org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch.getMatrixHistogram;
-import static org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2.*;
-import static org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2.MMShowCostFlag;
+import static org.apache.sysds.hops.rewrite.dfp.costmodel.CostModelCommon.*;
 
 public class NodeCostEstimator {
 
     private SparkExecutionContext sec;
     protected static final Log LOG = LogFactory.getLog(NodeCostEstimator.class.getName());
 
-    private static SparsityEstimator metadataEstimator = new EstimatorBasicAvg();
-    private static EstimatorMatrixHistogram mncEstimator = new EstimatorMatrixHistogram();
 
     public HashMap<Pair<Integer, Integer>, MMNode> range2mmnode = new HashMap<>();
 
@@ -371,13 +367,13 @@ public class NodeCostEstimator {
             double br = Math.ceil(Math.log(Math.min(r1, defaultWorkerNumber)));
             broadcastCost = BroadCaseSpeed * matrixSize(dc1) * br;
             shuffleCost = ShuffleSpeed * matrixSize(dc3) * r1 / w2;
-            computeCost = computeCostSPMM(dc1, dc2, dc3);
+            computeCost = sparkmmComputeCost(dc1, dc2, dc3);
         } else {
             long r1 = Math.min(getNumberReducers(), (long) Math.ceil((double) dc1.getCols() / defaultBlockSize));
             double br = Math.ceil(Math.log(Math.min(r1, defaultWorkerNumber)));
             broadcastCost = BroadCaseSpeed * matrixSize(dc2) * br;
             shuffleCost = ShuffleSpeed * matrixSize(dc3) * r1 / w2;
-            computeCost = computeCostSPMM(dc1, dc2, dc3);
+            computeCost = sparkmmComputeCost(dc1, dc2, dc3);
         }
         if (MMShowCostFlag) {
             LOG.info("begin<<< ");
@@ -393,6 +389,11 @@ public class NodeCostEstimator {
 
     public static double CPMM_INTERN_SPARSITY = -1;
 
+    public static double sparkmmComputeCost(DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
+        double result = CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc2.getSparsity() * 3 / defaultWorkerNumber;
+        return result;
+    }
+
     NodeCost eCPMM(AggBinaryOp hop, OperatorNode operatorNode,
                    DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
         long r1 = Math.min((long) Math.ceil((double) dc2.getRows() / defaultBlockSize), //max used reducers
@@ -402,7 +403,7 @@ public class NodeCostEstimator {
         double joinCost1 = JoinSpeed * (matrixSize(dc1) + matrixSize(dc2)) / Math.min(r1, defaultWorkerNumber);
         double middle_sparsity = operatorNode.cpmm_intern_sparsity;
         double shuffleCost2 = ShuffleSpeed * MatrixBlock.estimateSizeInMemory(dc3.getRows(), dc3.getCols(), middle_sparsity) * r1 / w2;
-        double computeCost = computeCostSPMM(dc1, dc2, dc3);
+        double computeCost = sparkmmComputeCost(dc1, dc2, dc3);
         if (MMShowCostFlag) {
             LOG.info("begin<<< ");
             LOG.info("dcA: " + dc1);
@@ -432,7 +433,7 @@ public class NodeCostEstimator {
 
         double shuffleCost1 = ShuffleSpeed * (m2_ncb * matrixSize(dc1) + m1_nrb * matrixSize(dc2)) / rmm_nworker;
         double shuffleCost2 = ShuffleSpeed * (matrixSize(dc3) * k) / rmm_nworker;
-        double computeCost = computeCostSPMM(dc1, dc2, dc3);
+        double computeCost = sparkmmComputeCost(dc1, dc2, dc3);
 
         if (MMShowCostFlag) {
             LOG.info("begin<<< ");
@@ -452,7 +453,7 @@ public class NodeCostEstimator {
         double computeCost = CpuSpeed * 1.5 * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc1.getSparsity() / defaultWorkerNumber;
         double shuffleCost = ShuffleSpeed * MatrixBlock.estimateSizeInMemory(dc3.getRows(), dc3.getRows(), dc3.getSparsity());
 //        return computeCost + shuffleCost;
-        return new NodeCost(shuffleCost, 0, computeCost, collectCostSummary);
+        return new NodeCost(shuffleCost, 0, computeCost, 0);
     }
 
     NodeCost eMapMMChain(OperatorNode node, AggBinaryOp hop) {

@@ -47,7 +47,6 @@ import org.apache.sysds.conf.CompilerConfig;
 import org.apache.sysds.conf.ConfigurationManager;
 import org.apache.sysds.conf.DMLConfig;
 import org.apache.sysds.hops.OptimizerUtils;
-import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
 import org.apache.sysds.lops.Lop;
 import org.apache.sysds.parser.DMLProgram;
 import org.apache.sysds.parser.DMLTranslator;
@@ -391,7 +390,7 @@ public class DMLScript
 		//Step 7: generate runtime program, incl codegen
 		Program rtprog = dmlt.getRuntimeProgram(prog, ConfigurationManager.getDMLConfig());
 
-		FakeCostEstimator2.printInstructions(rtprog);
+//		PrintRuntimeProgram.printInstructions(rtprog);
 //		System.out.println("x");
 //		FakeCostEstimator2.estimate(rtprog);
 

@@ -5,7 +5,6 @@ import org.apache.commons.lang3.tuple.Triple;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.sysds.common.Types;
-import org.apache.sysds.hops.estim.EstimatorBasicAvg;
 import org.apache.sysds.hops.estim.EstimatorMatrixHistogram;
 import org.apache.sysds.hops.estim.MMNode;
 import org.apache.sysds.hops.estim.SparsityEstimator;
@@ -20,32 +19,18 @@ import org.apache.sysds.runtime.instructions.spark.*;
 import org.apache.sysds.runtime.matrix.data.MatrixBlock;
 import org.apache.sysds.runtime.meta.DataCharacteristics;
 
-
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import static org.apache.sysds.hops.rewrite.dfp.costmodel.CostModelCommon.*;
 import static org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch.createFullHistogram;
 import static org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch.getMatrixHistogram;
 
 public class FakeCostEstimator2 {
     protected static final Log LOG = LogFactory.getLog(FakeCostEstimator2.class.getName());
 
-    public static final long defaultWorkerNumber = 6;
-    public static final long defaultExecutorCores = 24;
-
-    public static double CpuSpeed = 1.0;
-    public static double ShuffleSpeed = 5.0;
-    public static double BroadCaseSpeed = 3.0;
-    public static double JoinSpeed = 5.0;
-
-    public static long defaultBlockSize = 1000;
     public static ExecutionContext ec = null;
 
-    public static boolean useMncEstimator = false;
-    private static SparsityEstimator metadataEstimator = new EstimatorBasicAvg();
-    private static EstimatorMatrixHistogram mncEstimator = new EstimatorMatrixHistogram();
-
-    public static boolean MMShowCostFlag = false;
 
     //public static double miniumCostBoundery = Double.MAX_VALUE;
 
@@ -60,7 +45,7 @@ public class FakeCostEstimator2 {
     //
     //////////////////////
 
-    public static double estimate(Program rtprog) {
+    public static double estimateRuntimeProgram(Program rtprog) {
 
         shuffleCostSummary = 0;
         broadcastCostSummary = 0;
@@ -72,7 +57,7 @@ public class FakeCostEstimator2 {
         //  LOG.debug(Explain.explain(rtprog));
         for (ProgramBlock pb : rtprog.getProgramBlocks()) {
             try {
-                double delta = rEstimate(pb);
+                double delta = rEstimateProgramBlock(pb);
                 //   LOG.debug("pb cost = "+delta);
                 if (delta < 0 || delta >= Double.MAX_VALUE) {
                     //      LOG.error("delta error");
@@ -102,49 +87,84 @@ public class FakeCostEstimator2 {
         return cost;
     }
 
+
+    private static double rEstimateProgramBlock(ProgramBlock pb) throws Exception {
+        double cost = 0;
+        double delta;
+        if (pb instanceof IfProgramBlock) {
+            IfProgramBlock ipb = (IfProgramBlock) pb;
+            delta = estimateInstructions(ipb.getPredicate());
+            if (delta < 0 || delta >= Double.MAX_VALUE) return Double.MAX_VALUE;
+            cost += delta;
+            for (ProgramBlock p : ipb.getChildBlocksIfBody()) {
+                delta = rEstimateProgramBlock(p);
+                if (delta < 0 || delta >= Double.MAX_VALUE) return Double.MAX_VALUE;
+                cost += delta;
+            }
+            for (ProgramBlock p : ipb.getChildBlocksElseBody()) {
+                delta = rEstimateProgramBlock(p);
+                if (delta < 0 || delta >= Double.MAX_VALUE) return Double.MAX_VALUE;
+                cost += delta;
+            }
+        } else if (pb instanceof WhileProgramBlock) {
+            WhileProgramBlock wpb = (WhileProgramBlock) pb;
+            delta = estimateInstructions(wpb.getPredicate());
+            if (delta < 0 || delta >= Double.MAX_VALUE) return Double.MAX_VALUE;
+            cost += delta;
+            for (ProgramBlock p : wpb.getChildBlocks()) {
+                delta = rEstimateProgramBlock(p);
+                if (delta < 0 || delta >= Double.MAX_VALUE) return Double.MAX_VALUE;
+                cost += delta;
+            }
+        } else if (pb instanceof BasicProgramBlock) {
+            BasicProgramBlock bpb = (BasicProgramBlock) pb;
+            delta = estimateInstructions(bpb.getInstructions());
+            if (delta < 0 || delta >= Double.MAX_VALUE) return Double.MAX_VALUE;
+            cost += delta;
+        }
+        return cost;
+    }
+
+
+    private static double estimateInstructions(ArrayList<Instruction> instructions) throws Exception {
+        double cost = 0;
+        for (Instruction inst : instructions) {
+            //  System.out.println(inst);
+            if (MMShowCostFlag) LOG.trace(inst);
+            double delta = 0;
+            try {
+                if (inst instanceof CPInstruction) {
+                    delta = eCPInstruction((CPInstruction) inst);
+                } else if (inst instanceof SPInstruction) {
+                    delta = eSPInstruction((SPInstruction) inst);
+                }
+            } catch (Exception e) {
+                //   System.out.println(e);
+                e.printStackTrace();
+                delta = Double.MAX_VALUE;
+            }
+//            if (cost > miniumCostBoundery) {
+//                cost = Double.MAX_VALUE;
+//                break;
+//            }
+            if (delta < 0 || delta >= Double.MAX_VALUE) {
+                LOG.error("error instruction: " + inst.toString());
+                return Double.MAX_VALUE;
+            }
+            //   LOG.trace(inst+" |||| delta = "+ delta);
+            cost += delta;
+        }
+        //   LOG.debug("process cost " + cost);
+        return cost;
+    }
+
+
     public static void cleanUnusedMMNode() {
         name2MMNode.entrySet().removeIf(e -> e.getKey().startsWith("_Var") || e.getKey().startsWith("_mVar") || e.getKey().startsWith("_conVar"));
     }
 
     public static void cleanUnusedScratchMMNode() {
         name2MMNode.entrySet().removeIf(e -> e.getKey().startsWith("_Var") || e.getKey().startsWith("_mVar") || e.getKey().startsWith("_conVar") || e.getKey().startsWith("_sVar"));
-    }
-
-    private static double rEstimate(ProgramBlock pb) throws Exception {
-        double cost = 0;
-        double delta;
-        if (pb instanceof IfProgramBlock) {
-            IfProgramBlock ipb = (IfProgramBlock) pb;
-            delta = processInstructions(ipb.getPredicate());
-            if (delta < 0 || delta >= Double.MAX_VALUE) return Double.MAX_VALUE;
-            cost += delta;
-            for (ProgramBlock p : ipb.getChildBlocksIfBody()) {
-                delta = rEstimate(p);
-                if (delta < 0 || delta >= Double.MAX_VALUE) return Double.MAX_VALUE;
-                cost += delta;
-            }
-            for (ProgramBlock p : ipb.getChildBlocksElseBody()) {
-                delta = rEstimate(p);
-                if (delta < 0 || delta >= Double.MAX_VALUE) return Double.MAX_VALUE;
-                cost += delta;
-            }
-        } else if (pb instanceof WhileProgramBlock) {
-            WhileProgramBlock wpb = (WhileProgramBlock) pb;
-            delta = processInstructions(wpb.getPredicate());
-            if (delta < 0 || delta >= Double.MAX_VALUE) return Double.MAX_VALUE;
-            cost += delta;
-            for (ProgramBlock p : wpb.getChildBlocks()) {
-                delta = rEstimate(p);
-                if (delta < 0 || delta >= Double.MAX_VALUE) return Double.MAX_VALUE;
-                cost += delta;
-            }
-        } else if (pb instanceof BasicProgramBlock) {
-            BasicProgramBlock bpb = (BasicProgramBlock) pb;
-            delta = processInstructions(bpb.getInstructions());
-            if (delta < 0 || delta >= Double.MAX_VALUE) return Double.MAX_VALUE;
-            cost += delta;
-        }
-        return cost;
     }
 
 
@@ -195,6 +215,7 @@ public class FakeCostEstimator2 {
 
 
     ////////////////////////////////////
+    //
 
     private static HashMap<Triple<MMNode, MMNode, SparsityEstimator.OpCode>, MMNode> binaryOpMmnode = new HashMap<>();
     private static HashMap<Pair<MMNode, SparsityEstimator.OpCode>, MMNode> unaryOpMmnode = new HashMap<>();
@@ -235,9 +256,6 @@ public class FakeCostEstimator2 {
             return mmNode;
         }
     }
-
-
-    /////////////////////////////////////////
 
     private static MMNode getMMNode(String name) {
         //   LOG.trace("get mmnode " + name);
@@ -317,37 +335,8 @@ public class FakeCostEstimator2 {
         return dc;
     }
 
-    private static double processInstructions(ArrayList<Instruction> instructions) throws Exception {
-        double cost = 0;
-        for (Instruction inst : instructions) {
-            //  System.out.println(inst);
-            if (MMShowCostFlag) LOG.trace(inst);
-            double delta = 0;
-            try {
-                if (inst instanceof CPInstruction) {
-                    delta = eCPInstruction((CPInstruction) inst);
-                } else if (inst instanceof SPInstruction) {
-                    delta = eSPInstruction((SPInstruction) inst);
-                }
-            } catch (Exception e) {
-                //   System.out.println(e);
-                e.printStackTrace();
-                delta = Double.MAX_VALUE;
-            }
-//            if (cost > miniumCostBoundery) {
-//                cost = Double.MAX_VALUE;
-//                break;
-//            }
-            if (delta < 0 || delta >= Double.MAX_VALUE) {
-                LOG.error("error instruction: " + inst.toString());
-                return Double.MAX_VALUE;
-            }
-            //   LOG.trace(inst+" |||| delta = "+ delta);
-            cost += delta;
-        }
-        //   LOG.debug("process cost " + cost);
-        return cost;
-    }
+    //
+    /////////////////////////////////////////
 
     //////////////////////////////
     //以下是处理各种instruction的函数
@@ -861,14 +850,6 @@ public class FakeCostEstimator2 {
     }
 
 
-    public static double matrixSize(DataCharacteristics dc) {
-        return MatrixBlock.estimateSizeInMemory(dc.getRows(), dc.getCols(), dc.getSparsity());
-    }
-
-    public static double matrixSize(MatrixBlock mb) {
-        return MatrixBlock.estimateSizeInMemory(mb.getNumRows(), mb.getNumColumns(), mb.getSparsity());
-    }
-
     private static double eMapmmSPInstruction(MapmmSPInstruction t) throws Exception {
         //  System.out.println("MPMM " + t.input1.getName() + " %*% " + t.input2.getName() + " -> " + t.output.getName());
         if (MMShowCostFlag) {
@@ -1204,24 +1185,6 @@ public class FakeCostEstimator2 {
         return shuffleCost + computeCost;
     }
 
-    public static long reducerNumber(long rows, long cols) {
-        if (defaultBlockSize <= 0) return getNumberReducers();
-        long nrb = (long) Math.ceil((double) rows / defaultBlockSize);
-        long ncb = (long) Math.ceil((double) cols / defaultBlockSize);
-        long numReducer = Math.min(nrb * ncb, getNumberReducers());
-        numReducer = Math.max(numReducer, 1);
-        return numReducer;
-    }
-
-    public static long workerNumber(long rows, long cols) {
-        if (defaultBlockSize <= 0) return defaultWorkerNumber;
-        long nrb = (long) Math.ceil((double) rows / defaultBlockSize);
-        long ncb = (long) Math.ceil((double) cols / defaultBlockSize);
-        long numReducer = Math.min(nrb * ncb, defaultWorkerNumber);
-        numReducer = Math.max(numReducer, 1);
-        return numReducer;
-    }
-
     private static double getCollectCost(String name) throws Exception {
         //   LOG.info("get collect cost "+name);
         Types.ExecType type = getExecType(name);
@@ -1237,68 +1200,6 @@ public class FakeCostEstimator2 {
             }
         }
         return 0;
-    }
-
-    public static long getNumberReducers() {
-        return defaultWorkerNumber * defaultExecutorCores;
-    }
-
-
-////////////////////////////////////////////////////////////////////
-//                   print instructions                           //
-////////////////////////////////////////////////////////////////////
-
-
-    public static void printInstructions(Program rtprog) {
-        for (ProgramBlock pb : rtprog.getProgramBlocks()) {
-            rPrintInstrunctions(pb, 0);
-        }
-    }
-
-    private static void rPrintInstrunctions(ProgramBlock pb, int depth) {
-        StringBuilder prefix = new StringBuilder();
-        for (int i = 0; i < depth; i++) prefix.append(" ");
-        if (pb instanceof IfProgramBlock) {
-            IfProgramBlock ipb = (IfProgramBlock) pb;
-            LOG.info(prefix + "if begin");
-            LOG.info(prefix + " predicate:");
-            printInstruction(ipb.getPredicate(), depth + 2);
-            LOG.info(prefix + " if body");
-            for (ProgramBlock p : ipb.getChildBlocksIfBody()) {
-                rPrintInstrunctions(p, depth + 2);
-            }
-            LOG.info(prefix + " else body");
-            for (ProgramBlock p : ipb.getChildBlocksElseBody()) {
-                rPrintInstrunctions(p, depth + 2);
-            }
-            LOG.info(prefix + "if end");
-        } else if (pb instanceof WhileProgramBlock) {
-            WhileProgramBlock wpb = (WhileProgramBlock) pb;
-            LOG.info(prefix + "while begin");
-            LOG.info(prefix + " predicate:");
-            printInstruction(wpb.getPredicate(), depth + 2);
-            LOG.info(prefix + " while body");
-            for (ProgramBlock p : wpb.getChildBlocks()) {
-                rPrintInstrunctions(p, depth + 2);
-            }
-            LOG.info(prefix + "while end");
-        } else if (pb instanceof BasicProgramBlock) {
-            LOG.info(prefix + "basic begin");
-            BasicProgramBlock bpb = (BasicProgramBlock) pb;
-            printInstruction(bpb.getInstructions(), depth + 1);
-            LOG.info(prefix + "basic end");
-        }
-    }
-
-    private static void printInstruction(ArrayList<Instruction> instructions, int depth) {
-        String prefix = "";
-        for (int i = 0; i < depth; i++) prefix = prefix + " ";
-        for (Instruction instruction : instructions) {
-            LOG.info(prefix +
-                    instruction.getClass().getName().substring(38) +
-                    "  " + instruction.getOpcode() +
-                    "  " + instruction.getInstructionString());
-        }
     }
 
 }
