@@ -21,7 +21,6 @@ package org.apache.sysds.hops.estim;
 
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.NotImplementedException;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.sysds.hops.OptimizerUtils;
 import org.apache.sysds.runtime.data.DenseBlock;
 import org.apache.sysds.runtime.data.SparseBlock;
@@ -63,17 +62,10 @@ public class EstimatorMatrixHistogram extends SparsityEstimator
 	
 	public DataCharacteristics estim(MMNode root, boolean topLevel) {
 		//NOTE: not estimateInputs due to handling of topLevel
-		if (root.getSynopsis() != null) {
-			return root.getDataCharacteristics();
-		}
 		MatrixHistogram h1 = getCachedSynopsis(root.getLeft());
 		MatrixHistogram h2 = getCachedSynopsis(root.getRight());
-
-		double  cpmm_intern_sparsity=-1;
+		
 		//estimate output sparsity based on input histograms
-		if (root.getOp() == OpCode.MM) {
-			cpmm_intern_sparsity =  estimCpmmInternSparsity(h1,h2) ;
-		}
 		double ret = estimIntern(h1, h2, root.getOp(), root.getMisc());
 		if( topLevel ) { //fast-path final result
 			return MatrixHistogram.deriveOutputCharacteristics(
@@ -85,7 +77,6 @@ public class EstimatorMatrixHistogram extends SparsityEstimator
 			h2.setData(root.getRight().isLeaf() ? root.getRight().getData() : null);
 		MatrixHistogram outMap = MatrixHistogram
 			.deriveOutputHistogram(h1, h2, ret, root.getOp(), root.getMisc());
-		outMap.cpmm_intern_sparsity = cpmm_intern_sparsity;
 		root.setSynopsis(outMap);
 		return root.setDataCharacteristics(new MatrixCharacteristics(
 			outMap.getRows(), outMap.getCols(), outMap.getNonZeros()));
@@ -171,33 +162,7 @@ public class EstimatorMatrixHistogram extends SparsityEstimator
 				throw new NotImplementedException();
 		}
 	}
-
-	private double estimCpmmInternSparsity(MatrixHistogram h1,MatrixHistogram h2) {
-		System.out.println("h1.getRows(),  h1.getCols(), h2.getCols() = "+h1.getRows() +", "+h1.getCols()+", "+ h2.getCols());
-		double summary = Arrays.stream(h1.rNnz).parallel().mapToDouble(x-> {
-			double ans = 0;
-			for (long y: h2.cNnz) {
-				double s1 = (double)x / h1.getCols();
-				double s2 = (double)y / h2.getRows();
-				if (s1>1) {
-					s1 = 1;
-				}
-				if (s2>1) {
-					s2 = 1;
-				}
-				if (s1<0||s1>1||s2<0||s2>1) {
-					System.out.println("cmm_sp error "+x+" "+y+" "+s1+" "+s2);
-				} else {
-					double tmp = 1.0 - Math.pow(1.0 - s1 * s2, 1000);
-					ans += tmp;
-				}
-			}
-			return ans;
-		} ).sum();
-		double sparsity = (summary / h1.getRows()) / h2.getCols();
-		return sparsity;
-	}
-
+	
 	private double estimInternMM(MatrixHistogram h1, MatrixHistogram h2) {
 		long nnz = 0;
 		//special case, with exact sparsity estimate, where the dot product
@@ -267,14 +232,7 @@ public class EstimatorMatrixHistogram extends SparsityEstimator
 		private final int rNdiv2, cNdiv2;       //number of rows/cols with nnz > #cols/2 and #rows/2
 		private boolean fullDiag;               //true if there exists a full diagonal of nonzeros
 		private MatrixBlock _data = null; //optional leaf data
-		public double cpmm_intern_sparsity = -1;
-
-		@Override
-		protected void finalize() throws Throwable {
-			super.finalize();
-			System.out.println("matrix histogram released");
-		}
-
+		
 		public MatrixHistogram(MatrixBlock in, boolean useExcepts) {
 			// 1) allocate basic synopsis
 			final int m = in.getNumRows();
