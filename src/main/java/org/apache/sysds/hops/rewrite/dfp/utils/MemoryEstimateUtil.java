@@ -63,15 +63,12 @@ public class MemoryEstimateUtil {
         System.out.println(name + ", dc: " + dc1 + ", partitions: " + p1);
     }
 
-    private static int getPreferredParJoin(DataCharacteristics mc1, DataCharacteristics mc2, int numPar1, int numPar2) {
+    private static int getPreferredParJoin(DataCharacteristics mc1, DataCharacteristics mc2) {
 //        int defPar = SparkExecutionContext.getDefaultParallelism(true);
         int defPar = 144;
-        int maxParIn = Math.max(numPar1, numPar2);
         int maxSizeIn = SparkUtils.getNumPreferredPartitions(mc1) +
                 SparkUtils.getNumPreferredPartitions(mc2);
-        int tmp = (mc1.dimsKnown(true) && mc2.dimsKnown(true)) ?
-                Math.max(maxSizeIn, maxParIn) : maxParIn;
-        return (tmp > defPar / 2) ? Math.max(tmp, defPar) : tmp;
+        return (maxSizeIn > defPar / 2) ? Math.max(maxSizeIn, defPar) : maxSizeIn;
     }
 
     private static int getMaxParJoin(DataCharacteristics mc1, DataCharacteristics mc2) {
@@ -83,19 +80,19 @@ public class MemoryEstimateUtil {
     private static void cpmmPatritions(String name, long r, long c, long nnz) {
         MatrixCharacteristics mc1 = new MatrixCharacteristics(c, r, 1000, nnz);
         MatrixCharacteristics mc2 = new MatrixCharacteristics(r, c, 1000, nnz);
-        int numPreferred = getPreferredParJoin(mc1, mc2, 863, 863);
+        int numPreferred = getPreferredParJoin(mc1, mc2);
         int numMaxJoin = getMaxParJoin(mc1, mc2);
         int numPartJoin = Math.min(numMaxJoin, numPreferred);
         System.out.println(name + ", " + numPreferred + ", " + numMaxJoin + ", " + numPartJoin);
     }
 
     private static void cpmmPatritions() {
-        cpmmPatritions("criteo_0_1", 116800000, 47, 3237650536l);
+     //   cpmmPatritions("criteo_0_1", 116800000, 47, 3237650536l);
         cpmmPatritions("criteo_20000", 58400000, 14955, 2277596265l);
         cpmmPatritions("criteo_40000", 58400000, 8692, 2277598765l);
         cpmmPatritions("reddit_20000", 104473929, 20000, 2014518046);
         cpmmPatritions("reddit_5000", 104473929, 5000, 2012581099);
-        cpmmPatritions("reddit_9_10", 120000000, 34, 1676633971);
+      //  cpmmPatritions("reddit_9_10", 120000000, 34, 1676633971);
     }
 
 

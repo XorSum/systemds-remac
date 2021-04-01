@@ -62,6 +62,9 @@ public class EstimatorMatrixHistogram extends SparsityEstimator
 	
 	public DataCharacteristics estim(MMNode root, boolean topLevel) {
 		//NOTE: not estimateInputs due to handling of topLevel
+		if (root.getSynopsis()!=null) {
+			return root.getDataCharacteristics();
+		}
 		MatrixHistogram h1 = getCachedSynopsis(root.getLeft());
 		MatrixHistogram h2 = getCachedSynopsis(root.getRight());
 		
@@ -80,6 +83,12 @@ public class EstimatorMatrixHistogram extends SparsityEstimator
 		root.setSynopsis(outMap);
 		return root.setDataCharacteristics(new MatrixCharacteristics(
 			outMap.getRows(), outMap.getCols(), outMap.getNonZeros()));
+	}
+
+	public double estimInternSparsity(MMNode root,long layer1,long par1,long layer2,long par2) {
+		MatrixHistogram h1 = getCachedSynopsis(root.getLeft());
+		MatrixHistogram h2 = getCachedSynopsis(root.getRight());
+		return estimCpmmInternSparsity(h1,h2,layer1,par1,layer2,par2);
 	}
 	
 	@Override 
@@ -162,7 +171,30 @@ public class EstimatorMatrixHistogram extends SparsityEstimator
 				throw new NotImplementedException();
 		}
 	}
-	
+
+	private double estimCpmmInternSparsity(MatrixHistogram h1, MatrixHistogram h2, long layer1, long par1, long layer2, long par2) {
+		System.out.println("h1.getRows(),  h1.getCols(), h2.getCols() = " + h1.getRows() + ", " + h1.getCols() + ", " + h2.getCols());
+		double summary = Arrays.stream(h1.rNnz).parallel().mapToDouble(x -> {
+			double ans = 0;
+			for (long y : h2.cNnz) {
+				double s1 = (double) x / h1.getCols();
+				double s2 = (double) y / h2.getRows();
+				if (s1 > 1) s1 = 1;
+				if (s2 > 1) s2 = 1;
+				if (s1 < 0 || s1 > 1 || s2 < 0 || s2 > 1) {
+					System.out.println("cmm_sp error " + x + " " + y + " " + s1 + " " + s2);
+				} else {
+					double tmp1 = 1.0 - Math.pow(1.0 - s1 * s2, layer1);
+					double tmp2 = 1.0 - Math.pow(1.0 - s1 * s2, layer2);
+					ans += (tmp1 * par1 + tmp2 * par2) / (par1 + par2);
+				}
+			}
+			return ans;
+		}).sum();
+		double sparsity = (summary / h1.getRows()) / h2.getCols();
+		return sparsity;
+	}
+
 	private double estimInternMM(MatrixHistogram h1, MatrixHistogram h2) {
 		long nnz = 0;
 		//special case, with exact sparsity estimate, where the dot product

@@ -33,6 +33,7 @@ public class OperatorNode {
     MMNode mmNode = null;
 //    SparsityEstimator.OpCode opCode = null;
     double cpmm_intern_sparsity = -1;
+    int partitionNumber = -1;
 
     @Override
     public boolean equals(Object o) {

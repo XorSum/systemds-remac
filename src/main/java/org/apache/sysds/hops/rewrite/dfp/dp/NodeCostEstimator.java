@@ -13,11 +13,13 @@ import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
 import org.apache.sysds.lops.LopProperties;
 import org.apache.sysds.runtime.controlprogram.caching.MatrixObject;
 import org.apache.sysds.runtime.controlprogram.context.SparkExecutionContext;
+import org.apache.sysds.runtime.instructions.spark.CpmmSPInstruction;
 import org.apache.sysds.runtime.instructions.spark.utils.SparkUtils;
 import org.apache.sysds.runtime.matrix.data.MatrixBlock;
 import org.apache.sysds.runtime.matrix.data.MatrixIndexes;
 import org.apache.sysds.runtime.meta.DataCharacteristics;
 import org.apache.sysds.runtime.meta.MatrixCharacteristics;
+import org.apache.sysds.utils.Explain;
 
 import java.util.HashMap;
 
@@ -34,7 +36,7 @@ public class NodeCostEstimator {
     public HashMap<Pair<Integer, Integer>, MMNode> range2mmnode = new HashMap<>();
 
     public NodeCostEstimator(SparkExecutionContext sec) {
-        this.sec =   sec;
+        this.sec = sec;
     }
 
     public MMNode addOpnode2Mmnode(OperatorNode opnode) {
@@ -118,56 +120,76 @@ public class NodeCostEstimator {
         return ans;
     }
 
+    int getPartition(OperatorNode opNode) {
+        String name = opNode.hops.get(0).getName();
+        if (opNode.inputs.size() == 0 && sec.containsVariable(name)) {
+            JavaPairRDD<MatrixIndexes, MatrixBlock> in1 = sec.getBinaryMatrixBlockRDDHandleForVariable(name);
+            LOG.info("get partitions by rdd: " + name + ", partitions: " + in1.getNumPartitions());
+            opNode.partitionNumber = in1.getNumPartitions();
+        } else {
+            DataCharacteristics dc = getDC(opNode);
+            int p1 = SparkUtils.getNumPreferredPartitions(dc);
+            LOG.info("get partitions by util" + ", partitions: " + p1 + ", dc: " + dc);
+            opNode.partitionNumber = p1;
+        }
+        LOG.info(Explain.explain(opNode.hops.get(0)));
+        return opNode.partitionNumber;
+    }
+
+    public static double CPMM_INTERN_SPARSITY = -1;
+
+    double getCpmmInternSparsity(OperatorNode opNode, DataCharacteristics dc1, DataCharacteristics dc2, long partJoin) {
+
+        if (opNode.cpmm_intern_sparsity >= 0) return opNode.cpmm_intern_sparsity;
+
+        long blocks = (long) Math.ceil(dc1.getCols() / 1000.0);
+        long layerNum1 = (blocks / partJoin) * 1000;
+        long parNum2 = blocks % partJoin;
+        long parNum1 = partJoin - parNum2;
+        long layerNum2 = layerNum1 + 1000;
+        LOG.info("getCpmmInternSparsity");
+        LOG.info("partJoin " + partJoin);
+        LOG.info("dc1 " + dc1);
+        LOG.info("dc2 " + dc2);
+        LOG.info("blocks " + blocks);
+        LOG.info("layerNum1 " + layerNum1);
+        LOG.info("parNum1 " + parNum1);
+        LOG.info("layerNum2 " + layerNum2);
+        LOG.info("parNum2 " + parNum2);
+        double sp;
+        if (useMncEstimator) {
+            LOG.info("mnc");
+            MMNode mmNode = addOpnode2Mmnode(opNode);
+            mncEstimator.estim(mmNode, false);
+            sp = mncEstimator.estimInternSparsity(mmNode, layerNum1, parNum1, layerNum2, parNum2);
+        } else {
+            LOG.info("metadata");
+            double tmp1 = 1.0 - Math.pow(1.0 - dc1.getSparsity() * dc2.getSparsity(), layerNum1);
+            double tmp2 = 1.0 - Math.pow(1.0 - dc1.getSparsity() * dc2.getSparsity(), layerNum2);
+            sp = (tmp1 * parNum1 / (parNum1 + parNum2)) + (tmp2 * parNum2 / (parNum1 + parNum2));
+        }
+        LOG.info("get cpmm intern sparsity " + sp);
+        opNode.cpmm_intern_sparsity = sp;
+        return sp;
+    }
+
     DataCharacteristics getDC(OperatorNode opNode) {
         DataCharacteristics dc = null;
-//        if (opNode.hops.get(opNode.hops.size()-1).getName().equals("g")) {
-//            System.out.println(CostGraph.explainOpNode(opNode,0));
-//            System.out.println("g");
-//        }
         MMNode mmNode = addOpnode2Mmnode(opNode);
-//        System.out.println("getDC "+opNode);
-//        System.out.println(opNode.mmNode.getSynopsis());
         try {
             if (useMncEstimator) {
                 dc = mncEstimator.estim(mmNode, false);
-                EstimatorMatrixHistogram.MatrixHistogram histogram = (EstimatorMatrixHistogram.MatrixHistogram) mmNode.getSynopsis();
-                opNode.cpmm_intern_sparsity = histogram.cpmm_intern_sparsity;
             } else {
                 dc = metadataEstimator.estim(mmNode);
             }
+            if (mmNode.getDataCharacteristics().getBlocksize() < 0) {
+                mmNode.getDataCharacteristics().setBlocksize(1000);
+            }
+            if (dc.getBlocksize() < 0) dc.setBlocksize(1000);
         } catch (Exception e) {
             e.printStackTrace();
-//            CostGraph.explainOperatorNode(opNode, 0);
-            LOG.error("get dc error" + opNode);
-            //throw e;
             System.exit(-1);
-            //  dc = new MatrixCharacteristics(mmNode.getRows(), mmNode.getCols(), mmNode.getRows() * mmNode.getCols());
         }
-        int p1 = SparkUtils.getNumPreferredPartitions(dc);
-        LOG.info("get dc: " + dc + ", partitions: " + p1);
-
-//        System.out.println(ec.getVariables());
-
-        String name = opNode.hops.get(0).getName();
-        if (opNode.inputs.size()==0 && sec.containsVariable(name)) {
-            JavaPairRDD<MatrixIndexes,MatrixBlock> in1 = sec.getBinaryMatrixBlockRDDHandleForVariable(name);
-            MatrixObject matrixObject = sec.getMatrixObject(name);
-            if (matrixObject!=null) {
-                System.out.println("matrixObject: "+ name+", partitions: "+matrixObject.getPartitionSize());
-                System.out.println("rdd: "+ name+", partitions: "+in1.getNumPartitions());
-                System.out.println("");
-            }
-        }
-
-//        Hop h = opNode.hops.get(0);
-//        boolean check = (h.getDim1()==dc.getRows()&&h.getDim2()==dc.getCols()) ||
-//                (h.getDim2()==dc.getRows()&&h.getDim1()==dc.getCols());
-//        if (!check) {
-//            LOG.info(Explain.explain(h));
-//            LOG.info(dc);
-//            LOG.info(CostGraph.explainOpNode(opNode,0));
-//            LOG.info("^^^^^^^^^^^");
-//        }
         return dc;
     }
 
@@ -233,9 +255,9 @@ public class NodeCostEstimator {
         DataCharacteristics dc1 = getDC(node.inputs.get(0));
         DataCharacteristics dc2 = getDC(node.inputs.get(1));
         DataCharacteristics dc3 = getDC(node);
-        if (!useMncEstimator || node.cpmm_intern_sparsity < 0) {
-            node.cpmm_intern_sparsity = 1 - Math.pow(1 - dc1.getSparsity() * dc2.getSparsity(), defaultBlockSize);
-        }
+//        if (!useMncEstimator || node.cpmm_intern_sparsity < 0) {
+//            node.cpmm_intern_sparsity = 1 - Math.pow(1 - dc1.getSparsity() * dc2.getSparsity(), defaultBlockSize);
+//        }
         //double ans = Double.MAX_VALUE;
         NodeCost ans = null;
         if (hop.optFindExecType() == LopProperties.ExecType.SPARK) {
@@ -247,7 +269,7 @@ public class NodeCostEstimator {
             switch (method) {
                 case MAPMM_R:
                 case MAPMM_L:
-                    ans = eMapMM(node, hop, method, dc1, dc2, dc3);
+                    ans = eMapMM(hop, node, method, dc1, dc2, dc3);
                     break;
                 case RMM:
                     ans = eRMM(hop, dc1, dc2, dc3);
@@ -257,10 +279,10 @@ public class NodeCostEstimator {
                     ans = eMapMMChain(node, hop);
                     break;
                 case ZIPMM:
-                    ans = eZipMM(hop, dc1, dc2, dc3);
+                    ans = eZipMM(hop, node, dc1, dc2, dc3);
                     break;
                 case TSMM:
-                    ans = eTSMM(hop, dc1, dc2, dc3);
+                    ans = eTSMM(hop, node, dc1, dc2, dc3);
                     break;
                 case CPMM:
                 default:
@@ -350,31 +372,40 @@ public class NodeCostEstimator {
     }
 
 
-    NodeCost eMapMM(OperatorNode node, AggBinaryOp hop, AggBinaryOp.MMultMethod method,
+    public static double sparkmmComputeCost(DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
+        double result = CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc2.getSparsity() * 3 / defaultWorkerNumber;
+        return result;
+    }
+
+
+    NodeCost eMapMM(AggBinaryOp hop, OperatorNode node, AggBinaryOp.MMultMethod method,
                     DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
-        double broadcastCost = Double.MAX_VALUE;
-        double computeCost = Double.MAX_VALUE;
-        double shuffleCost = Double.MAX_VALUE;
+        LOG.info("eMapMM");
+        double broadcastCost;
+        double computeCost;
+        double shuffleCost;
         double collectCost = 0;
         boolean isLeft = (!node.isTranspose && method == AggBinaryOp.MMultMethod.MAPMM_L)
                 || (node.isTranspose && method == AggBinaryOp.MMultMethod.MAPMM_R);
-//        if (node.isTranspose) {
-//            System.out.println("x");
-//        }
-        long w2 = workerNumber(dc3.getRows(), dc3.getCols());
+
+        long w2 = workerNumber(dc3);
+        long r1;
+        double br;
+
         if (isLeft) {
-            long r1 = Math.min(getNumberReducers(), (long) Math.ceil((double) dc2.getRows() / defaultBlockSize));
-            double br = Math.ceil(Math.log(Math.min(r1, defaultWorkerNumber)));
+            r1 = getPartition(node.inputs.get(1));
+            br = Math.ceil(Math.log(Math.min(r1, defaultWorkerNumber)));
             broadcastCost = BroadCaseSpeed * matrixSize(dc1) * br;
-            shuffleCost = ShuffleSpeed * matrixSize(dc3) * r1 / w2;
-            computeCost = sparkmmComputeCost(dc1, dc2, dc3);
         } else {
-            long r1 = Math.min(getNumberReducers(), (long) Math.ceil((double) dc1.getCols() / defaultBlockSize));
-            double br = Math.ceil(Math.log(Math.min(r1, defaultWorkerNumber)));
+            r1 = getPartition(node.inputs.get(0));
+            br = Math.ceil(Math.log(Math.min(r1, defaultWorkerNumber)));
             broadcastCost = BroadCaseSpeed * matrixSize(dc2) * br;
-            shuffleCost = ShuffleSpeed * matrixSize(dc3) * r1 / w2;
-            computeCost = sparkmmComputeCost(dc1, dc2, dc3);
         }
+
+        shuffleCost = ShuffleSpeed * matrixSize(dc3) * r1 / w2;
+
+        computeCost = sparkmmComputeCost(dc1, dc2, dc3);
+
         if (MMShowCostFlag) {
             LOG.info("begin<<< ");
             LOG.info("mapmm broadcast cost = " + broadcastCost);
@@ -387,32 +418,44 @@ public class NodeCostEstimator {
         return new NodeCost(shuffleCost, broadcastCost, computeCost, collectCost);
     }
 
-    public static double CPMM_INTERN_SPARSITY = -1;
-
-    public static double sparkmmComputeCost(DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
-        double result = CpuSpeed * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc2.getSparsity() * 3 / defaultWorkerNumber;
-        return result;
-    }
 
     NodeCost eCPMM(AggBinaryOp hop, OperatorNode operatorNode,
                    DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
-        long r1 = Math.min((long) Math.ceil((double) dc2.getRows() / defaultBlockSize), //max used reducers
-                getNumberReducers()); //available reducer
-        long w2 = workerNumber(dc3.getRows(), dc3.getCols());
-//        double shuffleCost1 = ShuffleSpeed * (matrixSize(dc1) + matrixSize(dc2)) / r1;
-        double joinCost1 = JoinSpeed * (matrixSize(dc1) + matrixSize(dc2)) / Math.min(r1, defaultWorkerNumber);
-        double middle_sparsity = operatorNode.cpmm_intern_sparsity;
-        double shuffleCost2 = ShuffleSpeed * MatrixBlock.estimateSizeInMemory(dc3.getRows(), dc3.getCols(), middle_sparsity) * r1 / w2;
+
+        int numPreferred = CpmmSPInstruction.getPreferredParJoin(dc1, dc2,
+                getPartition(operatorNode.inputs.get(0)),
+                getPartition(operatorNode.inputs.get(1)));
+        LOG.info("eCPMM");
+
+        //int numMax = CpmmSPInstruction.getMaxParJoin(dc1, dc2);
+        int numMax = (int) Math.ceil(dc1.getCols() / 1000.0);
+
+        int numPartJoin = Math.min(numMax, numPreferred);
+        LOG.info("rdd par 0 = " + getPartition(operatorNode.inputs.get(0)));
+        LOG.info("rdd par 1 = " + getPartition(operatorNode.inputs.get(1)));
+        LOG.info("numPrefered = " + numPreferred);
+        LOG.info("numMax = " + numMax);
+        LOG.info("numPartJoin = " + numPartJoin);
+
+        long w2 = workerNumber(dc3);
+
+        double joinCost1 = JoinSpeed * (matrixSize(dc1) + matrixSize(dc2)) / Math.min(numPartJoin, defaultWorkerNumber);
+
+        long partition1 = getPartition(operatorNode.inputs.get(0));
+        double middle_sparsity = getCpmmInternSparsity(operatorNode, dc1, dc2, numPartJoin);
+        double middle_size = matrixSize(dc3.getRows(), dc3.getCols(), middle_sparsity);
+        double shuffleCost2 = ShuffleSpeed * middle_size * numPartJoin / w2;
+
         double computeCost = sparkmmComputeCost(dc1, dc2, dc3);
         if (MMShowCostFlag) {
             LOG.info("begin<<< ");
             LOG.info("dcA: " + dc1);
             LOG.info("dcB: " + dc2);
             LOG.info("dcC: " + dc3);
-            LOG.info("r1: " + r1);
+            LOG.info("numPartJoin: " + numPartJoin);
             LOG.info("w2: " + w2);
             LOG.info("sparsity of middle: " + middle_sparsity);
-            LOG.info("matrix size of middle: " + MatrixBlock.estimateSizeInMemory(dc3.getRows(), dc3.getCols(), middle_sparsity));
+            LOG.info("matrix size of middle: " + middle_size);
             LOG.info("cpmm join cost = " + joinCost1);
             LOG.info("cpmm shuffle cost = " + shuffleCost2);
             LOG.info("cpmm compute cost = " + computeCost);
@@ -420,6 +463,15 @@ public class NodeCostEstimator {
         }
 //        return shuffleCost1 + shuffleCost2 + computeCost;
         return new NodeCost(shuffleCost2, 0, computeCost, 0, joinCost1);
+    }
+
+    NodeCost eTSMM(AggBinaryOp hop, OperatorNode node,
+                   DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
+        LOG.info("eTSMM");
+        long partition = getPartition(node.inputs.get(0));
+        double computeCost = CpuSpeed * 1.5 * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc1.getSparsity() / defaultWorkerNumber;
+        double foldCost = ShuffleSpeed * matrixSize(dc3) * partition;
+        return new NodeCost(0, 0, computeCost, foldCost);
     }
 
     NodeCost eRMM(AggBinaryOp hop,
@@ -446,18 +498,8 @@ public class NodeCostEstimator {
         return new NodeCost(shuffleCost1 + shuffleCost2, 0, computeCost, 0);
     }
 
-    NodeCost eTSMM(AggBinaryOp hop,
-                   DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
-        System.out.println("x");
-        long reducer = (long) Math.ceil(Math.max(dc1.getRows(), dc1.getCols()) * 1.0 / defaultBlockSize);
-        double computeCost = CpuSpeed * 1.5 * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc1.getSparsity() / defaultWorkerNumber;
-        double shuffleCost = ShuffleSpeed * MatrixBlock.estimateSizeInMemory(dc3.getRows(), dc3.getRows(), dc3.getSparsity());
-//        return computeCost + shuffleCost;
-        return new NodeCost(shuffleCost, 0, computeCost, 0);
-    }
-
     NodeCost eMapMMChain(OperatorNode node, AggBinaryOp hop) {
-//        System.out.println("MAPMMCHAIN");
+        LOG.info("eMapMMChain");
         DataCharacteristics dc1, dc2, dc3;
         dc3 = getDC(node);
         if (!node.isTranspose) {
@@ -475,32 +517,30 @@ public class NodeCostEstimator {
             dc1 = new MatrixCharacteristics(dcXt.getCols(), dcXt.getRows(), dcXt.getNonZeros());
             dc2 = new MatrixCharacteristics(dcVt.getCols(), dcVt.getRows(), dcVt.getNonZeros());
         }
-        return eMapMMChain(hop, dc1, dc2, dc3);
+        return eMapMMChain(hop, node, dc1, dc2, dc3);
     }
 
 
-    NodeCost eMapMMChain(AggBinaryOp hop,
+    NodeCost eMapMMChain(AggBinaryOp hop, OperatorNode node,
                          DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
         // todo transpose direction
-        long reducer = reducerNumber(dc1.getRows(), dc1.getCols());
-        reducer = Math.min(reducer, getNumberReducers());
+        long partition = getPartition(node.inputs.get(0));
+        long br = (long) Math.ceil(Math.log(Math.min(defaultWorkerNumber, partition)));
         double computeCost = CpuSpeed * 1.5 * dc1.getRows() * dc1.getCols() * dc2.getCols() * (dc1.getSparsity() * dc2.getSparsity() + dc1.getSparsity()) / defaultWorkerNumber;
-        double broadcastCost = BroadCaseSpeed * MatrixBlock.estimateSizeInMemory(dc2.getRows(), dc2.getCols(), dc2.getSparsity()) * Math.ceil(Math.log(defaultWorkerNumber));
-        double reduceCost = BroadCaseSpeed * MatrixBlock.estimateSizeInMemory(dc3.getRows(), dc3.getRows(), dc3.getSparsity());
-//        return computeCost + reduceCost + broadcastCost;
-        return new NodeCost(0, broadcastCost, computeCost, reduceCost);
+        double broadcastCost = BroadCaseSpeed * matrixSize(dc2) * br;
+        double foldCost = BroadCaseSpeed * matrixSize(dc3) * partition;
+//        return computeCost + foldCost + broadcastCost;
+        return new NodeCost(0, broadcastCost, computeCost, foldCost);
     }
 
-    NodeCost eZipMM(AggBinaryOp hop,
+    NodeCost eZipMM(AggBinaryOp hop, OperatorNode node,
                     DataCharacteristics dc1, DataCharacteristics dc2, DataCharacteristics dc3) {
-        long reducer = (long) Math.ceil(Math.max(dc1.getRows(), dc1.getCols()) * 1.0 / defaultBlockSize);
-        reducer = Math.min(reducer, getNumberReducers());
+        long partition = getPartition(node.inputs.get(0));
         double computeCost = CpuSpeed * 1.5 * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc2.getSparsity() / defaultWorkerNumber;
-        double reduceCost = BroadCaseSpeed * MatrixBlock.estimateSizeInMemory(dc3.getRows(), dc3.getRows(), dc3.getSparsity()) * reducer;
-//        return computeCost + reduceCost;
-        return new NodeCost(0, 0, computeCost, reduceCost);
+        double foldCost = BroadCaseSpeed * matrixSize(dc3) * partition;
+//        return computeCost + foldCost;
+        return new NodeCost(0, 0, computeCost, foldCost);
     }
-
 
     NodeCost eBinaryMatrixScalar(OperatorNode operatorNode, Hop hop) {
         DataCharacteristics dc;
@@ -525,8 +565,8 @@ public class NodeCostEstimator {
         double computeCost = 0, shuffleCost = 0;
         if (hop.optFindExecType() == LopProperties.ExecType.SPARK) {
             long workerNumber = workerNumber(dc0.getRows(), dc0.getCols());
-            long size0 = MatrixBlock.estimateSizeInMemory(dc0.getRows(), dc0.getCols(), dc0.getSparsity());
-            long size1 = MatrixBlock.estimateSizeInMemory(dc1.getRows(), dc1.getCols(), dc1.getSparsity());
+            double size0 = matrixSize(dc0);
+            double size1 = matrixSize(dc1);
             computeCost = CpuSpeed * (dc0.getNonZeros() + dc1.getNonZeros()) / defaultWorkerNumber;
             shuffleCost = ShuffleSpeed * (size0 + size1) / workerNumber;
         } else {
@@ -546,7 +586,7 @@ public class NodeCostEstimator {
         if (opnode.isUsedByCp && opnode.isSpark) {
             opnode.shouldCollect = true;
             DataCharacteristics dc = getDC(opnode);
-            cost += BroadCaseSpeed * MatrixBlock.estimateSizeInMemory(dc.getRows(), dc.getCols(), dc.getSparsity());
+            cost += BroadCaseSpeed * matrixSize(dc);
         }
         return cost;
         /*

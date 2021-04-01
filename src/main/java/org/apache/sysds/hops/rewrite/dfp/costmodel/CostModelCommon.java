@@ -1,8 +1,10 @@
 package org.apache.sysds.hops.rewrite.dfp.costmodel;
 
+import org.apache.sysds.hops.OptimizerUtils;
 import org.apache.sysds.hops.estim.EstimatorBasicAvg;
 import org.apache.sysds.hops.estim.EstimatorMatrixHistogram;
 import org.apache.sysds.hops.estim.SparsityEstimator;
+import org.apache.sysds.runtime.instructions.spark.utils.SparkUtils;
 import org.apache.sysds.runtime.matrix.data.MatrixBlock;
 import org.apache.sysds.runtime.meta.DataCharacteristics;
 
@@ -48,12 +50,19 @@ public class CostModelCommon {
     }
 
     public static double matrixSize(DataCharacteristics dc) {
-        return MatrixBlock.estimateSizeInMemory(dc.getRows(), dc.getCols(), dc.getSparsity());
+        return OptimizerUtils.estimateSizeExactSparsity(dc);
     }
 
     public static double matrixSize(MatrixBlock mb) {
-        return MatrixBlock.estimateSizeInMemory(mb.getNumRows(), mb.getNumColumns(), mb.getSparsity());
+        return OptimizerUtils.estimateSizeExactSparsity(mb.getDataCharacteristics());
     }
 
+    public static double matrixSize(long r, long c, double sp) {
+        return OptimizerUtils.estimateSizeExactSparsity(r, c, sp);
+    }
+
+    public static long workerNumber(DataCharacteristics dc) {
+        return Math.min(SparkUtils.getNumPreferredPartitions(dc), defaultWorkerNumber);
+    }
 
 }
