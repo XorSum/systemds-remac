@@ -138,6 +138,17 @@ public class MemoryEstimateUtil {
 
         cpmmPatritions();
 
+        System.out.println("-----------");
+        DataCharacteristics dc = new MatrixCharacteristics(14955,14955,1000,223652025);
+        System.out.println(SparkUtils.getNumPreferredPartitions(dc));
+        dc = new MatrixCharacteristics(14955,14955,1000,223651996);
+        System.out.println(SparkUtils.getNumPreferredPartitions(dc));
+        dc = new MatrixCharacteristics(8692,8692,1000,75550864);
+        System.out.println(SparkUtils.getNumPreferredPartitions(dc));
+        dc = new MatrixCharacteristics(8692,8692,1000,75550804);
+        System.out.println(SparkUtils.getNumPreferredPartitions(dc));
+
+
     }
 
 }

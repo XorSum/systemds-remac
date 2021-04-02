@@ -9,19 +9,23 @@ public class NodeCost {
     public double collectCost = 0;
     public double joinCost = 0;
 
+    public static String dts(double x) {
+        if (x < Double.MAX_VALUE)
+            return String.valueOf(x);
+        else return "inf";
+    }
+
     @Override
     public String toString() {
         return "{" +
-                "sum=" + getSummary() +
-                ", sf=" + shuffleCost +
-                ", bc=" + broadcastCost +
-                ", cp=" + computeCost +
-                ", cl=" + collectCost +
-                ", jo=" + joinCost +
+                "sum=" + dts(getSummary()) +
+                ", sf=" + dts(shuffleCost) +
+                ", bc=" + dts(broadcastCost) +
+                ", cp=" + dts(computeCost) +
+                ", cl=" + dts(collectCost) +
+                ", jo=" + dts(joinCost) +
                 '}';
     }
-
-
 
 
     public NodeCost(double shuffleCost, double broadcastCost, double computeCost, double collectCost) {
@@ -57,47 +61,47 @@ public class NodeCost {
     }
 
     public void multiply(double x) {
-        this.shuffleCost *=x;
-        this.broadcastCost *=x;
-        this.computeCost *=x;
-        this.collectCost *=x;
-        this.joinCost *=x;
+        this.shuffleCost *= x;
+        this.broadcastCost *= x;
+        this.computeCost *= x;
+        this.collectCost *= x;
+        this.joinCost *= x;
     }
 
-    public void plusMultiply(NodeCost that,double x) {
-        this.shuffleCost += that.shuffleCost*x;
-        this.broadcastCost += that.broadcastCost*x;
-        this.computeCost += that.computeCost*x;
-        this.collectCost += that.collectCost*x;
-        this.joinCost += that.joinCost*x;
+    public void plusMultiply(NodeCost that, double x) {
+        this.shuffleCost += that.shuffleCost * x;
+        this.broadcastCost += that.broadcastCost * x;
+        this.computeCost += that.computeCost * x;
+        this.collectCost += that.collectCost * x;
+        this.joinCost += that.joinCost * x;
     }
 
     public double getSummary() {
-        return shuffleCost + broadcastCost + computeCost + collectCost+joinCost;
+        return shuffleCost + broadcastCost + computeCost + collectCost + joinCost;
     }
 
-    public static NodeCost  add(NodeCost a, NodeCost b) {
+    public static NodeCost add(NodeCost a, NodeCost b) {
         return new NodeCost(a.shuffleCost + b.shuffleCost,
                 a.broadcastCost + b.broadcastCost,
                 a.computeCost + b.computeCost,
                 a.collectCost + b.collectCost,
-                a.joinCost+b.joinCost);
+                a.joinCost + b.joinCost);
     }
 
-    public static NodeCost  add(NodeCost a, NodeCost b, NodeCost c) {
-        return new NodeCost(a.shuffleCost + b.shuffleCost+c.shuffleCost,
-                a.broadcastCost + b.broadcastCost+c.broadcastCost,
-                a.computeCost + b.computeCost+c.computeCost,
-                a.collectCost + b.collectCost+c.collectCost,
-                a.joinCost+b.joinCost+c.joinCost);
+    public static NodeCost add(NodeCost a, NodeCost b, NodeCost c) {
+        return new NodeCost(a.shuffleCost + b.shuffleCost + c.shuffleCost,
+                a.broadcastCost + b.broadcastCost + c.broadcastCost,
+                a.computeCost + b.computeCost + c.computeCost,
+                a.collectCost + b.collectCost + c.collectCost,
+                a.joinCost + b.joinCost + c.joinCost);
     }
 
     public static NodeCost ZERO() {
-        return new NodeCost(0, 0, 0, 0,0);
+        return new NodeCost(0, 0, 0, 0, 0);
     }
 
     public static NodeCost INF() {
-        return new NodeCost(Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE,Double.MAX_VALUE);
+        return new NodeCost(Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE);
     }
 
 }

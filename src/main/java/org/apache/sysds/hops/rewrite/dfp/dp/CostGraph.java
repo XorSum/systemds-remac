@@ -728,7 +728,7 @@ public class CostGraph {
 
     public Triple<NodeCost,NodeCost, OperatorNode> estimateHopCost(Hop hop) {
         OperatorNode node = createOperatorGraph(hop, false);
-        System.out.println(node);
+//        System.out.println(node);
         MutableInt mutableInt = new MutableInt(0);
         analyzeOperatorRange(node, new SingleCse(), mutableInt);
         NodeCost constantCost = NodeCost.ZERO();

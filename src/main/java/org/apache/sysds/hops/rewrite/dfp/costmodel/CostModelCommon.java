@@ -18,7 +18,7 @@ public class CostModelCommon {
     public static double BroadCaseSpeed = 3.0;
     public static double JoinSpeed = 5.0;
 
-    public static long defaultBlockSize = 1000;
+    public static int defaultBlockSize = 1000;
 
     public static boolean useMncEstimator = false;
     public static SparsityEstimator metadataEstimator = new EstimatorBasicAvg();
@@ -63,6 +63,34 @@ public class CostModelCommon {
 
     public static long workerNumber(DataCharacteristics dc) {
         return Math.min(SparkUtils.getNumPreferredPartitions(dc), defaultWorkerNumber);
+    }
+
+    public static long rowBlocks(long r) {
+        return (long) Math.ceil(r / (double) defaultBlockSize);
+    }
+
+    public static long rowBlocks(DataCharacteristics dc) {
+        return (long) Math.ceil(dc.getRows() / (double) defaultBlockSize);
+    }
+
+    public static long colBlocks(long c) {
+        return (long) Math.ceil(c / (double) defaultBlockSize);
+    }
+
+    public static long colBlocks(DataCharacteristics dc) {
+        return (long) Math.ceil(dc.getCols() / (double) defaultBlockSize);
+    }
+
+    public static long matrixBlocks(long r, long c) {
+        return (long) (Math.ceil(c / (double) defaultBlockSize) * Math.ceil(r / (double) defaultBlockSize));
+    }
+
+    public static long matrixBlocks(DataCharacteristics dc) {
+        return (long) (Math.ceil(dc.getCols() / (double) defaultBlockSize) * Math.ceil(dc.getRows() / (double) defaultBlockSize));
+    }
+
+    public static double box(double n, double m) {
+        return n * (1.0 - Math.pow((n - 1.0) / n, m));
     }
 
 }

@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Objects;
 
+import static org.apache.sysds.hops.rewrite.dfp.dp.NodeCost.dts;
+
 public class OperatorNode {
     //    ArrayList<RangeNode> operands = new ArrayList<>();
     Pair<Integer, Integer> range = null;
@@ -32,7 +34,7 @@ public class OperatorNode {
     AggBinaryOp.MMultMethod method = null;
     MMNode mmNode = null;
 //    SparsityEstimator.OpCode opCode = null;
-    double cpmm_intern_sparsity = -1;
+    double mm_intern_sparsity = -1;
     int partitionNumber = -1;
 
     @Override
@@ -67,17 +69,17 @@ public class OperatorNode {
             sb.append(mmNode.getDataCharacteristics().getSparsity());
             sb.append(",");
             sb.append(mmNode.getDataCharacteristics());
-            sb.append(",cis="+cpmm_intern_sparsity);
+            sb.append(",cis="+ mm_intern_sparsity);
             sb.append(",");
         }
-        sb.append(thisCost);
+        sb.append(dts(thisCost));
         sb.append(",");
-        sb.append(accCost);
-        sb.append(",");
+//        sb.append(dts(accCost));
+//        sb.append(",");
         sb.append(thisCostDetails);
         sb.append(",");
-        sb.append(accCostDetails);
-        sb.append(",");
+//        sb.append(accCostDetails);
+//        sb.append(",");
         sb.append(range);
         if (method != null) {
             sb.append("," + method);
