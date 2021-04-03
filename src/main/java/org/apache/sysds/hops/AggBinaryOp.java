@@ -435,6 +435,7 @@ public class AggBinaryOp extends MultiThreadedHop
 	private boolean isApplicableForTransitiveSparkExecType(boolean left) 
 	{
 		int index = left ? 0 : 1;
+		if (getInput().get(index).isConstant) return false;
 		return !(getInput().get(index) instanceof DataOp && ((DataOp)getInput().get(index)).requiresCheckpoint())
 			&& (!HopRewriteUtils.isTransposeOperation(getInput().get(index))
 				|| (left && !isLeftTransposeRewriteApplicable(true)))

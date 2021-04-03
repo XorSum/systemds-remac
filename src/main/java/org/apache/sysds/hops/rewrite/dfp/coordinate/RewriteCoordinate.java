@@ -768,6 +768,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         result = deepCopyHopsDag(result);
         rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
 
+        Program program = constructProgramBlocks(result, statementBlock);
+        LOG.info("before lift constant");
+        LOG.info(Explain.explain(program));
+
         CostGraph costGraph = new CostGraph(variablesUpdated,iterationNumber,ec);
         CostModelCommon.MMShowCostFlag = true;
         Triple<NodeCost,NodeCost,OperatorNode> nodeCostOperatorNodePair = costGraph.estimateHopCost(result);
