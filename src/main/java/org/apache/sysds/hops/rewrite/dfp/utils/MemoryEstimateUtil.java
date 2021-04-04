@@ -6,12 +6,16 @@ import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.LiteralOp;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
+import org.apache.sysds.hops.rewrite.dfp.costmodel.CostModelCommon;
 import org.apache.sysds.parser.VariableSet;
 import org.apache.sysds.runtime.controlprogram.context.SparkExecutionContext;
 import org.apache.sysds.runtime.instructions.spark.utils.SparkUtils;
 import org.apache.sysds.runtime.matrix.data.MatrixBlock;
 import org.apache.sysds.runtime.meta.DataCharacteristics;
 import org.apache.sysds.runtime.meta.MatrixCharacteristics;
+
+import static org.apache.sysds.hops.rewrite.dfp.costmodel.CostModelCommon.box;
+import static org.apache.sysds.hops.rewrite.dfp.costmodel.CostModelCommon.rowBlocks;
 
 public class MemoryEstimateUtil {
 
@@ -87,12 +91,12 @@ public class MemoryEstimateUtil {
     }
 
     private static void cpmmPatritions() {
-     //   cpmmPatritions("criteo_0_1", 116800000, 47, 3237650536l);
+        //   cpmmPatritions("criteo_0_1", 116800000, 47, 3237650536l);
         cpmmPatritions("criteo_20000", 58400000, 14955, 2277596265l);
         cpmmPatritions("criteo_40000", 58400000, 8692, 2277598765l);
         cpmmPatritions("reddit_20000", 104473929, 20000, 2014518046);
         cpmmPatritions("reddit_5000", 104473929, 5000, 2012581099);
-      //  cpmmPatritions("reddit_9_10", 120000000, 34, 1676633971);
+        //  cpmmPatritions("reddit_9_10", 120000000, 34, 1676633971);
     }
 
 
@@ -113,42 +117,67 @@ public class MemoryEstimateUtil {
 //        double size =  MatrixBlock.estimateSizeInMemory(20000,20000,1.0);
 //        System.out.println("size="+size);
 //        double size1 =  MatrixBlock.estimateSizeInMemory(14955,14955,0.0026180407098227864);
-        double size1 = MatrixBlock.estimateSizeInMemory(14955, 14955, 0.00210162714451911);
+//        double size1 = MatrixBlock.estimateSizeInMemory(14955, 14955, 0.00210162714451911);
+//
+//        System.out.println("criteo_20000=" + size1);
+////        double size2 =  MatrixBlock.estimateSizeInMemory(8692,8692,0.006952184527876477);
+//        double size2 = MatrixBlock.estimateSizeInMemory(8692, 8692, 0.00556222096943855);
+//
+//        System.out.println("criteo_40000=" + size2);
+//
+//
+//        printPatritions("criteo_0_1", 116800000, 47, 3237650536l);
+//        printPatritions("criteo_20000", 58400000, 14955, 2277596265l);
+//        printPatritions("criteo_40000", 58400000, 8692, 2277598765l);
+//        printPatritions("reddit_20000", 104473929, 20000, 2014518046);
+//        printPatritions("reddit_5000", 104473929, 5000, 2012581099);
+//        printPatritions("reddit_9_10", 120000000, 34, 1676633971);
+//
+//        printPatritions("criteo_0_1", 47, 116800000, 3237650536l);
+//        printPatritions("criteo_20000", 14955, 58400000, 2277596265l);
+//        printPatritions("criteo_40000", 8692, 58400000, 2277598765l);
+//        printPatritions("reddit_20000", 20000, 104473929, 2014518046);
+//        printPatritions("reddit_5000", 5000, 104473929, 2012581099);
+//        printPatritions("reddit_9_10", 34, 120000000, 1676633971);
+//
+//        cpmmPatritions();
+//
+//        System.out.println("-----------");
+//        DataCharacteristics dc = new MatrixCharacteristics(14955,14955,1000,223652025);
+//        System.out.println(SparkUtils.getNumPreferredPartitions(dc));
+//        dc = new MatrixCharacteristics(14955,14955,1000,223651996);
+//        System.out.println(SparkUtils.getNumPreferredPartitions(dc));
+//        dc = new MatrixCharacteristics(8692,8692,1000,75550864);
+//        System.out.println(SparkUtils.getNumPreferredPartitions(dc));
+//        dc = new MatrixCharacteristics(8692,8692,1000,75550804);
+//        System.out.println(SparkUtils.getNumPreferredPartitions(dc));
 
-        System.out.println("criteo_20000=" + size1);
-//        double size2 =  MatrixBlock.estimateSizeInMemory(8692,8692,0.006952184527876477);
-        double size2 = MatrixBlock.estimateSizeInMemory(8692, 8692, 0.00556222096943855);
 
-        System.out.println("criteo_40000=" + size2);
+        fff("criteo_40000", 58400000, 8692, 1000, 2277598765l, 560);
 
+        fff("reddit_20000", 104473929,20000,1000,2014518046l,313);
 
-        printPatritions("criteo_0_1", 116800000, 47, 3237650536l);
-        printPatritions("criteo_20000", 58400000, 14955, 2277596265l);
-        printPatritions("criteo_40000", 58400000, 8692, 2277598765l);
-        printPatritions("reddit_20000", 104473929, 20000, 2014518046);
-        printPatritions("reddit_5000", 104473929, 5000, 2012581099);
-        printPatritions("reddit_9_10", 120000000, 34, 1676633971);
+    }
 
-        printPatritions("criteo_0_1", 47, 116800000, 3237650536l);
-        printPatritions("criteo_20000", 14955, 58400000, 2277596265l);
-        printPatritions("criteo_40000", 8692, 58400000, 2277598765l);
-        printPatritions("reddit_20000", 20000, 104473929, 2014518046);
-        printPatritions("reddit_5000", 5000, 104473929, 2012581099);
-        printPatritions("reddit_9_10", 34, 120000000, 1676633971);
+    static void fff(String name, long r, long c, int blen, long nnz, long par) {
 
-        cpmmPatritions();
-
-        System.out.println("-----------");
-        DataCharacteristics dc = new MatrixCharacteristics(14955,14955,1000,223652025);
-        System.out.println(SparkUtils.getNumPreferredPartitions(dc));
-        dc = new MatrixCharacteristics(14955,14955,1000,223651996);
-        System.out.println(SparkUtils.getNumPreferredPartitions(dc));
-        dc = new MatrixCharacteristics(8692,8692,1000,75550864);
-        System.out.println(SparkUtils.getNumPreferredPartitions(dc));
-        dc = new MatrixCharacteristics(8692,8692,1000,75550804);
-        System.out.println(SparkUtils.getNumPreferredPartitions(dc));
+        DataCharacteristics dc1 = new MatrixCharacteristics(r, c, blen, nnz);
+        long partitionRdd = par;
+        long rb = rowBlocks(dc1);
+        long blk = CostModelCommon.matrixBlocks(dc1);
+        double blk_partition = (double) blk / partitionRdd;
+        double matrix_block_number_per_partition = box(rb, blk_partition);
+//        System.out.println(name + ", " + rb + ", " + blk + ", " + blk_partition + ", " + matrix_block_number_per_partition);
+        System.out.println(name);
+        System.out.println("rowblocks: "+rb);
+        System.out.println("matrixBlocks: "+blk);
+        System.out.println("partitionRdd: "+partitionRdd);
+        System.out.println("blk_per_partition: "+blk_partition);
+        System.out.println("box: "+matrix_block_number_per_partition);
+        System.out.println("----------------------");
 
 
     }
+
 
 }

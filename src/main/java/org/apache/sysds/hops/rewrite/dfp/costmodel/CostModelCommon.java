@@ -50,15 +50,16 @@ public class CostModelCommon {
     }
 
     public static double matrixSize(DataCharacteristics dc) {
-        return OptimizerUtils.estimateSizeExactSparsity(dc);
+        return matrixSize(dc.getRows(),dc.getCols(),dc.getSparsity());
     }
 
     public static double matrixSize(MatrixBlock mb) {
-        return OptimizerUtils.estimateSizeExactSparsity(mb.getDataCharacteristics());
+        DataCharacteristics dc = mb.getDataCharacteristics();
+        return matrixSize(dc.getRows(),dc.getCols(),dc.getSparsity());
     }
 
     public static double matrixSize(long r, long c, double sp) {
-        return OptimizerUtils.estimateSizeExactSparsity(r, c, sp);
+        return OptimizerUtils.estimatePartitionedSizeExactSparsity(r, c,defaultBlockSize, sp);
     }
 
     public static long workerNumber(DataCharacteristics dc) {

@@ -404,7 +404,9 @@ public class NodeCostEstimator {
         LOG.info("br: " + br);
         LOG.info("broadcastCost: " + broadcastCost);
 
-        double middle_sparsity = getMmInternSparsity(node, dc1.getCols(), dc1.getSparsity(), dc2.getSparsity(), partitionRdd);
+        //double middle_sparsity = getMmInternSparsity(node, dc1.getCols(), dc1.getSparsity(), dc2.getSparsity(), partitionRdd);
+        double middle_sparsity = dc3.getSparsity();
+
         AggBinaryOp.SparkAggType aggType = PartitionUtil.getSparkMMAggregationType(dc3);
 
         LOG.info("middle_sparsity: " + middle_sparsity);
@@ -422,16 +424,28 @@ public class NodeCostEstimator {
                 LOG.info("middle_size: " + middle_size);
             } else { //AggBinaryOp.SparkAggType.MULTI_BLOCK
                 LOG.info("SparkAggType.MULTI_BLOCK");
-                double matrix_block_size = matrixSize(defaultBlockSize, defaultBlockSize, middle_sparsity);
-                LOG.info("matrix_block_size: " + matrix_block_size);
+                double matrix_block_size; //= matrixSize(defaultBlockSize, defaultBlockSize, middle_sparsity);
                 double matrix_block_number_per_partition;
                 if (isLeft) {
-                    matrix_block_number_per_partition = box(colBlocks(dc2), (double) CostModelCommon.matrixBlocks(dc2) / partitionRdd);
+                    double avg_matrix_block_number_per_partition = (double) matrixBlocks(dc2) / partitionRdd;
+                    LOG.info("avg_matrix_block_number_per_partition: " + avg_matrix_block_number_per_partition);
+                    matrix_block_number_per_partition = box(colBlocks(dc2), avg_matrix_block_number_per_partition);
+                    long cols = (long) Math.ceil(matrix_block_number_per_partition * defaultBlockSize);
+                    LOG.info("middle rows: " + dc1.getRows());
+                    LOG.info("middle cols: " + cols);
+                    matrix_block_size = matrixSize(dc1.getRows(), cols, middle_sparsity);
                 } else {
-                    matrix_block_number_per_partition = box(rowBlocks(dc1), (double) CostModelCommon.matrixBlocks(dc1) / partitionRdd);
+                    double avg_matrix_block_number_per_partition = (double) matrixBlocks(dc1) / partitionRdd;
+                    LOG.info("avg_matrix_block_number_per_partition: " + avg_matrix_block_number_per_partition);
+                    matrix_block_number_per_partition = box(rowBlocks(dc1), avg_matrix_block_number_per_partition);
+                    long rows = (long) Math.ceil(matrix_block_number_per_partition * defaultBlockSize);
+                    LOG.info("middle rows: " + rows);
+                    LOG.info("middle cols: " + dc2.getCols());
+                    matrix_block_size = matrixSize(rows, dc2.getCols(), middle_sparsity);
                 }
+                LOG.info("matrix_block_size: " + matrix_block_size);
                 LOG.info("matrix_block_number_per_partition: " + matrix_block_number_per_partition);
-                shuffleCost = ShuffleSpeed * matrix_block_size * matrix_block_number_per_partition * partitionRdd / defaultWorkerNumber;
+                shuffleCost = ShuffleSpeed * matrix_block_size  * partitionRdd / defaultWorkerNumber;
                 node.isSpark = true;
             }
         }
