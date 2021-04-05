@@ -2,14 +2,20 @@
 # output: x
 
 #a = read("hdfs://127.0.0.1:9000/data/tmp/a3.csv",format="csv")
-a = read("../data/a3.csv",format="csv")
 #a = matrix("1 2 0 1 3 4 1 0 1 0 0 0 1 0 0 0 ",rows=4,cols=4)
 
 #b = read("hdfs://10.11.1.198:9000/data/critieo/newb.bin",format="binary")
-b = read("../data/b3.csv",format="csv")
+# b = read("../data/b3.csv",format="csv")
 #b = matrix("1 2 3 4",rows=4,cols=1)
 
+a = read("../data/a3.csv",format="csv")
 c = read("../data/c3.csv",format="csv")
+
+#a = read("./out/skewA")
+#c = read("./out/skewC")
+
+#a = a1[,1:2000]
+#c = c1[,1:2000]
 
 alpha = 0.00001
 
