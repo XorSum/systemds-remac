@@ -148,7 +148,7 @@ public class CpmmSPInstruction extends BinarySPInstruction {
 		}
 	}
 	
-	private static int getPreferredParJoin(DataCharacteristics mc1, DataCharacteristics mc2, int numPar1, int numPar2) {
+	public static int getPreferredParJoin(DataCharacteristics mc1, DataCharacteristics mc2, int numPar1, int numPar2) {
 		int defPar = SparkExecutionContext.getDefaultParallelism(true);
 		int maxParIn = Math.max(numPar1, numPar2);
 		int maxSizeIn = SparkUtils.getNumPreferredPartitions(mc1) +
