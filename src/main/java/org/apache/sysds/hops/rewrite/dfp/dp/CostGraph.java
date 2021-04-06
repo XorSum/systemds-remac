@@ -30,11 +30,11 @@ import static org.apache.sysds.utils.Statistics.*;
 public class CostGraph {
     protected static final Log LOG = LogFactory.getLog(CostGraph.class.getName());
 
-    public CostGraph(VariableSet variablesUpdated, long iterationNumber,ExecutionContext ec) {
+    public CostGraph(VariableSet variablesUpdated, long iterationNumber, ExecutionContext ec) {
         this.variablesUpdated = variablesUpdated;
         this.iterationNumber = iterationNumber;
         this.ec = ec;
-        this.nodeCostEstimator = new NodeCostEstimator((SparkExecutionContext)ec);
+        this.nodeCostEstimator = new NodeCostEstimator((SparkExecutionContext) ec);
     }
 
     private ExecutionContext ec;
@@ -375,15 +375,13 @@ public class CostGraph {
             node.accCost = 0;
             node.accCostDetails = NodeCost.ZERO();
         }
-        for (int i = 0; i < node.inputs.size(); i++) {
-            analyzeOperatorCost(node.inputs.get(i));
-        }
-
         long start = System.nanoTime();
         NodeCost thisCostDetail = this.nodeCostEstimator.getNodeCost(node);
         long end = System.nanoTime();
         estimateTime += end - start;
-
+        for (int i = 0; i < node.inputs.size(); i++) {
+            analyzeOperatorCost(node.inputs.get(i));
+        }
         int csesize = 1;
         for (SingleCse singleCse : node.dependencies) {
             for (int i = 0; i < singleCse.ranges.size(); i++) {
@@ -726,11 +724,18 @@ public class CostGraph {
     }
 
 
-    public Triple<NodeCost,NodeCost, OperatorNode> estimateHopCost(Hop hop) {
+    public Triple<NodeCost, NodeCost, OperatorNode> estimateHopCost(Hop hop) {
         OperatorNode node = createOperatorGraph(hop, false);
+        if (node==null) {
+            return Triple.of(NodeCost.ZERO(),NodeCost.ZERO(),null);
+        }
 //        System.out.println(node);
         MutableInt mutableInt = new MutableInt(0);
-        analyzeOperatorRange(node, new SingleCse(), mutableInt);
+        try {
+            analyzeOperatorRange(node, new SingleCse(), mutableInt);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         NodeCost constantCost = NodeCost.ZERO();
         long start = System.nanoTime();
         NodeCost cost = analyzeHopCost(node, new HashSet<>(), constantCost);
@@ -738,7 +743,7 @@ public class CostGraph {
         estimateTime += end - start;
 //        System.out.println("all cost = "+cost);
         //    NodeCost cost = NodeCost.ZERO();
-        return Triple.of(cost,constantCost, node);
+        return Triple.of(cost, constantCost, node);
     }
 
 

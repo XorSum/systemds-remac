@@ -48,7 +48,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     // public boolean onlySearchConstantSubExp = false;
     public VariableSet variablesUpdated = null;
-    public ConstantUtil constantUtil = null; // new ConstantUtil(variablesUpdated);
+    //    public ConstantUtil constantUtil = null; // new ConstantUtil(variablesUpdated);
+    public ConstantUtilByTag constantUtilByTag;
     public long iterationNumber = 2;
 
     // <configuration>
@@ -65,8 +66,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     // private static long epoch = 100;
 
-    private boolean useDirectPolicy = true;
-    private boolean useDynamicProgramPolicy = false;
+    private boolean useManualPolicy = false;
+    private boolean useDynamicProgramPolicy = true;
     private boolean useBruceForcePolicy = false;
 
 
@@ -74,175 +75,236 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     public static long allGenerateOptionsTime = 0;
     public static long allGenerateCombinationsTime = 0;
-    public static long estimateTime = 0;
+//    public static long estimateTime = 0;
 
     public MySolution rewiteHopDag(Hop root) {
-//        System.out.println("rootname"+root.getName());
-//        System.out.println("xx");
-
-
         MySolution originalSolution = new MySolution(root);
 
         try {
-            LOG.trace(ec.getVariables().keySet());
-//            FakeCostEstimator2.miniumCostBoundery = Double.MAX_VALUE;
-            long start2 = System.nanoTime();
-//            CostGraph costGraph = new CostGraph(variablesUpdated,iterationNumber);
-//            Pair<NodeCost,OperatorNode> nodeCostOperatorNodePair = costGraph.estimateHopCost(root);
-//            LOG.info("original cost = "+nodeCostOperatorNodePair.getLeft());
-            // originalSolution.cost = estimate(originalSolution, true);
-            long end2 = System.nanoTime();
-            allGenerateCombinationsTime += end2 - start2;
-            CostGraph.estimateTime += end2 - start2;
-//            if (!"h".equals(root.getName())) {
-//                return originalSolution;
-//            }
-            long start = System.nanoTime();
-            LOG.info("original cost = " + originalSolution.cost);
-
-            // 1. 深拷贝，格式化
-            Hop template = deepCopyHopsDag(root);
-            template = reorder(template);
-
+            LOG.debug("start coordinate " + MyExplain.myExplain(root));
             LOG.debug("root: \n" + Explain.explain(root));
 
-            template.resetVisitStatusForced(new HashSet<>());
-            LOG.debug("template: \n" + Explain.explain(template));
+            estimateOriginalSolutionCost(root, originalSolution);
 
-            LOG.debug("start coordinate " + MyExplain.myExplain(root));
-
-            LOG.info("origin cost=" + originalSolution.cost);
-
-            LOG.debug("after reorder    " + MyExplain.myExplain(template));
-
-
-            DisjointSet djs = new DisjointSet(1000);
-            ArrayList<Range> blockRanges = new ArrayList<>();
-
-            hopId2LeafIndex = new HashMap<>();
-            leaves = new ArrayList<>();
-
-            // 找到所有的叶子节点
-            findAllLeaf(template, new ArrayList<>(), 0, hopId2LeafIndex, djs);
-            if (leaves.size() < 4) {
-                long end = System.nanoTime();
-                allGenerateOptionsTime += end - start;
+            Triple<Hop, ArrayList<Range>, ArrayList<SingleCse>> triple = generateOptions(root);
+            if (triple == null) {
+                LOG.debug("small leaves size, return original solution");
                 return originalSolution;
             }
 
-            for (int i = 0; i < leaves.size(); i++) {
-                Hop hop = leaves.get(i).hop;
-                if (HopRewriteUtils.isTransposeOperation(hop)) {
-                    hop = hop.getInput().get(0);
-                    LOG.info("leaf " + i + " t(" + hop.getName() + ")");
-                } else {
-                    LOG.info("leaf " + i + " " + hop.getName());
-                }
-            }
+            Hop template = triple.getLeft();
+            ArrayList<Range> blockRanges = triple.getMiddle();
+            ArrayList<SingleCse> singleCses = triple.getRight();
 
-            // 生成singleCes
-            ArrayList<SingleCse> singleCses = genSingleCse(djs, blockRanges);
-
-//            testBruteForce( singleCses, template,  blockRanges);
-
-            long end = System.nanoTime();
-            allGenerateOptionsTime += end - start;
-
-//            LOG.info("generate options time = " + ((end - start) / 1e9) + "s");
-//            System.out.println("generate options time = " + ((end - start) / 1e9) + "s");
-
-            start = System.nanoTime();
+            long start3 = System.nanoTime();
             MySolution mySolution = null;
-
-            if (manualType == null) {
-                System.exit(-1);
-            } else if ("g".equals(root.getName())) {
-                if (manualType.equals("dfp-ata")
-                        || manualType.equals("dfp-ata-dtd")
-                        || manualType.equals("bfgs-ata")
-                        || manualType.equals("bfgs-ata-dtd")
-                ) {
-                    MultiCse multiCse = createMultiCseGAtA();
-                    mySolution = testManual(template, blockRanges, multiCse, true);
-                    LOG.info("return g-ata ");
+            try {
+                if (useManualPolicy) {
+                    mySolution = testManualAll(root, template, blockRanges);
+                } else if (useDynamicProgramPolicy) {
+                    mySolution = testDynamicProgramming(singleCses, template, blockRanges);
+                } else if (useBruceForcePolicy) {
+                    mySolution = testBruteForce(singleCses, template, blockRanges);
                 }
-            } else if (manualType.equals("dfp") && "h".equals(root.getName())) {
-                MultiCse multiCse = createMultiCseDfp();
-                mySolution = testManual(template, blockRanges, multiCse, false);
-                LOG.info("return dfp");
-            } else if (manualType.equals("dfp-ata") && "h".equals(root.getName())) {
-                MultiCse multiCse = createMultiCseDfpAta();
-                mySolution = testManual(template, blockRanges, multiCse, true);
-                LOG.info("return dfp-ata h");
-            } else if (manualType.equals("dfp-ata-dtd") && "h".equals(root.getName())) {
-                MultiCse multiCse = createMultiCseDfpAtaDtd();
-                mySolution = testManual(template, blockRanges, multiCse, true);
-                LOG.info("return dfp-ata h");
-            } else if (manualType.equals("bfgs") && "h".equals(root.getName())) {
-                MultiCse multiCse = createMultiCseBfgs();
-                mySolution = testManual(template, blockRanges, multiCse, false);
-                LOG.info("return bfgs");
-            } else if (manualType.equals("bfgs-ata") && "h".equals(root.getName())) {
-                MultiCse multiCse = createMultiCseBfgsAta();
-                mySolution = testManual(template, blockRanges, multiCse, true);
-                LOG.info("return bfgs-ata");
-            } else if (manualType.equals("bfgs-ata-dtd") && "h".equals(root.getName())) {
-                MultiCse multiCse = createMultiCseBfgsAtaDtd();
-                mySolution = testManual(template, blockRanges, multiCse, true);
-                LOG.info("return bfgs-ata");
-            } else if (manualType.equals("gd-ata")) {
-//                if (leaves.size()==28) {
-//                    MultiCse multiCse = createMultiCseGdAta();
-//                    mySolution = testManual(template, blockRanges, multiCse, true);
-//                    LOG.info("return gd-ata dist");
-//                } else
-                if (leaves.size() == 6) {
-                    MultiCse multiCse = createMultiCseGdAtaTheta();
-                    mySolution = testManual(template, blockRanges, multiCse, true);
-                    LOG.info("return gd-ata theta");
-                }
-            } else if (manualType.equals("gd-atb")) {
-                VariableSet aSet = new VariableSet();
-                aSet.addVariable("theta", null);
-                constantUtil.variablesUpdated = aSet;
-                constantUtil.isGdAtb = true;
-//                if (leaves.size() == 28) {
-//                    MultiCse multiCse = createMultiCseGdAtb();
-//                    mySolution = testManual(template, blockRanges, multiCse, true);
-//                    LOG.info("return gd-atb");
-//                } else
-                if (leaves.size() == 6) {
-                    MultiCse multiCse = createMultiCseGdAtbTheta();
-                    mySolution = testManual(template, blockRanges, multiCse, true);
-                    LOG.info("return gd-atb theta");
-                }
-            } else if (manualType.equals("dfp-spores-ata") && leaves.size() == 11) {
-                MultiCse multiCse = createMultiCseDfpSporseAta();
-                VariableSet aSet = new VariableSet();
-                aSet.addVariable("h", null);
-                aSet.addVariable("g", null);
-                aSet.addVariable("d", null);
-                aSet.addVariable("i", null);
-                constantUtil.variablesUpdated = aSet;
-                mySolution = testManual(template, blockRanges, multiCse, true);
-                LOG.info("return dfp-spores-ata");
+//                testCreateHops(template, blockRanges);
+            } catch (Exception e) {
+                e.printStackTrace();
+                mySolution = null;
             }
-            end = System.nanoTime();
-            allGenerateCombinationsTime += end - start;
-
-            if (mySolution != null) {
+            long end3 = System.nanoTime();
+            allGenerateCombinationsTime += end3 - start3;
+            if (mySolution != null && (mySolution.cost < originalSolution.cost||useManualPolicy)) {
+                LOG.info("return rewrited solution");
+                System.out.println("return rewrited solution");
                 return mySolution;
+            } else {
+                LOG.info("return original solution");
+                System.out.println("return original solution");
             }
-
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(-1);
         }
         LOG.debug("final return original hop");
         return originalSolution;
+    }
+
+    void estimateOriginalSolutionCost(Hop root, MySolution originalSolution) {
+        long start1 = System.nanoTime();
+        if (useBruceForcePolicy) {
+            estimate(originalSolution, false);
+        } else {
+            CostGraph costGraph = new CostGraph(variablesUpdated, iterationNumber, ec);
+            Triple<NodeCost, NodeCost, OperatorNode> nodeCostOperatorNodePair = costGraph.estimateHopCost(root);
+            LOG.info("original cost detail = " + nodeCostOperatorNodePair.getLeft());
+            LOG.info("original cost = " + originalSolution.cost);
+            originalSolution.cost = nodeCostOperatorNodePair.getLeft().getSummary();
+        }
+        long end1 = System.nanoTime();
+        allGenerateCombinationsTime += end1 - start1;
+        CostGraph.estimateTime += end1 - start1;
+    }
+
+    Triple<Hop, ArrayList<Range>, ArrayList<SingleCse>> generateOptions(Hop root) {
+
+        long start2 = System.nanoTime();
+
+        // 1. 深拷贝，格式化
+        Hop template = deepCopyHopsDag(root);
+        template = reorder(template);
+
+        template.resetVisitStatusForced(new HashSet<>());
+
+//        LOG.debug("template: \n" + Explain.explain(template));
+//        LOG.info("origin cost=" + originalSolution.cost);
+        LOG.debug("after reorder    " + MyExplain.myExplain(template));
+
+        DisjointSet djs = new DisjointSet(1000);
+
+        hopId2LeafIndex = new HashMap<>();
+        leaves = new ArrayList<>();
+
+        // 找到所有的叶子节点
+        findAllLeaf(template, new ArrayList<>(), 0, hopId2LeafIndex, djs);
+        if (leaves.size() < 4) {
+            long end2 = System.nanoTime();
+            allGenerateOptionsTime += end2 - start2;
+            return null;
+        }
+
+        for (int i = 0; i < leaves.size(); i++) {
+            Hop hop = leaves.get(i).hop;
+            if (HopRewriteUtils.isTransposeOperation(hop)) {
+                hop = hop.getInput().get(0);
+                LOG.info("leaf " + i + " t(" + hop.getName() + ")");
+            } else {
+                LOG.info("leaf " + i + " " + hop.getName());
+            }
+        }
+
+        // 生成singleCes
+        ArrayList<Range> blockRanges = new ArrayList<>();
+        ArrayList<SingleCse> singleCses = genSingleCse(djs, blockRanges);
+
+        if (showOriginHop) {
+            root.resetVisitStatusForced(new HashSet<>());
+            LOG.debug("before coordinate");
+            LOG.debug(Explain.explain(root));
+        }
+//            testBruteForce( singleCses, template,  blockRanges);
+
+        long end2 = System.nanoTime();
+        allGenerateOptionsTime += end2 - start2;
+
+        return Triple.of(template, blockRanges, singleCses);
 
     }
 
+    MySolution testManualAll(Hop root, Hop template, ArrayList<Range> blockRanges) {
+        MySolution mySolution = null;
+        ManualSolution manualSolution = new ManualSolution(this);
+        if (manualType == null) {
+            System.exit(-1);
+        } else if ("g".equals(root.getName())) {
+            if (manualType.equals("dfp-ata")
+                    || manualType.equals("dfp-ata-dtd")
+                    || manualType.equals("bfgs-ata")
+                    || manualType.equals("bfgs-ata-dtd")
+            ) {
+                MultiCse multiCse = manualSolution.createMultiCseGAtA();
+                mySolution = genManualSolution(template, blockRanges, multiCse, true);
+                LOG.info("return g-ata ");
+            }
+        } else if (manualType.equals("dfp") && "h".equals(root.getName())) {
+            MultiCse multiCse = manualSolution.createMultiCseDfp();
+            mySolution = genManualSolution(template, blockRanges, multiCse, false);
+            LOG.info("return dfp");
+        } else if (manualType.equals("dfp-ata") && "h".equals(root.getName())) {
+            MultiCse multiCse = manualSolution.createMultiCseDfpAta();
+            mySolution = genManualSolution(template, blockRanges, multiCse, true);
+            LOG.info("return dfp-ata h");
+        } else if (manualType.equals("dfp-ata-dtd") && "h".equals(root.getName())) {
+            MultiCse multiCse = manualSolution.createMultiCseDfpAtaDtd();
+            mySolution = genManualSolution(template, blockRanges, multiCse, true);
+            LOG.info("return dfp-ata h");
+        } else if (manualType.equals("bfgs") && "h".equals(root.getName())) {
+            MultiCse multiCse = manualSolution.createMultiCseBfgs();
+            mySolution = genManualSolution(template, blockRanges, multiCse, false);
+            LOG.info("return bfgs");
+        } else if (manualType.equals("bfgs-ata") && "h".equals(root.getName())) {
+            MultiCse multiCse = manualSolution.createMultiCseBfgsAta();
+            mySolution = genManualSolution(template, blockRanges, multiCse, true);
+            LOG.info("return bfgs-ata");
+        } else if (manualType.equals("bfgs-ata-dtd") && "h".equals(root.getName())) {
+            MultiCse multiCse = manualSolution.createMultiCseBfgsAtaDtd();
+            mySolution = genManualSolution(template, blockRanges, multiCse, true);
+            LOG.info("return bfgs-ata");
+        } else if (manualType.equals("gd-ata")) {
+            if (leaves.size() == 6) {
+                MultiCse multiCse = manualSolution.createMultiCseGdAtaTheta();
+                mySolution = genManualSolution(template, blockRanges, multiCse, true);
+                LOG.info("return gd-ata theta");
+            }
+        } else if (manualType.equals("gd-atb")) {
+            VariableSet aSet = new VariableSet();
+            aSet.addVariable("theta", null);
+            if (leaves.size() == 6) {
+                MultiCse multiCse = manualSolution.createMultiCseGdAtbTheta();
+                mySolution = genManualSolution(template, blockRanges, multiCse, true);
+                LOG.info("return gd-atb theta");
+            }
+        } else if (manualType.equals("dfp-spores-ata") && leaves.size() == 11) {
+            MultiCse multiCse = manualSolution.createMultiCseDfpSporseAta();
+            VariableSet aSet = new VariableSet();
+            aSet.addVariable("h", null);
+            aSet.addVariable("g", null);
+            aSet.addVariable("d", null);
+            aSet.addVariable("i", null);
+            mySolution = genManualSolution(template, blockRanges, multiCse, true);
+            LOG.info("return dfp-spores-ata");
+        }
+        return mySolution;
+    }
+
+    private MySolution genManualSolution(Hop template, ArrayList<Range> blockRanges, MultiCse multiCse, boolean liftConstant) {
+        LOG.debug(multiCse);
+        for (int i = 0; i < multiCse.cses.size(); i++) {
+            SingleCse si = multiCse.cses.get(i);
+            for (int j = i + 1; j < multiCse.cses.size(); j++) {
+                SingleCse sj = multiCse.cses.get(j);
+                if (si.conflict(sj)) {
+                    LOG.error("cse conflict " + si + " " + sj);
+                    System.exit(-1);
+                }
+            }
+        }
+        Hop result = createHop(multiCse, template, blockRanges);
+        result = deepCopyHopsDag(result);
+        rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
+
+        Program program = constructProgramBlocks(result, statementBlock);
+        LOG.info("before lift constant");
+        LOG.info(Explain.explain(program));
+
+        CostGraph costGraph = new CostGraph(variablesUpdated, iterationNumber, ec);
+        CostModelCommon.MMShowCostFlag = true;
+        Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(result);
+        LOG.info("all cost detail=" + costTriple.getLeft());
+        LOG.info("constant cost detail=" + costTriple.getMiddle());
+        LOG.info(CostGraph.explainOpNode(costTriple.getRight(), 0));
+
+        MySolution solution;
+        if (liftConstant) solution = constantUtilByTag.liftLoopConstant(result);
+        else solution = new MySolution(result);
+        solution.multiCse = multiCse;
+        for (Hop h : solution.preLoopConstants) {
+            h.resetVisitStatusForced(new HashSet<>());
+        }
+        solution.body.resetVisitStatusForced(new HashSet<>());
+        solution.cost = costTriple.getLeft().getSummary();
+        LOG.info("manual solution:\n" + solution);
+        return solution;
+    }
 
     MySolution testBruteForce(ArrayList<SingleCse> singleCses, Hop template, ArrayList<Range> blockRanges) {
         // 构造出所有的MultiCse
@@ -272,40 +334,15 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return null;
     }
 
-
-    void testusefulCse(ArrayList<SingleCse> cses, Hop template, ArrayList<Range> blockRanges) {
-        MySolution solution = genSolution(new MultiCse(), template, blockRanges);
-        System.out.println(solution);
-
-
-        //   System.exit(-1);
-    }
-
-
-    MySolution testCostTree(ArrayList<SingleCse> singleCses, Hop template, ArrayList<Range> blockRanges) {
+    MySolution testDynamicProgramming(ArrayList<SingleCse> singleCses, Hop template, ArrayList<Range> blockRanges) {
         try {
-//        ArrayList<Pair<Hop, SingleCse>> pairs = new ArrayList<>();
-//        for (SingleCse singleCse : singleCses) {
-//            MultiCse multiCse = new MultiCse();
-//            multiCse.cses.add(singleCse);
-//            Hop hop = createHop(multiCse, template);
-//            pairs.add(Pair.of(hop, singleCse));
-//        }
-//            System.out.println("blockRanges:" + blockRanges);
-//            for (int i = 0; i < leaves.size(); i++) {
-//                Hop h = leaves.get(i).hop;
-//                System.out.println("(" + i + "," + h.getDim1() + "," + h.getDim2() + ")");
-//            }
-
-
-            ArrayList<Hop> hops = createHops(template,blockRanges);
-
-            ArrayList<Pair<SingleCse, Hop>> list = genHopFromSingleCses(singleCses, template, blockRanges);
+            ArrayList<Hop> hops = createHops(template, blockRanges);
             SingleCse emptyCse = new SingleCse();
             emptyCse.hash = HashKey.of(0L, 0L);
             Hop emptyHop = createHop(emptyCse, template, blockRanges);
-            Pair<SingleCse, Hop> pair = Pair.of(emptyCse, emptyHop);
-            list.add(pair);
+            Pair<SingleCse, Hop> emptyPair = Pair.of(emptyCse, emptyHop);
+            ArrayList<Pair<SingleCse, Hop>> list = genHopFromSingleCses(singleCses, template, blockRanges);
+            list.add(emptyPair);
 
             ArrayList<SinglePlan> singlePlans = new ArrayList<>();
             for (Pair<SingleCse, Hop> p : list) {
@@ -314,63 +351,37 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 singlePlan.singleCse = p.getLeft();
                 singlePlans.add(singlePlan);
             }
+            CostGraph costGraph = new CostGraph(variablesUpdated, iterationNumber, ec);
 
-            CostGraph costGraph = new CostGraph(variablesUpdated, iterationNumber,ec);
-//        costGraph.testCostTree(list);
-//            ACNode bestacnode = costGraph.testOperatorGraph(singlePlans, pair, blockRanges, leaves);
-//            ArrayList<OperatorNode> operatorNodeArrayList = new ArrayList<>();
-//            if (bestacnode.minAC!=null) operatorNodeArrayList.add(bestacnode.minAC);
-//            if (bestacnode.certainAC!=null) operatorNodeArrayList.add(bestacnode.certainAC);
-//            operatorNodeArrayList.addAll(bestacnode.uncertainACs.values());
-//            operatorNodeArrayList.sort(Comparator.comparingDouble(a -> a.accCost));
-
-            ArrayList<OperatorNode> operatorNodeArrayList = costGraph.testOperatorGraph(singlePlans, pair, blockRanges, leaves,hops);
+            MySolution mySolution = null;
+            ArrayList<OperatorNode> operatorNodeArrayList = costGraph.testOperatorGraph(singlePlans, emptyPair, blockRanges, leaves, hops);
             long start = System.nanoTime();
-            ArrayList<MultiCse> multiCseArrayList = new ArrayList<>();
-            for (int i = 0; i < operatorNodeArrayList.size(); i++) {
+            //ArrayList<MultiCse> multiCseArrayList = new ArrayList<>();
+            int bestId = -1;
+            for (int i = 0; i < 200 && i < operatorNodeArrayList.size(); i++) {
                 OperatorNode operatorNode = operatorNodeArrayList.get(i);
                 MultiCse multiCse = createMultiCseFromOperatorNode(operatorNode);
                 if (multiCse != null) {
-                    multiCseArrayList.add(multiCse);
+                    //      multiCseArrayList.add(multiCse);
                     Hop hop = createHop(multiCse, template, blockRanges);
                     hop = copyAndEliminateHop(hop);
-//                    solution.multiCse = multiCse;
                     double dpcost = operatorNode.accCost;
-                    Triple<NodeCost,NodeCost,OperatorNode> pair3 = costGraph.estimateHopCost(hop);
-                    NodeCost cost3 = pair3.getLeft();
-//                    cost3.computeCost*=iterationNumber;
-//                    cost3.shuffleCost*=iterationNumber;
-//                    cost3.broadcastCost*=iterationNumber;
-//                    cost3.collectCost*=iterationNumber;
-//                    cost2 = NodeCost.add(cost2,cost3);
-//                    for (Hop h: solution.preLoopConstants) {
-//                        Pair<NodeCost,OperatorNode> pair4 =costGraph.estimateHopCost(h);
-//                        cost3 = pair4.getLeft();
-//                        cost2 = NodeCost.add(cost2,cost3);
-//                    }
+                    Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop);
+                    NodeCost cost3 = costTriple.getLeft();
                     double hcost = cost3.getSummary();
-                    double rate = (dpcost-hcost)/hcost;
-                    LOG.info("candidate multi cse:  rcost=" +hcost+", dpcost=" + dpcost +", rate="+rate +"\n" + operatorNode.accCostDetails+"\n" + multiCse);
-                    LOG.info(CostGraph.explainOpNode(operatorNode,0));
-//                    MySolution    solution = constantUtilByTag.liftLoopConstant(hop);
-//                    estimate(solution,true);
-//                    if (rate>0.1) {
-//                        LOG.info("RATE GREATER THAN 0.1");
-//                        LOG.info(CostGraph.explainOpNode(operatorNode,0));
-//                        LOG.info("------------------");
-//                        LOG.info(CostGraph.explainOpNode(pair3.getRight(),0));
-//                    }
-                   }
-                if (i==200){
-                    break;
+                    double rate = (dpcost - hcost) / hcost;
+                    LOG.info("candidate multi cse:  rcost=" + hcost + ", dpcost=" + dpcost + ", rate=" + rate + "\n" + operatorNode.accCostDetails + "\n" + multiCse);
+                    LOG.info("rcostdetail=" + cost3 + ", dpcostdetail=" + operatorNode.accCostDetails);
+                    LOG.info(CostGraph.explainOpNode(operatorNode, 0));
+                    MySolution solution = constantUtilByTag.liftLoopConstant(hop);
+                    solution.multiCse = multiCse;
+                    if (mySolution == null || mySolution.cost < dpcost) {
+                        mySolution = solution;
+                        bestId = i;
+                    }
                 }
             }
-
-            LOG.info("candidate muti cse size = " + multiCseArrayList.size());
-           // System.exit(100);
-
-            ArrayList<MySolution> mySolutions = genSolutions(multiCseArrayList, true, template, blockRanges);
-            MySolution mySolution = selectSolution(mySolutions);
+            LOG.info("bestId=" + bestId);
             long end = System.nanoTime();
             CostGraph.estimateTime += end - start;
             LOG.info("dynamic programming: ");
@@ -634,7 +645,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 result.subList(0, rangesets.size()).clear();
             }
         } else {
-            for (SingleCse singleCse: result) {
+            for (SingleCse singleCse : result) {
                 singleCse.isConstant = true;
             }
         }
@@ -752,433 +763,6 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return m;
     }
 
-    private MySolution testManual(Hop template, ArrayList<Range> blockRanges, MultiCse multiCse, boolean liftConstant) {
-        LOG.debug(multiCse);
-        for (int i = 0; i < multiCse.cses.size(); i++) {
-            SingleCse si = multiCse.cses.get(i);
-            for (int j = i + 1; j < multiCse.cses.size(); j++) {
-                SingleCse sj = multiCse.cses.get(j);
-                if (si.conflict(sj)) {
-                    LOG.error("cse conflict " + si + " " + sj);
-                    System.exit(-1);
-                }
-            }
-        }
-        Hop result = createHop(multiCse, template, blockRanges);
-        result = deepCopyHopsDag(result);
-        rewriteCommonSubexpressionElimination.rewriteHopDAG(result, new ProgramRewriteStatus());
-
-        Program program = constructProgramBlocks(result, statementBlock);
-        LOG.info("before lift constant");
-        LOG.info(Explain.explain(program));
-
-        CostGraph costGraph = new CostGraph(variablesUpdated,iterationNumber,ec);
-        CostModelCommon.MMShowCostFlag = true;
-        Triple<NodeCost,NodeCost,OperatorNode> nodeCostOperatorNodePair = costGraph.estimateHopCost(result);
-        LOG.info("all cost detail="+nodeCostOperatorNodePair.getLeft());
-        LOG.info("constant cost detail="+nodeCostOperatorNodePair.getMiddle());
-        LOG.info(CostGraph.explainOpNode(nodeCostOperatorNodePair.getRight(),0));
-
-        MySolution solution;
-        if (liftConstant) solution = constantUtil.liftLoopConstant(result);
-        else solution = new MySolution(result);
-        solution.multiCse = multiCse;
-        long start = System.nanoTime();
-        //estimate(solution, true);
-//        NodeCost sum = NodeCost.ZERO();
-//        NodeCost body = nodeCostOperatorNodePair.getLeft();
-//        LOG.info("body cost = "+body);
-//        NodeCost preSum = NodeCost.ZERO();
-//        for (Hop h: solution.preLoopConstants) {
-//            Pair<NodeCost,OperatorNode> nodeCostOperatorNodePair2 = costGraph.estimateHopCost(h);
-//            preSum.plus(nodeCostOperatorNodePair2.getLeft());
-//        }
-//        LOG.info("pre loop cost = "+preSum);
-//        sum.plus(preSum);
-//        sum.plusMultiply(body,iterationNumber);
-//        LOG.info("all cost = "+sum);
-        long end = System.nanoTime();
-        estimateTime += end - start;
-//        LOG.debug(solution);
-
-        for (Hop h: solution.preLoopConstants) {
-            h.resetVisitStatusForced(new HashSet<>());
-        }
-        solution.body.resetVisitStatusForced(new HashSet<>());
-
-        LOG.info("manual solution:\n" + solution);
-        return solution;
-    }
-
-    private SingleCse createSingleCseBfgsAta() {
-        SingleCse sAta = new SingleCse();
-        sAta.isConstant = true;
-        sAta.name = getRangeName(39, 40);
-        sAta.ranges.add(Range.of(39, 40, true));
-        sAta.ranges.add(Range.of(52, 53, true));
-        sAta.ranges.add(Range.of(7, 8, true));
-        sAta.ranges.add(Range.of(17, 18, true));
-        sAta.ranges.add(Range.of(23, 24, true));
-        sAta.ranges.add(Range.of(26, 27, false));
-        sAta.ranges.add(Range.of(44, 45, false));
-        sAta.ranges.add(Range.of(34, 35, true));
-        return sAta;
-    }
-
-    private SingleCse createSingleCseBfgsDtd2() {
-        SingleCse sDtd = new SingleCse();
-        sDtd.name = getRangeName(1, 4);
-        sDtd.ranges.add(Range.of(1, 4, false));
-        sDtd.ranges.add(Range.of(11, 14, false));
-        return sDtd;
-    }
-
-    private SingleCse createSingleCseBfgsDtd4() {
-        SingleCse sDtd = new SingleCse();
-        sDtd.name = getRangeName(1, 4);
-        sDtd.ranges.add(Range.of(1, 4, false));
-        sDtd.ranges.add(Range.of(11, 14, false));
-        sDtd.ranges.add(Range.of(30, 33, false));
-        sDtd.ranges.add(Range.of(46, 49, false));
-        return sDtd;
-    }
-
-
-    private SingleCse createSingleCseBfgsAtad() {
-        SingleCse sAtahg = new SingleCse();
-        sAtahg.name = getRangeName(7, 10);
-        sAtahg.ranges.add(Range.of(7, 10, false));
-        sAtahg.ranges.add(Range.of(17, 20, false));
-        sAtahg.ranges.add(Range.of(21, 24, true));
-        sAtahg.ranges.add(Range.of(26, 29, false));
-        sAtahg.ranges.add(Range.of(39, 42, false));
-        sAtahg.ranges.add(Range.of(52, 55, false));
-        return sAtahg;
-    }
-
-    private SingleCse createSingleCseBfgsDtatad() {
-        SingleCse sDtatad = new SingleCse();
-        sDtatad.name = getRangeName(5, 10);
-        sDtatad.ranges.add(Range.of(5, 10, false));
-        sDtatad.ranges.add(Range.of(15, 20, false));
-        sDtatad.ranges.add(Range.of(37, 42, false));
-        sDtatad.ranges.add(Range.of(50, 55, false));
-        return sDtatad;
-    }
-
-    private SingleCse createSingleCseBfgsAtah() {
-        SingleCse sAtah = new SingleCse();
-        sAtah.name = getRangeName(34, 36);
-        sAtah.ranges.add(Range.of(34, 36, false));
-        sAtah.ranges.add(Range.of(43, 45, true));
-        return sAtah;
-    }
-
-    private SingleCse createSingleCseBfgsHy() {
-        SingleCse sHy = new SingleCse();
-        sHy.name = getRangeName(5, 9);
-        sHy.ranges.add(Range.of(5, 9, true));
-        sHy.ranges.add(Range.of(15, 19, true));
-        sHy.ranges.add(Range.of(21, 25, true));
-        sHy.ranges.add(Range.of(32, 36, true));
-        sHy.ranges.add(Range.of(37, 41, true));
-        sHy.ranges.add(Range.of(43, 47, false));
-        sHy.ranges.add(Range.of(50, 54, true));
-        return sHy;
-    }
-
-    private SingleCse createSingleCseBfgsY() {
-        SingleCse sY = new SingleCse();
-        sY.name = getRangeName(5, 8);
-        sY.ranges.add(Range.of(5, 8, true));
-        sY.ranges.add(Range.of(15, 18, true));
-        sY.ranges.add(Range.of(21, 24, true));
-        sY.ranges.add(Range.of(26, 29, false));
-        sY.ranges.add(Range.of(32, 35, true));
-        sY.ranges.add(Range.of(37, 40, true));
-        sY.ranges.add(Range.of(44, 47, false));
-        sY.ranges.add(Range.of(50, 53, true));
-        return sY;
-    }
-
-    private SingleCse createSingleCseBfgsD() {
-        SingleCse sd = new SingleCse();
-        sd.name = getRangeName(1, 2);
-        sd.ranges.add(Range.of(1, 2, false));
-        sd.ranges.add(Range.of(3, 4, true));
-        sd.ranges.add(Range.of(5, 6, true));
-        sd.ranges.add(Range.of(11, 12, false));
-        sd.ranges.add(Range.of(13, 14, true));
-        sd.ranges.add(Range.of(15, 16, true));
-        sd.ranges.add(Range.of(21, 22, true));
-        sd.ranges.add(Range.of(28, 29, false));
-        sd.ranges.add(Range.of(30, 31, false));
-        sd.ranges.add(Range.of(32, 33, true));
-        sd.ranges.add(Range.of(37, 38, true));
-        sd.ranges.add(Range.of(46, 47, false));
-        sd.ranges.add(Range.of(48, 49, true));
-        sd.ranges.add(Range.of(50, 51, true));
-        return sd;
-    }
-
-    private SingleCse createSingleCseBfgsDYtH() {
-        SingleCse sd = new SingleCse();
-        sd.name = getRangeName(30, 36);
-        sd.ranges.add(Range.of(30, 36, false));
-        sd.ranges.add(Range.of(43, 49, true));
-        return sd;
-    }
-
-    private SingleCse createSingleCseBfgsDFull() {
-        SingleCse sd = new SingleCse();
-        sd.name = getRangeName(1, 2);
-        sd.ranges.add(Range.of(1, 2, false));
-        sd.ranges.add(Range.of(3, 4, true));
-        sd.ranges.add(Range.of(5, 6, true));
-        sd.ranges.add(Range.of(9, 10, false));
-        sd.ranges.add(Range.of(11, 12, false));
-        sd.ranges.add(Range.of(13, 14, true));
-        sd.ranges.add(Range.of(15, 16, true));
-        sd.ranges.add(Range.of(19, 20, false));
-        sd.ranges.add(Range.of(21, 22, true));
-        sd.ranges.add(Range.of(28, 29, false));
-        sd.ranges.add(Range.of(30, 31, false));
-        sd.ranges.add(Range.of(32, 33, true));
-        sd.ranges.add(Range.of(37, 38, true));
-        sd.ranges.add(Range.of(41, 42, false));
-        sd.ranges.add(Range.of(46, 47, false));
-        sd.ranges.add(Range.of(48, 49, true));
-        sd.ranges.add(Range.of(50, 51, true));
-        sd.ranges.add(Range.of(54, 55, false));
-        return sd;
-    }
-
-    private SingleCse createSingleCseDfpY() {
-        SingleCse sY = new SingleCse(); // atahg
-        sY.name = getRangeName(2, 5);
-        sY.ranges.add(Range.of(2, 5, false));
-        sY.ranges.add(Range.of(6, 9, true));
-        sY.ranges.add(Range.of(11, 14, true));
-        sY.ranges.add(Range.of(16, 19, false));
-        sY.ranges.add(Range.of(24, 27, true));
-        return sY;
-    }
-
-    private SingleCse createSingleCseDfpHy() {
-        SingleCse sHy = new SingleCse(); // hatahg
-        sHy.name = getRangeName(1, 5);
-        sHy.ranges.add(Range.of(1, 5, false));
-        sHy.ranges.add(Range.of(6, 10, true));
-//        sHy.ranges.add(Range.of(15, 19, false));
-        sHy.ranges.add(Range.of(11, 15, true));
-        sHy.ranges.add(Range.of(24, 28, true));
-        return sHy;
-    }
-
-    private SingleCse createSingleCseDfpAta() {
-        SingleCse sAta = new SingleCse(); // ata
-        sAta.isConstant = true;
-        sAta.name = getRangeName(2, 3);
-        sAta.ranges.add(Range.of(2, 3, false));
-        sAta.ranges.add(Range.of(8, 9, true));
-        sAta.ranges.add(Range.of(13, 14, true));
-        sAta.ranges.add(Range.of(16, 17, false));
-        sAta.ranges.add(Range.of(26, 27, true));
-        return sAta;
-    }
-
-    private SingleCse createSingleCseDfpD() {
-        SingleCse sD = new SingleCse(); // d
-        sD.name = getRangeName(4, 5);
-        sD.ranges.add(Range.of(4, 5, false));
-        sD.ranges.add(Range.of(6, 7, true));
-        sD.ranges.add(Range.of(11, 12, true));
-        sD.ranges.add(Range.of(18, 19, false));
-        sD.ranges.add(Range.of(20, 21, false));
-        sD.ranges.add(Range.of(22, 23, true));
-        sD.ranges.add(Range.of(24, 25, true));
-        return sD;
-    }
-
-    private SingleCse createSingleCseDfpDtd() {
-        SingleCse sDtd = new SingleCse(); // dtd
-        sDtd.name = getRangeName(4, 7);
-        sDtd.ranges.add(Range.of(4, 7, false));
-        sDtd.ranges.add(Range.of(20, 23, false));
-        return sDtd;
-    }
-
-    private SingleCse createSingleCseDfpHata() {
-        SingleCse sHata = new SingleCse();
-        sHata.name = getRangeName(1, 3);
-        sHata.ranges.add(Range.of(1, 3, false));
-        sHata.ranges.add(Range.of(8, 10, true));
-        return sHata;
-    }
-
-    private SingleCse createSingleCseDfpAtad() {
-        SingleCse sAtad = new SingleCse();
-        sAtad.name = getRangeName(11, 14);
-        sAtad.ranges.add(Range.of(11, 14, false));
-        sAtad.ranges.add(Range.of(16, 19, true));
-        sAtad.ranges.add(Range.of(26, 29, true));
-        return sAtad;
-    }
-
-    private MultiCse createMultiCseDfpAtaDtd() {
-        MultiCse multiCse = new MultiCse();
-        multiCse.cses.add(createSingleCseDfpAta());
-        SingleCse sD = createSingleCseDfpD();
-        sD.ranges.add(Range.of(28, 29, false));
-        multiCse.cses.add(sD);
-        multiCse.cses.add(createSingleCseDfpDtd());
-        multiCse.cses.add(createSingleCseDfpHata());
-        multiCse.cses.add(createSingleCseDfpAtad());
-        return multiCse;
-    }
-
-    private MultiCse createMultiCseDfpAta() {
-        MultiCse multiCse = new MultiCse();
-        multiCse.cses.add(createSingleCseDfpAta());
-        multiCse.cses.add(createSingleCseDfpHy());
-        multiCse.cses.add(createSingleCseDfpY());
-        multiCse.cses.add(createSingleCseDfpD());
-        return multiCse;
-    }
-
-    private MultiCse createMultiCseDfp() {
-        MultiCse multiCse = new MultiCse();
-        multiCse.cses.add(createSingleCseDfpHy());
-        multiCse.cses.add(createSingleCseDfpY());
-        multiCse.cses.add(createSingleCseDfpD());
-        return multiCse;
-    }
-
-    private MultiCse createMultiCseDfpSporseAta() {
-        SingleCse sHy = new SingleCse();
-        sHy.name = getRangeName(1, 4);
-        sHy.ranges.add(Range.of(1, 4, false));
-        sHy.ranges.add(Range.of(6, 9, true));
-        SingleCse sAta = new SingleCse();
-        sAta.name = getRangeName(3, 4);
-        sAta.ranges.add(Range.of(3, 4, false));
-        sAta.ranges.add(Range.of(6, 7, true));
-        MultiCse multiCse = new MultiCse();
-        multiCse.cses.add(sHy);
-        multiCse.cses.add(sAta);
-        return multiCse;
-    }
-
-    private MultiCse createMultiCseBfgsAtaDtd() {
-        MultiCse multiCse = new MultiCse();
-        multiCse.cses.add(createSingleCseBfgsDFull());
-        multiCse.cses.add(createSingleCseBfgsAta());
-        multiCse.cses.add(createSingleCseBfgsDtd4());
-        multiCse.cses.add(createSingleCseBfgsAtad());
-        multiCse.cses.add(createSingleCseBfgsAtah());
-        multiCse.cses.add(createSingleCseBfgsDtatad());
-        multiCse.cses.add(createSingleCseBfgsDYtH());
-        return multiCse;
-    }
-
-    private MultiCse createMultiCseBfgsAta() {
-        MultiCse multiCse = new MultiCse();
-        multiCse.cses.add(createSingleCseBfgsHy());
-        multiCse.cses.add(createSingleCseBfgsY());
-        multiCse.cses.add(createSingleCseBfgsD());
-        multiCse.cses.add(createSingleCseBfgsDtd2());
-        multiCse.cses.add(createSingleCseBfgsAta());
-        multiCse.cses.add(createSingleCseBfgsDtatad());
-        multiCse.cses.add(createSingleCseBfgsDYtH());
-        return multiCse;
-    }
-
-
-    private MultiCse createMultiCseBfgs() {
-        MultiCse multiCse = new MultiCse();
-        multiCse.cses.add(createSingleCseBfgsHy());
-        multiCse.cses.add(createSingleCseBfgsY());
-        multiCse.cses.add(createSingleCseBfgsD());
-        multiCse.cses.add(createSingleCseBfgsDtd2());
-        multiCse.cses.add(createSingleCseBfgsDtatad());
-        multiCse.cses.add(createSingleCseBfgsDYtH());
-        return multiCse;
-    }
-
-    private MultiCse createMultiCseGdAta() {
-        MultiCse multiCse = new MultiCse();
-        SingleCse sAtATheta = new SingleCse();
-        SingleCse sAtA = new SingleCse();
-        SingleCse sAtB = new SingleCse();
-        sAtATheta.name = getRangeName(1, 3);
-        sAtATheta.ranges.add(Range.of(1, 3, false));
-        sAtATheta.ranges.add(Range.of(7, 9, false));
-        sAtATheta.ranges.add(Range.of(14, 16, false));
-        sAtATheta.ranges.add(Range.of(20, 22, false));
-        sAtA.name = getRangeName(1, 2);
-        sAtA.ranges.add(Range.of(1, 2, false));
-        sAtA.ranges.add(Range.of(7, 8, false));
-        sAtA.ranges.add(Range.of(14, 15, false));
-        sAtA.ranges.add(Range.of(20, 21, false));
-        sAtB.name = getRangeName(4, 5);
-        sAtB.ranges.add(Range.of(4, 5, false));
-        sAtB.ranges.add(Range.of(10, 11, false));
-        sAtB.ranges.add(Range.of(17, 18, false));
-        sAtB.ranges.add(Range.of(23, 24, false));
-        multiCse.cses.add(sAtATheta);
-        multiCse.cses.add(sAtA);
-        multiCse.cses.add(sAtB);
-        return multiCse;
-    }
-
-    private MultiCse createMultiCseGdAtaTheta() {
-        MultiCse multiCse = new MultiCse();
-        SingleCse sAtA = new SingleCse();
-        SingleCse sAtB = new SingleCse();
-        sAtA.isConstant = true;
-        sAtB.isConstant = true;
-        sAtA.name = getRangeName(1, 2);
-        sAtA.ranges.add(Range.of(1, 2, false));
-        sAtB.name = getRangeName(4, 5);
-        sAtB.ranges.add(Range.of(4, 5, false));
-        multiCse.cses.add(sAtA);
-        multiCse.cses.add(sAtB);
-        return multiCse;
-    }
-
-    private MultiCse createMultiCseGdAtbTheta() {
-        MultiCse multiCse = new MultiCse();
-        SingleCse sAtB = new SingleCse();
-        sAtB.isConstant = true;
-        sAtB.name = getRangeName(4, 5);
-        sAtB.ranges.add(Range.of(4, 5, false));
-        multiCse.cses.add(sAtB);
-        return multiCse;
-    }
-
-    private MultiCse createMultiCseGAtA() {
-        MultiCse multiCse = new MultiCse();
-        SingleCse sAtA = new SingleCse();
-        sAtA.isConstant = true;
-        sAtA.name = getRangeName(0, 1);
-        sAtA.ranges.add(Range.of(0, 1, false));
-        multiCse.cses.add(sAtA);
-        return multiCse;
-    }
-
-    private MultiCse createMultiCseGdAtb() {
-        MultiCse multiCse = new MultiCse();
-        SingleCse sAtB = new SingleCse();
-        sAtB.name = getRangeName(4, 5);
-        sAtB.ranges.add(Range.of(4, 5, false));
-        sAtB.ranges.add(Range.of(10, 11, false));
-        sAtB.ranges.add(Range.of(17, 18, false));
-        sAtB.ranges.add(Range.of(23, 24, false));
-        multiCse.cses.add(sAtB);
-        return multiCse;
-    }
-
-
     private MySolution genSolution(MultiCse multiCse, Hop template, ArrayList<Range> blockRanges) {
         try {
             Hop hop = createHop(multiCse, template, blockRanges);
@@ -1236,7 +820,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 }
                 if (hop != null) {
                     Hop copy = deepCopyHopsDag(hop);
-                    MySolution solution = constantUtil.liftLoopConstant(copy);
+                    MySolution solution = constantUtilByTag.liftLoopConstant(copy);
                     solution.multiCse = c;
                     solutions.add(solution);
                 }
@@ -1252,6 +836,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return solutions;
     }
 
+    @Deprecated
     private MySolution selectSolution(ArrayList<MySolution> solutions) {
         long estimateCostTime = 0;
         long start, end;
@@ -1297,6 +882,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     }
 
 
+    @Deprecated
     private double estimate(MySolution solution, boolean showDetails) {
         // 代价估计
         double cost = 0;
@@ -1604,21 +1190,21 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return ret;
     }
 
-    void testCreateHops( Hop template, ArrayList<Range> blockRanges) {
-            ArrayList<Hop> hops = createHops(template,blockRanges);
-            if (hops!=null) {
-                HashSet<Pair<Long,Long>> ss = new HashSet<>();
-                for (Hop hop : hops) {
+    void testCreateHops(Hop template, ArrayList<Range> blockRanges) {
+        ArrayList<Hop> hops = createHops(template, blockRanges);
+        if (hops != null) {
+            HashSet<Pair<Long, Long>> ss = new HashSet<>();
+            for (Hop hop : hops) {
 //                    System.out.println(Explain.explain(hop));
-                     Pair<Long, Long> key =  Hash.hashHopDag(hop);
-                     ss.add(key);
-                }
-                LOG.info( "all trees size="+hops.size());
-                LOG.info( "hash set size="+ss.size());
-
-            }else {
-                System.exit(-100);
+                Pair<Long, Long> key = Hash.hashHopDag(hop);
+                ss.add(key);
             }
+            LOG.info("all trees size=" + hops.size());
+            LOG.info("hash set size=" + ss.size());
+
+        } else {
+            System.exit(-100);
+        }
     }
 
     private ArrayList<Hop> createHops(Hop template, ArrayList<Range> blockRanges) {
@@ -1710,7 +1296,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                         }
                         ret.add(copy);
                     }
-                }catch ( Exception e) {
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
@@ -1729,31 +1315,31 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             if (s == null) return null;
             children.add(s);
         }
-        ArrayList<Pair< HashSet<Triple<Integer, Integer,Integer>>,Hop>> hops = build_binary_trees_all(children);
+        ArrayList<Pair<HashSet<Triple<Integer, Integer, Integer>>, Hop>> hops = build_binary_trees_all(children);
         ArrayList<Hop> ret = new ArrayList<>();
-        HashSet<Triple<Integer, Integer,Integer>> set = new HashSet<>();
-        for (Pair< HashSet<Triple<Integer, Integer,Integer>>,Hop> h: hops) {
+        HashSet<Triple<Integer, Integer, Integer>> set = new HashSet<>();
+        for (Pair<HashSet<Triple<Integer, Integer, Integer>>, Hop> h : hops) {
             int before = set.size();
             set.addAll(h.getKey());
             int after = set.size();
-            if (before!=after) {
+            if (before != after) {
                 ret.add(h.getValue());
             }
         }
-        LOG.info("rCreateHop_s "+children.size()+" -> "+ret.size());
+        LOG.info("rCreateHop_s " + children.size() + " -> " + ret.size());
         return ret;
     }
 
 
-    private ArrayList<Pair<HashSet<Triple<Integer, Integer,Integer>>,Hop>> build_binary_trees_all(ArrayList<Hop> mmChain) {
-        if (mmChain.size()==0) {
+    private ArrayList<Pair<HashSet<Triple<Integer, Integer, Integer>>, Hop>> build_binary_trees_all(ArrayList<Hop> mmChain) {
+        if (mmChain.size() == 0) {
             return new ArrayList<>();
         }
-        if (mmChain.size()==1) {
-            ArrayList<Pair<HashSet<Triple<Integer, Integer,Integer>>,Hop>> hops = new ArrayList<>();
-            HashSet< Triple<Integer, Integer,Integer>> ss = new HashSet<>();
-            ss.add(Triple.of(0,0,0));
-             hops.add(Pair.of(ss, mmChain.get(0)));
+        if (mmChain.size() == 1) {
+            ArrayList<Pair<HashSet<Triple<Integer, Integer, Integer>>, Hop>> hops = new ArrayList<>();
+            HashSet<Triple<Integer, Integer, Integer>> ss = new HashSet<>();
+            ss.add(Triple.of(0, 0, 0));
+            hops.add(Pair.of(ss, mmChain.get(0)));
             return hops;
         }
         // dp(i,i) = mmc(i)
@@ -1763,44 +1349,43 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         //      for k
         //       dp(i,j) += dp(i,k)*dp(k+1,j)
         int n = mmChain.size();
-        ArrayList<ArrayList<ArrayList< Pair<HashSet<Triple<Integer, Integer,Integer>>,Hop>  >>> hops = new ArrayList<>();
-        for (int i=0;i<n;i++) {
+        ArrayList<ArrayList<ArrayList<Pair<HashSet<Triple<Integer, Integer, Integer>>, Hop>>>> hops = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
             hops.add(new ArrayList<>());
-            for (int j=0;j<n;j++) {
+            for (int j = 0; j < n; j++) {
                 hops.get(i).add(new ArrayList<>());
             }
         }
-        for (int i=0;i<n;i++) {
-            HashSet< Triple<Integer, Integer,Integer>> ss = new HashSet<>();
-            ss.add(Triple.of(i,i,i));
-            hops.get(i).get(i).add(  Pair.of(ss   ,mmChain.get(i) ) );
+        for (int i = 0; i < n; i++) {
+            HashSet<Triple<Integer, Integer, Integer>> ss = new HashSet<>();
+            ss.add(Triple.of(i, i, i));
+            hops.get(i).get(i).add(Pair.of(ss, mmChain.get(i)));
         }
-        for (int l=2;l<=n;l++) {
-            for (int i=0;i+l-1<n;i++) {
-                int j = i + l-1;
-                ArrayList<Pair<HashSet<Triple<Integer, Integer,Integer>>,Hop>> tmp = new ArrayList<>();
-                for (int k=i;k<j;k++) {
+        for (int l = 2; l <= n; l++) {
+            for (int i = 0; i + l - 1 < n; i++) {
+                int j = i + l - 1;
+                ArrayList<Pair<HashSet<Triple<Integer, Integer, Integer>>, Hop>> tmp = new ArrayList<>();
+                for (int k = i; k < j; k++) {
 //                    ArrayList<Hop> a1 = hops.get(i).get(k);
 //                    ArrayList<Hop> a2 = hops.get(k+1).get(j);
-                    for (Pair<HashSet<Triple<Integer, Integer,Integer>>,Hop> h1: hops.get(i).get(k)) {
-                        for (Pair<HashSet<Triple<Integer, Integer,Integer>>,Hop> h2 : hops.get(k+1).get(j)) {
+                    for (Pair<HashSet<Triple<Integer, Integer, Integer>>, Hop> h1 : hops.get(i).get(k)) {
+                        for (Pair<HashSet<Triple<Integer, Integer, Integer>>, Hop> h2 : hops.get(k + 1).get(j)) {
                             Hop h = HopRewriteUtils.createMatrixMultiply(h1.getRight(), h2.getRight());
-                            HashSet<Triple<Integer,Integer,Integer>> key = new HashSet<>();
+                            HashSet<Triple<Integer, Integer, Integer>> key = new HashSet<>();
                             key.addAll(h1.getKey());
                             key.addAll(h2.getKey());
-                            key.add(Triple.of(i,k,j));
-                            tmp.add(Pair.of(key,h));
+                            key.add(Triple.of(i, k, j));
+                            tmp.add(Pair.of(key, h));
                         }
                     }
                 }
-                hops.get(i).set(j,tmp);
+                hops.get(i).set(j, tmp);
             }
         }
-        LOG.info("build_binary_trees_all "+mmChain.size()+" -> "+hops.get(0).get(n-1).size());
+        LOG.info("build_binary_trees_all " + mmChain.size() + " -> " + hops.get(0).get(n - 1).size());
 
-        return hops.get(0).get(n-1);
+        return hops.get(0).get(n - 1);
     }
-
 
 
     private Hop build_binary_tree_mmc(ArrayList<Hop> mmChain) {
@@ -1879,7 +1464,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return getRangeName(range.left, range.right);
     }
 
-    private String getRangeName(int l, int r) {
+    String getRangeName(int l, int r) {
         StringBuilder sb = new StringBuilder();
         sb.append("{");
         for (int i = l; i <= r; i++) {
@@ -1945,7 +1530,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         FakeCostEstimator2.ec = executionContext;
         DistributedScratch.ec = executionContext;
         // onlySearchConstantSubExp = true;
-        constantUtil = new ConstantUtil(variablesUpdated);
+        constantUtilByTag = new ConstantUtilByTag();
+//        constantUtil = new ConstantUtil(variablesUpdated);
     }
 
 

@@ -7,6 +7,7 @@ import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
 import org.apache.sysds.hops.rewrite.StatementBlockRewriteRule;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
 import org.apache.sysds.hops.rewrite.dfp.utils.ConstantUtil;
+import org.apache.sysds.hops.rewrite.dfp.utils.ConstantUtilByTag;
 import org.apache.sysds.parser.*;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
 
@@ -70,7 +71,8 @@ public class RewriteLoopConstant extends StatementBlockRewriteRule {
         double cost = 0;
 //        RewriteCoordinate rewriteCoordinateConstant = new RewriteCoordinate(ec, sb,variablesUpdated);
         RewriteCoordinate rewriteCoordinate = new RewriteCoordinate(ec, sb);
-        rewriteCoordinate.constantUtil = new ConstantUtil(variablesUpdated);
+//        rewriteCoordinate.constantUtil = new ConstantUtil(variablesUpdated);
+        rewriteCoordinate.constantUtilByTag = new ConstantUtilByTag();
         rewriteCoordinate.variablesUpdated = variablesUpdated;
         rewriteCoordinate.iterationNumber = iterationNumber;
         for (int k = 0; k < sb.getHops().size(); k++) {
