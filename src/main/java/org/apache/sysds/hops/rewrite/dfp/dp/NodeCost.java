@@ -52,14 +52,6 @@ public class NodeCost {
         this.joinCost += that.joinCost;
     }
 
-    public void minus(NodeCost that) {
-        this.shuffleCost -= that.shuffleCost;
-        this.broadcastCost -= that.broadcastCost;
-        this.computeCost -= that.computeCost;
-        this.collectCost -= that.collectCost;
-        this.joinCost -= that.joinCost;
-    }
-
     public void multiply(double x) {
         this.shuffleCost *= x;
         this.broadcastCost *= x;
@@ -68,16 +60,12 @@ public class NodeCost {
         this.joinCost *= x;
     }
 
-    public void plusMultiply(NodeCost that, double x) {
-        this.shuffleCost += that.shuffleCost * x;
-        this.broadcastCost += that.broadcastCost * x;
-        this.computeCost += that.computeCost * x;
-        this.collectCost += that.collectCost * x;
-        this.joinCost += that.joinCost * x;
-    }
-
     public double getSummary() {
         return shuffleCost + broadcastCost + computeCost + collectCost + joinCost;
+    }
+
+    public NodeCost clone() {
+        return new NodeCost(shuffleCost,broadcastCost,computeCost,collectCost,joinCost);
     }
 
     public static NodeCost add(NodeCost a, NodeCost b) {
@@ -86,6 +74,14 @@ public class NodeCost {
                 a.computeCost + b.computeCost,
                 a.collectCost + b.collectCost,
                 a.joinCost + b.joinCost);
+    }
+
+    public static NodeCost minus(NodeCost a, NodeCost b) {
+        return new NodeCost(a.shuffleCost - b.shuffleCost,
+                a.broadcastCost - b.broadcastCost,
+                a.computeCost - b.computeCost,
+                a.collectCost - b.collectCost,
+                a.joinCost - b.joinCost);
     }
 
     public static NodeCost add(NodeCost a, NodeCost b, NodeCost c) {

@@ -14,7 +14,8 @@ import static org.apache.sysds.hops.rewrite.dfp.dp.NodeCost.dts;
 
 public class OperatorNode {
     //    ArrayList<RangeNode> operands = new ArrayList<>();
-    Pair<Integer, Integer> range = null;
+//    Pair<Integer, Integer> range = null;
+    DRange dRange = null;
     //    ArrayList<Pair<Integer, Integer>> ranges = new ArrayList<>();
     public HashSet<SingleCse> dependencies = new HashSet<>();
     public HashSet<SingleCse> oldDependencies = new HashSet<>();
@@ -34,22 +35,7 @@ public class OperatorNode {
     AggBinaryOp.MMultMethod method = null;
     MMNode mmNode = null;
 //    SparsityEstimator.OpCode opCode = null;
-    double mm_intern_sparsity = -1;
     int partitionNumber = -1;
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        OperatorNode that = (OperatorNode) o;
-        return Double.compare(that.thisCost, thisCost) == 0 &&
-                Double.compare(that.accCost, accCost) == 0 &&
-                range.equals(that.range) &&
-//                ranges.equals(that.ranges) &&
-                Objects.equals(dependencies, that.dependencies);// &&
-        //  Objects.equals(hop, that.hop) &&
-        //   Objects.equals(inputs, that.inputs);
-    }
 
 
     @Override
@@ -69,7 +55,7 @@ public class OperatorNode {
             sb.append(mmNode.getDataCharacteristics().getSparsity());
             sb.append(",");
             sb.append(mmNode.getDataCharacteristics());
-            sb.append(",cis="+ mm_intern_sparsity);
+            sb.append(",cis="+ mmNode.mm_intern_sparsity);
             sb.append(",");
         }
         sb.append(dts(thisCost));
@@ -80,7 +66,8 @@ public class OperatorNode {
         sb.append(",");
 //        sb.append(accCostDetails);
 //        sb.append(",");
-        sb.append(range);
+//        sb.append(range);
+        sb.append(dRange);
         if (method != null) {
             sb.append("," + method);
         }
@@ -115,16 +102,5 @@ public class OperatorNode {
         sb.append("}");
         return sb.toString();
     }
-
-    public OperatorNode copyWithoutDependencies() {
-        OperatorNode node = new OperatorNode();
-        node.range = range;
-        node.inputs = (ArrayList<OperatorNode>) inputs.clone();
-        node.hops = (ArrayList<Hop>) hops.clone();
-        node.thisCost = thisCost;
-        node.accCost = accCost;
-        return node;
-    }
-
 
 }

@@ -36,16 +36,22 @@ public class NodeCostEstimator {
 
     public HashMap<Pair<Integer, Integer>, MMNode> range2mmnode = new HashMap<>();
 
+//    public HashMap<DRange,MMNode> drange2mmnode = new HashMap<>();
+
+    public HashMap<DRange, NodeCost> drange2multiplycost = new HashMap<>();
+
+
     public NodeCostEstimator(SparkExecutionContext sec) {
         this.sec = sec;
     }
 
     public MMNode addOpnode2Mmnode(OperatorNode opnode) {
         if (opnode.mmNode != null) return opnode.mmNode;
-        if (range2mmnode.containsKey(opnode.range)) {
-            opnode.mmNode = range2mmnode.get(opnode.range);
+        if (range2mmnode.containsKey(opnode.dRange.getRange())) {
+            opnode.mmNode = range2mmnode.get(opnode.dRange.getRange());
             return opnode.mmNode;
         }
+//        LOG.info("start add opnode to mmnode");
         MMNode ans = null;
         Hop hop = opnode.hops.get(0);
         if (hop.isScalar()) return null;
@@ -109,8 +115,8 @@ public class NodeCostEstimator {
         } else {
         }
         if (ans != null) {
-            if (!range2mmnode.containsKey(opnode.range)) {
-                range2mmnode.put(opnode.range, ans);
+            if (!range2mmnode.containsKey(opnode.dRange.getRange())) {
+                range2mmnode.put(opnode.dRange.getRange(), ans);
             }
             opnode.mmNode = ans;
         } else {
@@ -118,10 +124,12 @@ public class NodeCostEstimator {
             System.exit(0);
         }
         // System.out.println("RANGE2NODE SIZE = " +range2mmnode.size());
+//        LOG.info("end add opnode to mmnode");
         return ans;
     }
 
     int getPartition(OperatorNode opNode) {
+//        LOG.info("start get partition");
         String name = opNode.hops.get(0).getName();
         if (opNode.inputs.size() == 0 && sec.containsVariable(name)) {
             JavaPairRDD<MatrixIndexes, MatrixBlock> in1 = sec.getBinaryMatrixBlockRDDHandleForVariable(name);
@@ -134,14 +142,20 @@ public class NodeCostEstimator {
             opNode.partitionNumber = p1;
         }
         LOG.info(Explain.explain(opNode.hops.get(0)));
+//        LOG.info("end get partition");
         return opNode.partitionNumber;
     }
 
     public static double CPMM_INTERN_SPARSITY = -1;
 
     double getMmInternSparsity(OperatorNode opNode, long c1, double sp1, double sp2, long partJoin) {
+//        LOG.info("start get mm intern sparsity");
+        assert opNode.mmNode != null;
+//        if (opNode.mmNode.mm_intern_sparsity >= 0) {
+//            LOG.info("end get mm intern sparsity");
+//            return opNode.mmNode.mm_intern_sparsity;
+//        }
 
-        if (opNode.mm_intern_sparsity >= 0) return opNode.mm_intern_sparsity;
 
         long blocks = (long) Math.ceil((double) c1 / defaultBlockSize);
         long layerNum1 = (blocks / partJoin) * defaultBlockSize;
@@ -160,7 +174,9 @@ public class NodeCostEstimator {
         double sp;
         if (useMncEstimator) {
             LOG.info("mnc");
-            MMNode mmNode = addOpnode2Mmnode(opNode);
+            MMNode mn0 = opNode.inputs.get(0).mmNode;
+            MMNode mn1 = opNode.inputs.get(1).mmNode;
+            MMNode mmNode = new MMNode(mn0,mn1, SparsityEstimator.OpCode.MM);
             mncEstimator.estim(mmNode, false);
             sp = mncEstimator.estimInternSparsity(mmNode, layerNum1, parNum1, layerNum2, parNum2);
         } else {
@@ -170,11 +186,13 @@ public class NodeCostEstimator {
             sp = (tmp1 * parNum1 / (parNum1 + parNum2)) + (tmp2 * parNum2 / (parNum1 + parNum2));
         }
         LOG.info("get mm intern sparsity " + sp);
-        opNode.mm_intern_sparsity = sp;
+//        opNode.mmNode.mm_intern_sparsity = sp;
+//        LOG.info("end get mm intern sparsity");
         return sp;
     }
 
     DataCharacteristics getDC(OperatorNode opNode) {
+//        LOG.info("start get dc");
         DataCharacteristics dc = null;
         MMNode mmNode = addOpnode2Mmnode(opNode);
         try {
@@ -198,11 +216,13 @@ public class NodeCostEstimator {
 //        hop.setDim2(dc.getCols());
 //        hop.setNnz(dc.getNonZeros());
 //        hop.setBlocksize(defaultBlockSize);
+//        LOG.info("end get dc");
         return dc;
     }
 
     public NodeCost getNodeCost(OperatorNode opnode) {
-        NodeCost ans = NodeCost.INF();
+//        LOG.info("start get node cost");
+        NodeCost ans ;
         Hop hop = opnode.hops.get(0);
         // recurse top-bottom to determine weather a opnode is used by driver
         if (hop.optFindExecType() == LopProperties.ExecType.CP) {
@@ -234,6 +254,7 @@ public class NodeCostEstimator {
         } else {
             // System.out.println("unhandled operator type " + hop.getOpString());
             //  System.out.println("x");
+            ans = NodeCost.INF();
         }
         for (int i = 1; i < opnode.hops.size(); i++) {
             hop = opnode.hops.get(i);
@@ -254,11 +275,18 @@ public class NodeCostEstimator {
             LOG.error("cost infinate " + opnode);
             System.exit(-1);
         }
-        return ans;
+//        LOG.info("end get node cost");
+        return ans.clone();
     }
 
 
     NodeCost eMatrixMultiply(OperatorNode node, AggBinaryOp hop) {
+//        LOG.info("start estimate matrix multiply");
+        if (drange2multiplycost.containsKey(node.dRange)) {
+            NodeCost nodeCost = drange2multiplycost.get(node.dRange);
+//            LOG.info("end estimate matrix multiply");
+            return nodeCost.clone();
+        }
         DataCharacteristics dc1 = getDC(node.inputs.get(0));
         DataCharacteristics dc2 = getDC(node.inputs.get(1));
         DataCharacteristics dc3 = getDC(node);
@@ -293,6 +321,8 @@ public class NodeCostEstimator {
             double computeCost = CpuSpeed * 3 * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc2.getSparsity();
             ans = new NodeCost(0, 0, computeCost, 0);
         }
+        drange2multiplycost.put(node.dRange, ans.clone());
+//        LOG.info("end estimate matrix multiply");
         return ans;
     }
 
@@ -445,7 +475,7 @@ public class NodeCostEstimator {
                 }
                 LOG.info("matrix_block_size: " + matrix_block_size);
                 LOG.info("matrix_block_number_per_partition: " + matrix_block_number_per_partition);
-                shuffleCost = ShuffleSpeed * matrix_block_size  * partitionRdd / defaultWorkerNumber;
+                shuffleCost = ShuffleSpeed * matrix_block_size * partitionRdd / defaultWorkerNumber;
                 node.isSpark = true;
             }
         }

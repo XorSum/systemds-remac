@@ -62,7 +62,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     // private int hMultiCseId = 6392;
 
-    private int maxMultiCseNumber = 100000; // 设为-1,则生成所有的；设为正数，则最多生成那么多个
+    private int maxMultiCseNumber = -1; // 设为-1,则生成所有的；设为正数，则最多生成那么多个
 
     // private static long epoch = 100;
 
@@ -113,7 +113,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             }
             long end3 = System.nanoTime();
             allGenerateCombinationsTime += end3 - start3;
-            if (mySolution != null && (mySolution.cost < originalSolution.cost||useManualPolicy)) {
+            if (mySolution != null && (mySolution.cost < originalSolution.cost || useManualPolicy)) {
                 LOG.info("return rewrited solution");
                 System.out.println("return rewrited solution");
                 return mySolution;
@@ -312,26 +312,27 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         ArrayList<MultiCse> multiCses = genMultiCse(singleCses);
 
         if (multiCses.size() == 0) return null;
+        long begin = System.nanoTime();
 
-        // 构造计划
-        ArrayList<MySolution> solutions = genSolutions(multiCses, false, template, blockRanges);
-
-        // 估代价并返回代价最小的计划
-        MySolution solution = selectSolution(solutions);
-//                Hop result = genAndSelectHop(singleCses, multiCses, template, root);
-        if (solution.body != null) {
-            if (showMinCostHop) {
-                solution.body.resetVisitStatusForced(new HashSet<>());
-                LOG.debug("after coordinate");
-                LOG.debug(solution);
-//                        LOG.info("before coordinate runtime plan");
-//                        FakeCostEstimator2.printInstructions(constructProgramBlocks(root));
-//                        LOG.info("after coordinate runtime plan");
-//                        FakeCostEstimator2.printInstructions(constructProgramBlocks(solution.body));
+        CostGraph costGraph = new CostGraph(variablesUpdated, iterationNumber, ec);
+        Hop result = null;
+        double minCost = Double.MAX_VALUE;
+        for (int i = 0; i < multiCses.size(); i++) {
+            MultiCse multiCse = multiCses.get(i);
+            Hop hop = createHop(multiCse, template, blockRanges);
+            Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop);
+            if (i % 1000 == 0) {
+                LOG.info("i=" + i + ", costdetail=" + costTriple.getLeft());
             }
-            return solution;
+            if (result == null || minCost > costTriple.getLeft().getSummary()) {
+                result = hop;
+                minCost = costTriple.getLeft().getSummary();
+            }
         }
-        return null;
+        long end = System.nanoTime();
+        LOG.info("brute force cost time = " + ((end - begin) / 1e9) + "s");
+        MySolution mySolution = constantUtilByTag.liftLoopConstant(result);
+        return mySolution;
     }
 
     MySolution testDynamicProgramming(ArrayList<SingleCse> singleCses, Hop template, ArrayList<Range> blockRanges) {
@@ -355,6 +356,14 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
             MySolution mySolution = null;
             ArrayList<OperatorNode> operatorNodeArrayList = costGraph.testOperatorGraph(singlePlans, emptyPair, blockRanges, leaves, hops);
+
+//            costGraph.nodeCostEstimator.range2mmnode.forEach((key, value) -> {
+//                System.out.println(key + " -> " + value);
+//            });
+//            costGraph.nodeCostEstimator.drange2multiplycost.forEach((key, value) -> {
+//                System.out.println(key + " -> " + value);
+//            });
+
             long start = System.nanoTime();
             //ArrayList<MultiCse> multiCseArrayList = new ArrayList<>();
             int bestId = -1;

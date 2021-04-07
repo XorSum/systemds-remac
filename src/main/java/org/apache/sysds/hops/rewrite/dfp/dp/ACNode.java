@@ -16,11 +16,11 @@ public class ACNode {
     void addOperatorNode(OperatorNode node) {
         Pair<Pair<Integer, Integer>, Pair<Integer, Integer>> p2;
         if (node.inputs.size() == 2) {
-            Pair<Integer, Integer> p0 = node.inputs.get(0).range;
-            Pair<Integer, Integer> p1 = node.inputs.get(1).range;
+            Pair<Integer, Integer> p0 = node.inputs.get(0).dRange.getRange();
+            Pair<Integer, Integer> p1 = node.inputs.get(1).dRange.getRange();
             p2 = Pair.of(p0, p1);
         } else {
-            p2 = Pair.of(node.range, node.range);
+            p2 = Pair.of(node.dRange.getRange(), node.dRange.getRange());
         }
         HashMap<HashSet<SingleCse>, OperatorNode> cses2node;
         if (drange2operatornodes.containsKey(p2)) {

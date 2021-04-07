@@ -46,6 +46,7 @@ public class MMNode
 	public final long id;
 
 	public boolean estimated = false;
+ 	public 	double mm_intern_sparsity = -1;
 
 	public MMNode(MatrixBlock in) {
 		_m1 = null;

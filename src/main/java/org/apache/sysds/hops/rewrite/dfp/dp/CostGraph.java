@@ -15,6 +15,7 @@ import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.Leaf;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.Range;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.SingleCse;
+import org.apache.sysds.hops.rewrite.dfp.costmodel.CostModelCommon;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
 import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
 import org.apache.sysds.parser.VariableSet;
@@ -38,7 +39,7 @@ public class CostGraph {
     }
 
     private ExecutionContext ec;
-    NodeCostEstimator nodeCostEstimator;
+    public NodeCostEstimator nodeCostEstimator;
     long iterationNumber = 2;
     public VariableSet variablesUpdated = null;
 
@@ -54,7 +55,7 @@ public class CostGraph {
         System.out.println("before build cost graph");
         System.out.println("Total JVM GC count:\t\t" + getJVMgcCount() + ".\n");
         System.out.println("Total JVM GC time:\t\t" + ((double) getJVMgcTime()) / 1000 + " sec.\n");
-
+        CostModelCommon.MMShowCostFlag = true;
         int maxIndex = 0;
         HashSet<Pair<Integer, Integer>> ranges = new HashSet<>();
 
@@ -168,7 +169,7 @@ public class CostGraph {
     }
 
     void rGetRanges(OperatorNode node, HashSet<Pair<Integer, Integer>> ranges) {
-        ranges.add(node.range);
+        ranges.add(node.dRange.getRange());
         for (int i = 0; i < node.inputs.size(); i++) {
             rGetRanges(node.inputs.get(i), ranges);
         }
@@ -287,7 +288,6 @@ public class CostGraph {
             }
             node.isTranspose = transpose;
         }
-//        node.thisCost = NodeCostEstimator.getNodeCost(node);
         // System.out.println("put " + node);
         if (node != null) {
             if (node.hops.size() == 0 || !node.hops.contains(hop)) {
@@ -302,13 +302,11 @@ public class CostGraph {
     }
 
     void analyzeOperatorRange(OperatorNode root, SingleCse cse, MutableInt opIndex) {
+        ArrayList<Integer> index = new ArrayList<>();
         int begin = opIndex.getValue();
-//        if (root==null||root.inputs==null) {
-//            System.out.println(root);
-//            System.exit(-4);
-//        }
         if (root.inputs.size() > 0) {
             for (int i = 0; i < root.inputs.size(); i++) {
+                index.add(opIndex.getValue());
                 analyzeOperatorRange(root.inputs.get(i), cse, opIndex);
                 //  root.dependencies.addAll(root.inputs.get(i).dependencies);
             }
@@ -316,8 +314,9 @@ public class CostGraph {
             opIndex.increment();
         }
         int end = opIndex.getValue() - 1;
-        if (root.range == null) {
-            root.range = Pair.of(begin, end);
+        index.add(end);
+        if (root.dRange == null) {
+            root.dRange = new DRange(index);
 //        System.out.println("analyze range: " + root.range);
             for (Range range : cse.ranges) {
                 if ((range.left == begin && range.right == end) || (range.left == end && range.right == begin)) {
@@ -353,20 +352,20 @@ public class CostGraph {
             node.accCost = 0;
             node.accCostDetails = NodeCost.ZERO();
         }
-        for (int i = 0; i < node.inputs.size(); i++) {
-            analyzeOperatorCostTemplate(node.inputs.get(i));
-        }
         long start = System.nanoTime();
         NodeCost thisCostDetail = this.nodeCostEstimator.getNodeCost(node);
         long end = System.nanoTime();
         estimateTime += end - start;
         node.thisCost = thisCostDetail.getSummary();
         node.thisCostDetails = thisCostDetail;
-        if (!range2acnode.containsKey(node.range)) {
+        for (int i = 0; i < node.inputs.size(); i++) {
+            analyzeOperatorCostTemplate(node.inputs.get(i));
+        }
+        if (!range2acnode.containsKey(node.dRange.getRange())) {
             ACNode acNode = new ACNode();
-            acNode.range = node.range;
+            acNode.range = node.dRange.getRange();
             acNode.emptyOpnode = node;
-            range2acnode.put(node.range, acNode);
+            range2acnode.put(node.dRange.getRange(), acNode);
         }
     }
 
@@ -385,8 +384,8 @@ public class CostGraph {
         int csesize = 1;
         for (SingleCse singleCse : node.dependencies) {
             for (int i = 0; i < singleCse.ranges.size(); i++) {
-                if (singleCse.ranges.get(i).left == node.range.getLeft()
-                        && singleCse.ranges.get(i).right == node.range.getRight()) {
+                if (singleCse.ranges.get(i).left == node.dRange.getLeft()
+                        && singleCse.ranges.get(i).right == node.dRange.getRight()) {
                     csesize = singleCse.ranges.size();
                     break;
                 }
@@ -406,7 +405,7 @@ public class CostGraph {
         node.thisCost = thisCostDetail.getSummary();
         // if (node.range.getLeft()==2&&node.range.getRight()==3)   System.out.println(thisCost);
         //  System.out.println(node);
-        range2acnode.get(node.range).addOperatorNode(node);
+        range2acnode.get(node.dRange.getRange()).addOperatorNode(node);
 //        if (node.range.getLeft()==2&&node.range.getRight()==3) {
 //            System.out.println("node(2,3): "+ node);
 //        }
@@ -563,7 +562,8 @@ public class CostGraph {
                   HashSet<SingleCse> midcses) {
 
         if (!checkConflict(operatorNode1.dependencies, operatorNode2.dependencies)) return false;
-        if (!checkAAA(operatorNode1.dependencies, operatorNode1.range, operatorNode2.dependencies, operatorNode2.range))
+        if (!checkAAA(operatorNode1.dependencies, operatorNode1.dRange.getRange(),
+                operatorNode2.dependencies, operatorNode2.dRange.getRange()))
             return false;
 
         if (!checkOOOO(operatorNode1, operatorNode2, midcses)) {
@@ -601,7 +601,8 @@ public class CostGraph {
 //        if (!checkAAA(operatorNode1.dependencies,operatorNode1.range, operatorNode2.oldDependencies,operatorNode2.range)) return false;
 //        if (!checkAAA(operatorNode1.oldDependencies,operatorNode1.range, operatorNode2.dependencies,operatorNode2.range)) return false;
 
-        if (!checkAAA(operatorNode1.oldDependencies, operatorNode1.range, operatorNode2.oldDependencies, operatorNode2.range))
+        if (!checkAAA(operatorNode1.oldDependencies, operatorNode1.dRange.getRange(),
+                operatorNode2.oldDependencies, operatorNode2.dRange.getRange()))
             return false;
         return true;
     }
@@ -671,7 +672,12 @@ public class CostGraph {
             System.exit(0);
         }
         OperatorNode node = new OperatorNode();
-        node.range = midRange;
+        ArrayList<Integer> index = new ArrayList<>();
+        index.add(lRange.getLeft());
+        index.add(rRange.getLeft());
+        index.add(rRange.getRight());
+        node.dRange = new DRange(index);
+
         node.method = originNode.method;
         node.mmNode = originNode.mmNode;
 
@@ -705,10 +711,10 @@ public class CostGraph {
         if (node.isXtXv) {
             if (!node.isTranspose) {
                 node.accCost -= rNode.thisCost;
-                node.accCostDetails.minus(rNode.thisCostDetails);
+                node.accCostDetails = NodeCost.minus(node.accCostDetails, rNode.thisCostDetails);
             } else {
                 node.accCost -= lNode.thisCost;
-                node.accCostDetails.minus(lNode.thisCostDetails);
+                node.accCostDetails = NodeCost.minus(node.accCostDetails, lNode.thisCostDetails);
             }
         }
 
@@ -726,8 +732,8 @@ public class CostGraph {
 
     public Triple<NodeCost, NodeCost, OperatorNode> estimateHopCost(Hop hop) {
         OperatorNode node = createOperatorGraph(hop, false);
-        if (node==null) {
-            return Triple.of(NodeCost.ZERO(),NodeCost.ZERO(),null);
+        if (node == null) {
+            return Triple.of(NodeCost.ZERO(), NodeCost.ZERO(), null);
         }
 //        System.out.println(node);
         MutableInt mutableInt = new MutableInt(0);
@@ -760,6 +766,8 @@ public class CostGraph {
             }
         }
         NodeCost ans = NodeCost.ZERO();
+//        System.out.println(explainOpNode(node,0));
+//        System.out.println("x");
         NodeCost thisCostDetail = this.nodeCostEstimator.getNodeCost(node);
         if (hasCons) {
             thisCostDetail.multiply(1.0 / iterationNumber);
