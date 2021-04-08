@@ -111,10 +111,10 @@ public class CostGraph {
 //        }
 
         // 回收mnc使用的内存
-        for (MMNode mmNode : nodeCostEstimator.range2mmnode.values()) {
-            mmNode.setSynopsis(null);
-        }
-        nodeCostEstimator.range2mmnode.clear();
+//        for (MMNode mmNode : nodeCostEstimator.range2mmnode.values()) {
+//            mmNode.setSynopsis(null);
+//        }
+//        nodeCostEstimator.range2mmnode.clear();
 
         System.gc();
 
@@ -175,6 +175,14 @@ public class CostGraph {
         }
     }
 
+    public void cleanMMNode(OperatorNode root) {
+        if (root.mmNode!=null) {
+            root.mmNode.setSynopsis(null);
+        }
+        for (OperatorNode in : root.inputs) {
+            cleanMMNode(in);
+        }
+    }
 
     void showBest(Pair<Integer, Integer> range) {
         System.out.println("range: " + range);
@@ -747,6 +755,7 @@ public class CostGraph {
         NodeCost cost = analyzeHopCost(node, new HashSet<>(), constantCost);
         long end = System.nanoTime();
         estimateTime += end - start;
+        cleanMMNode(node);
 //        System.out.println("all cost = "+cost);
         //    NodeCost cost = NodeCost.ZERO();
         return Triple.of(cost, constantCost, node);

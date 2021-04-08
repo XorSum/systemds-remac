@@ -67,8 +67,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     // private static long epoch = 100;
 
     private boolean useManualPolicy = false;
-    private boolean useDynamicProgramPolicy = true;
-    private boolean useBruceForcePolicy = false;
+    private boolean useDynamicProgramPolicy = false;
+    private boolean useBruceForcePolicy = true;
 
 
     // </configuration>
@@ -84,7 +84,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             LOG.debug("start coordinate " + MyExplain.myExplain(root));
             LOG.debug("root: \n" + Explain.explain(root));
 
-            estimateOriginalSolutionCost(root, originalSolution);
+//            estimateOriginalSolutionCost(root, originalSolution);
 
             Triple<Hop, ArrayList<Range>, ArrayList<SingleCse>> triple = generateOptions(root);
             if (triple == null) {

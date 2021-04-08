@@ -34,11 +34,11 @@ public class NodeCostEstimator {
     protected static final Log LOG = LogFactory.getLog(NodeCostEstimator.class.getName());
 
 
-    public HashMap<Pair<Integer, Integer>, MMNode> range2mmnode = new HashMap<>();
+//    public HashMap<Pair<Integer, Integer>, MMNode> range2mmnode = new HashMap<>();
 
 //    public HashMap<DRange,MMNode> drange2mmnode = new HashMap<>();
 
-    public HashMap<DRange, NodeCost> drange2multiplycost = new HashMap<>();
+//    public HashMap<DRange, NodeCost> drange2multiplycost = new HashMap<>();
 
 
     public NodeCostEstimator(SparkExecutionContext sec) {
@@ -47,10 +47,10 @@ public class NodeCostEstimator {
 
     public MMNode addOpnode2Mmnode(OperatorNode opnode) {
         if (opnode.mmNode != null) return opnode.mmNode;
-        if (range2mmnode.containsKey(opnode.dRange.getRange())) {
-            opnode.mmNode = range2mmnode.get(opnode.dRange.getRange());
-            return opnode.mmNode;
-        }
+//        if (range2mmnode.containsKey(opnode.dRange.getRange())) {
+//            opnode.mmNode = range2mmnode.get(opnode.dRange.getRange());
+//            return opnode.mmNode;
+//        }
 //        LOG.info("start add opnode to mmnode");
         MMNode ans = null;
         Hop hop = opnode.hops.get(0);
@@ -115,9 +115,9 @@ public class NodeCostEstimator {
         } else {
         }
         if (ans != null) {
-            if (!range2mmnode.containsKey(opnode.dRange.getRange())) {
-                range2mmnode.put(opnode.dRange.getRange(), ans);
-            }
+//            if (!range2mmnode.containsKey(opnode.dRange.getRange())) {
+//                range2mmnode.put(opnode.dRange.getRange(), ans);
+//            }
             opnode.mmNode = ans;
         } else {
             //   System.out.println("mmnode == null");
@@ -282,11 +282,11 @@ public class NodeCostEstimator {
 
     NodeCost eMatrixMultiply(OperatorNode node, AggBinaryOp hop) {
 //        LOG.info("start estimate matrix multiply");
-        if (drange2multiplycost.containsKey(node.dRange)) {
-            NodeCost nodeCost = drange2multiplycost.get(node.dRange);
-//            LOG.info("end estimate matrix multiply");
-            return nodeCost.clone();
-        }
+//        if (drange2multiplycost.containsKey(node.dRange)) {
+//            NodeCost nodeCost = drange2multiplycost.get(node.dRange);
+////            LOG.info("end estimate matrix multiply");
+//            return nodeCost.clone();
+//        }
         DataCharacteristics dc1 = getDC(node.inputs.get(0));
         DataCharacteristics dc2 = getDC(node.inputs.get(1));
         DataCharacteristics dc3 = getDC(node);
@@ -321,7 +321,7 @@ public class NodeCostEstimator {
             double computeCost = CpuSpeed * 3 * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc2.getSparsity();
             ans = new NodeCost(0, 0, computeCost, 0);
         }
-        drange2multiplycost.put(node.dRange, ans.clone());
+//        drange2multiplycost.put(node.dRange, ans.clone());
 //        LOG.info("end estimate matrix multiply");
         return ans;
     }
