@@ -84,8 +84,6 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             LOG.debug("start coordinate " + MyExplain.myExplain(root));
             LOG.debug("root: \n" + Explain.explain(root));
 
-            estimateOriginalSolutionCost(root, originalSolution);
-
             Triple<Hop, ArrayList<Range>, ArrayList<SingleCse>> triple = generateOptions(root);
             if (triple == null) {
                 LOG.debug("small leaves size, return original solution");
@@ -127,22 +125,6 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         }
         LOG.debug("final return original hop");
         return originalSolution;
-    }
-
-    void estimateOriginalSolutionCost(Hop root, MySolution originalSolution) {
-        long start1 = System.nanoTime();
-        if (useBruceForcePolicy) {
-            estimate(originalSolution, false);
-        } else {
-            CostGraph costGraph = new CostGraph(variablesUpdated, iterationNumber, ec);
-            Triple<NodeCost, NodeCost, OperatorNode> nodeCostOperatorNodePair = costGraph.estimateHopCost(root);
-            LOG.info("original cost detail = " + nodeCostOperatorNodePair.getLeft());
-            LOG.info("original cost = " + originalSolution.cost);
-            originalSolution.cost = nodeCostOperatorNodePair.getLeft().getSummary();
-        }
-        long end1 = System.nanoTime();
-        allGenerateCombinationsTime += end1 - start1;
-        CostGraph.estimateTime += end1 - start1;
     }
 
     Triple<Hop, ArrayList<Range>, ArrayList<SingleCse>> generateOptions(Hop root) {
@@ -367,7 +349,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             long start = System.nanoTime();
             //ArrayList<MultiCse> multiCseArrayList = new ArrayList<>();
             int bestId = -1;
-            for (int i = 0; i < 200 && i < operatorNodeArrayList.size(); i++) {
+//            for (int i = 0; i < 200 && i < operatorNodeArrayList.size(); i++) {
+                int i=0;
                 OperatorNode operatorNode = operatorNodeArrayList.get(i);
                 MultiCse multiCse = createMultiCseFromOperatorNode(operatorNode);
                 if (multiCse != null) {
@@ -389,10 +372,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                         bestId = i;
                     }
                 }
-            }
+//            }
             LOG.info("bestId=" + bestId);
             long end = System.nanoTime();
-            CostGraph.estimateTime += end - start;
             LOG.info("dynamic programming: ");
             LOG.info(mySolution);
             System.out.println("dynamic programming: ");
