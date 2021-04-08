@@ -114,7 +114,7 @@ public class CostGraph {
         for (MMNode mmNode : nodeCostEstimator.range2mmnode.values()) {
             mmNode.setSynopsis(null);
         }
-        nodeCostEstimator.range2mmnode.clear();
+//        nodeCostEstimator.range2mmnode.clear();
 
         System.gc();
 

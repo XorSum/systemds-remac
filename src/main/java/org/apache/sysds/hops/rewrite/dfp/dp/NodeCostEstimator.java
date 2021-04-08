@@ -45,6 +45,13 @@ public class NodeCostEstimator {
         this.sec = sec;
     }
 
+    public void printCache() {
+        LOG.info("range2mmnode size = "+range2mmnode.size());
+        LOG.info("drange2multiplycost size = "+drange2multiplycost.size());
+        LOG.info(range2mmnode);
+        LOG.info(drange2multiplycost);
+    }
+
     public MMNode addOpnode2Mmnode(OperatorNode opnode) {
         if (opnode.mmNode != null) return opnode.mmNode;
         if (range2mmnode.containsKey(opnode.dRange.getRange())) {

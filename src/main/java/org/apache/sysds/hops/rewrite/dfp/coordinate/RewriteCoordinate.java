@@ -313,6 +313,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         }
         long end = System.nanoTime();
         LOG.info("brute force cost time = " + ((end - begin) / 1e9) + "s");
+        costGraph.nodeCostEstimator.printCache();
         MySolution mySolution = constantUtilByTag.liftLoopConstant(result);
         return mySolution;
     }
@@ -373,6 +374,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     }
                 }
 //            }
+            costGraph.nodeCostEstimator.printCache();
             LOG.info("bestId=" + bestId);
             long end = System.nanoTime();
             LOG.info("dynamic programming: ");
@@ -556,6 +558,12 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         HashMap<HashKey, ArrayList<HashSet<Range>>> hash2Ranges = new HashMap<>();
         // 划分 块
         genBlocks(djs, blockRanges, hash2Ranges);
+        hash2Ranges.forEach((x,y)->{
+            for (HashSet<Range> hs: y) {
+                System.out.print(hs);
+            }
+            System.out.println("");
+        });
 
         // 构造出所有的SingleCse
         long start = System.nanoTime();
