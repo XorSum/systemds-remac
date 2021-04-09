@@ -67,8 +67,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     // private static long epoch = 100;
 
     private boolean useManualPolicy = false;
-    private boolean useDynamicProgramPolicy = true;
-    private boolean useBruceForcePolicy = false;
+    private boolean useDynamicProgramPolicy = false;
+    private boolean useBruceForcePolicy = true;
 
 
     // </configuration>
@@ -166,20 +166,13 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
         // 生成singleCes
         ArrayList<Range> blockRanges = new ArrayList<>();
+//        ArrayList<SingleCse> singleCses = genSingleCseSameBlockAttention(djs, blockRanges);
         ArrayList<SingleCse> singleCses = genSingleCse(djs, blockRanges);
-
-        if (showOriginHop) {
-            root.resetVisitStatusForced(new HashSet<>());
-            LOG.debug("before coordinate");
-            LOG.debug(Explain.explain(root));
-        }
-//            testBruteForce( singleCses, template,  blockRanges);
 
         long end2 = System.nanoTime();
         allGenerateOptionsTime += end2 - start2;
 
         return Triple.of(template, blockRanges, singleCses);
-
     }
 
     MySolution testManualAll(Hop root, Hop template, ArrayList<Range> blockRanges) {
@@ -431,7 +424,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         }
     }
 
-    private void genBlocks(DisjointSet djs, ArrayList<Range> blockRanges, HashMap<HashKey, ArrayList<HashSet<Range>>> hash2Rangesset) {
+    private void genBlocksSameBlockAttention(DisjointSet djs, ArrayList<Range> blockRanges, HashMap<HashKey, ArrayList<HashSet<Range>>> hash2Rangesset) {
         // 3. 把叶子根据并查集分为多个块
         for (int i = 0; i < leaves.size(); i++) {
             if (djs.find(i) == i) {
@@ -541,6 +534,55 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         }
     }
 
+    private void genBlocks(DisjointSet djs, ArrayList<Range> blockRanges, HashMap<HashKey, ArrayList<Range>> hash2Ranges) {
+        // 3. 把叶子根据并查集分为多个块
+        for (int i = 0; i < leaves.size(); i++) {
+            if (djs.find(i) == i) {
+                int l = i, r = i;
+                while (l - 1 >= 0 && djs.find(l - 1) == djs.find(i)) l--;
+                while (r + 1 < leaves.size() && djs.find(r + 1) == djs.find(i)) r++;
+                blockRanges.add(Range.of(l, r, false));
+                if (showBlock)
+                    LOG.info("Range " + l + " " + r + " " + getRangeName(l, r));
+            }
+        }
+        // 4. 求出每个区间的哈希值，并把哈希值相同的汇聚起来
+        for (Range block : blockRanges) {
+            for (int l = block.left; l <= block.right; l++) {
+                //    LOG.debug("i=" + l + " name=" + leaves.get(l).hop.getName() + " updated=" + variablesUpdated.containsVariable(leaves.get(l).hop.getName()));
+//                if (onlySearchConstantSubExp && notConstant(l)) continue;
+                // int r = onlySearchConstantSubExp ? l + 1 : l + 2;
+                int r = l + 1;
+                for (; r <= block.right; r++) {
+//                    if (onlySearchConstantSubExp && notConstant(r)) break;
+                    long first = rangeHash1(l, r);
+                    long second = rangeHash2(l, r);
+                    boolean transpose = false;
+                    if (first < second) {
+                        Long tmp = first;
+                        first = second;
+                        second = tmp;
+                        transpose = true;
+                    }
+                    HashKey hash = HashKey.of(first, second);
+                    if (!hash2Ranges.containsKey(hash))
+                        hash2Ranges.put(hash, new ArrayList<>());
+                    hash2Ranges.get(hash).add(Range.of(l, r, transpose));
+                }
+            }
+        }
+        // 过滤掉不是公共子式的区间
+        for (Iterator<Map.Entry<HashKey, ArrayList<Range>>> it = hash2Ranges.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<HashKey, ArrayList<Range>> e = it.next();
+            ArrayList<Range> list = e.getValue();
+            if (list.size() < 2 || list.get(0).right >= list.get(list.size() - 1).left) {
+                it.remove();
+            }
+        }
+        LOG.info("number of commom exp = " + hash2Ranges.size());
+
+    }
+
     private boolean isConstant(int left, int right) {
         for (int i = left; i <= right; i++) {
             if (notConstant(i)) return false;
@@ -555,21 +597,15 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     }
 
     private ArrayList<SingleCse> genSingleCse(DisjointSet djs, ArrayList<Range> blockRanges) {
-        HashMap<HashKey, ArrayList<HashSet<Range>>> hash2Ranges = new HashMap<>();
+        HashMap<HashKey, ArrayList<Range>> hash2Ranges = new HashMap<>();
         // 划分 块
         genBlocks(djs, blockRanges, hash2Ranges);
-        hash2Ranges.forEach((x,y)->{
-            for (HashSet<Range> hs: y) {
-                System.out.print(hs);
-            }
-            System.out.println("");
-        });
 
         // 构造出所有的SingleCse
         long start = System.nanoTime();
         ArrayList<SingleCse> result = new ArrayList<>();
-        for (Map.Entry<HashKey, ArrayList<HashSet<Range>>> e : hash2Ranges.entrySet()) {
-            ArrayList<SingleCse> singleCses = genSingleCseFromRanges1(e.getKey(), e.getValue());
+        for (Map.Entry<HashKey, ArrayList<Range>> e : hash2Ranges.entrySet()) {
+            ArrayList<SingleCse> singleCses = genSingleCseFromRanges(e.getKey(), e.getValue());
             result.addAll(singleCses);
         }
         if (showSingleCse) {
@@ -583,20 +619,72 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return result;
     }
 
+    private ArrayList<SingleCse> genSingleCseFromRanges(HashKey hash, ArrayList<Range> ranges) {
+        ArrayList<SingleCse> result = new ArrayList<>();
+        for (int index = 0; index < ranges.size(); index++) {
+            SingleCse tmp = new SingleCse(hash, new ArrayList<>(), ranges.get(index), index);
+            tmp.name = getRangeName(ranges.get(index));
+            result.add(tmp);
+        }
+        for (int i = 0; i < result.size(); i++) {
+            SingleCse frontSC = result.get(i);
+            for (int index = frontSC.last_index + 1; index < ranges.size(); index++) {
+                Range rangeA = ranges.get(index);
+                boolean ok = true;
+                for (int k = 0; ok && k < frontSC.ranges.size(); k++) {
+                    Range rangeB = frontSC.ranges.get(k);
+                    if (rangeA.intersect(rangeB)) {
+                        ok = false;
+                    }
+                }
+                if (ok) {
+                    SingleCse newSC = new SingleCse(hash, frontSC.ranges, rangeA, index);
+                    newSC.name = frontSC.name;
+                    result.add(newSC);
+//                    if (result.size() % 1000 == 0) {
+//                        System.out.println(result.size());
+//                    }
+                }
+            }
+        }
+        if (ranges.size() > 0) {
+            result.subList(0, ranges.size()).clear();
+        }
+        return result;
+    }
 
-//    private ArrayList<SingleCse> genSingleCseFromRanges(HashKey hash, ArrayList<HashSet<Range>> ranges, ArrayList<Range> blockRanges) {
-//
-////        ArrayList<Range> ranges2 = new ArrayList<>();
-////        for (ArrayList<Range> ranges1: hash2blockranges.values()) {
-////            Range block = ranges1.get(0);
-////            ranges2.add(block);
-////        }
-////        ArrayList<SingleCse>  singleCses =  genSingleCseFromRanges1( hash, ranges2);
-//
-//        return null;
-//    }
+    private ArrayList<SingleCse> genSingleCseSameBlockAttention(DisjointSet djs, ArrayList<Range> blockRanges) {
+        HashMap<HashKey, ArrayList<HashSet<Range>>> hash2Ranges = new HashMap<>();
+        // 划分 块
+        genBlocksSameBlockAttention(djs, blockRanges, hash2Ranges);
+        hash2Ranges.forEach((x,y)->{
+            for (HashSet<Range> hs: y) {
+                System.out.print(hs);
+            }
+            System.out.println("");
+        });
 
-    private ArrayList<SingleCse> genSingleCseFromRanges1(HashKey hash, ArrayList<HashSet<Range>> rangesets) {
+        // 构造出所有的SingleCse
+        long start = System.nanoTime();
+        ArrayList<SingleCse> result = new ArrayList<>();
+        for (Map.Entry<HashKey, ArrayList<HashSet<Range>>> e : hash2Ranges.entrySet()) {
+            ArrayList<SingleCse> singleCses = genSingleCseFromRangesSameBlockAttention(e.getKey(), e.getValue());
+            result.addAll(singleCses);
+        }
+        if (showSingleCse) {
+            for (int i = 0; i < result.size(); i++) {
+                LOG.info(i + " " + result.get(i));
+            }
+        }
+        long end = System.nanoTime();
+        LOG.info("number of single cse = " + result.size());
+        LOG.info("bfs search all single cses cost " + ((end - start) / 1e6) + "ms");
+        return result;
+    }
+
+    private ArrayList<SingleCse> genSingleCseFromRangesSameBlockAttention(
+            HashKey hash,
+            ArrayList<HashSet<Range>> rangesets) {
         ArrayList<SingleCse> result = new ArrayList<>();
         for (int index = 0; index < rangesets.size(); index++) {
             SingleCse tmp = new SingleCse(hash, rangesets.get(index), index);
@@ -676,6 +764,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         }
         if (searchCombinedCandidates) {
             for (int i = 0; i < result.size(); i++) {
+                if (i % 1000 == 0) {
+                    LOG.info("i: " + i + ", multicse number: " + result.size());
+                }
                 if (maxMultiCseNumber >= 0 && result.size() >= maxMultiCseNumber) break;
                 MultiCse frontMC = result.get(i);
                 if (showMultiCse) {
@@ -704,63 +795,6 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return result;
     }
 
-    private MultiCse createBestMultiCse546() {
-        MultiCse m = new MultiCse();
-        SingleCse s1 = new SingleCse();
-        s1.ranges.add(Range.of(1, 4, false));
-        s1.ranges.add(Range.of(5, 8, true));
-        s1.ranges.add(Range.of(9, 12, true));
-        m.cses.add(s1);
-
-        SingleCse s2 = new SingleCse();
-        s2.ranges.add(Range.of(2, 4, false));
-        s2.ranges.add(Range.of(5, 7, true));
-        s2.ranges.add(Range.of(9, 11, true));
-        s2.ranges.add(Range.of(13, 15, false));
-        s2.ranges.add(Range.of(22, 24, false));
-        m.cses.add(s2);
-
-        SingleCse s3 = new SingleCse();
-        s3.ranges.add(Range.of(3, 4, false));
-        s3.ranges.add(Range.of(5, 6, true));
-        s3.ranges.add(Range.of(9, 10, true));
-        s3.ranges.add(Range.of(14, 15, false));
-        s3.ranges.add(Range.of(16, 17, false));
-        s3.ranges.add(Range.of(18, 19, true));
-        s3.ranges.add(Range.of(20, 21, true));
-        s3.ranges.add(Range.of(23, 24, false));
-
-        m.cses.add(s3);
-
-        return m;
-    }
-
-    private MultiCse createMultiCseDfpHy() {
-        MultiCse m = new MultiCse();
-        SingleCse s1 = new SingleCse();
-        s1.ranges.add(Range.of(1, 5, false));
-        s1.ranges.add(Range.of(6, 10, true));
-        s1.ranges.add(Range.of(11, 15, true));
-        m.cses.add(s1);
-        SingleCse s2 = new SingleCse();
-        s2.ranges.add(Range.of(2, 5, false));
-        s2.ranges.add(Range.of(6, 9, true));
-        s2.ranges.add(Range.of(11, 14, true));
-        s2.ranges.add(Range.of(16, 19, false));
-        s2.ranges.add(Range.of(26, 29, false));
-        m.cses.add(s2);
-        SingleCse s3 = new SingleCse(); // d
-        s3.ranges.add(Range.of(4, 5, false));
-        s3.ranges.add(Range.of(6, 7, true));
-        s3.ranges.add(Range.of(11, 12, true));
-        s3.ranges.add(Range.of(18, 19, false));
-        s3.ranges.add(Range.of(20, 21, false));
-        s3.ranges.add(Range.of(22, 23, true));
-        s3.ranges.add(Range.of(24, 25, true));
-        s3.ranges.add(Range.of(28, 29, false));
-        m.cses.add(s3);
-        return m;
-    }
 
     private MySolution genSolution(MultiCse multiCse, Hop template, ArrayList<Range> blockRanges) {
         try {
