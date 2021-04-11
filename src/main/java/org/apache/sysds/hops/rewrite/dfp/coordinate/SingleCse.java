@@ -125,4 +125,10 @@ public class SingleCse {
     public int hashCode() {
         return Objects.hash(ranges);
     }
+
+    public int cseLength() {
+        Range range = ranges.get(0);
+        return range.right - range.left + 1;
+    }
+
 }

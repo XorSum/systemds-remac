@@ -20,14 +20,18 @@ import org.apache.sysds.hops.rewrite.dfp.utils.*;
 import org.apache.sysds.parser.*;
 import org.apache.sysds.runtime.controlprogram.Program;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
+import org.apache.sysds.runtime.controlprogram.parfor.util.IDSequence;
 import org.apache.sysds.utils.Explain;
+
 import java.util.*;
+import java.util.concurrent.*;
+
 import static org.apache.sysds.hops.rewrite.dfp.utils.CreateRuntimeProgram.constructProgramBlocks;
 import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
 
 public class RewriteCoordinate extends StatementBlockRewriteRule {
 
-    protected final Log LOG = LogFactory.getLog(RewriteCoordinate.class.getName());
+    protected static final Log LOG = LogFactory.getLog(RewriteCoordinate.class.getName());
 
     public static String manualType = null;
     public Coordinate coordinate = new Coordinate();
@@ -43,6 +47,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     //    public ConstantUtil constantUtil = null; // new ConstantUtil(variablesUpdated);
     public ConstantUtilByTag constantUtilByTag;
     public long iterationNumber = 2;
+    static int threadNum = 24;
 
     // <configuration>
     private boolean showMultiCse = false;
@@ -58,7 +63,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     private boolean useManualPolicy = false;
     private boolean useDynamicProgramPolicy = false;
-    private boolean useBruceForcePolicy = true;
+    private boolean useBruceForcePolicy = false;
+    private boolean useBruceForcePolicyMultiThreads = true;
 
 
     // </configuration>
@@ -94,6 +100,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     mySolution = testDynamicProgramming(singleCses, template, blockRanges);
                 } else if (useBruceForcePolicy) {
                     mySolution = testBruteForce(singleCses, template, blockRanges);
+                } else if (useBruceForcePolicyMultiThreads){
+                    mySolution = testBruteForceMultiThreads(singleCses, template, blockRanges);
                 }
 //                testCreateHops(template, blockRanges);
             } catch (Exception e) {
@@ -224,6 +232,11 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return solution;
     }
 
+    MySolution testBruteForceMultiThreads(ArrayList<SingleCse> singleCses, Hop template, ArrayList<Range> blockRanges) {
+        genMultiCseMultiThreads(singleCses);
+        return null;
+    }
+
     MySolution testBruteForce(ArrayList<SingleCse> singleCses, Hop template, ArrayList<Range> blockRanges) {
         // 构造出所有的MultiCse
 
@@ -287,28 +300,28 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             //ArrayList<MultiCse> multiCseArrayList = new ArrayList<>();
             int bestId = -1;
 //            for (int i = 0; i < 200 && i < operatorNodeArrayList.size(); i++) {
-                int i=0;
-                OperatorNode operatorNode = operatorNodeArrayList.get(i);
-                MultiCse multiCse = createMultiCseFromOperatorNode(operatorNode);
-                if (multiCse != null) {
-                    //      multiCseArrayList.add(multiCse);
-                    Hop hop = createHop(multiCse, template, blockRanges);
-                    hop = copyAndEliminateHop(hop);
-                    double dpcost = operatorNode.accCost;
-                    Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop);
-                    NodeCost cost3 = costTriple.getLeft();
-                    double hcost = cost3.getSummary();
-                    double rate = (dpcost - hcost) / hcost;
-                    LOG.info("candidate multi cse:  rcost=" + hcost + ", dpcost=" + dpcost + ", rate=" + rate + "\n" + operatorNode.accCostDetails + "\n" + multiCse);
-                    LOG.info("rcostdetail=" + cost3 + ", dpcostdetail=" + operatorNode.accCostDetails);
-                    LOG.info(CostGraph.explainOpNode(operatorNode, 0));
-                    MySolution solution = constantUtilByTag.liftLoopConstant(hop);
-                    solution.multiCse = multiCse;
-                    if (mySolution == null || mySolution.cost < dpcost) {
-                        mySolution = solution;
-                        bestId = i;
-                    }
+            int i = 0;
+            OperatorNode operatorNode = operatorNodeArrayList.get(i);
+            MultiCse multiCse = createMultiCseFromOperatorNode(operatorNode);
+            if (multiCse != null) {
+                //      multiCseArrayList.add(multiCse);
+                Hop hop = createHop(multiCse, template, blockRanges);
+                hop = copyAndEliminateHop(hop);
+                double dpcost = operatorNode.accCost;
+                Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop);
+                NodeCost cost3 = costTriple.getLeft();
+                double hcost = cost3.getSummary();
+                double rate = (dpcost - hcost) / hcost;
+                LOG.info("candidate multi cse:  rcost=" + hcost + ", dpcost=" + dpcost + ", rate=" + rate + "\n" + operatorNode.accCostDetails + "\n" + multiCse);
+                LOG.info("rcostdetail=" + cost3 + ", dpcostdetail=" + operatorNode.accCostDetails);
+                LOG.info(CostGraph.explainOpNode(operatorNode, 0));
+                MySolution solution = constantUtilByTag.liftLoopConstant(hop);
+                solution.multiCse = multiCse;
+                if (mySolution == null || mySolution.cost < dpcost) {
+                    mySolution = solution;
+                    bestId = i;
                 }
+            }
 //            }
             costGraph.nodeCostEstimator.printCache();
             LOG.info("bestId=" + bestId);
@@ -334,7 +347,6 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return multiCse;
     }
 
-    static boolean searchCombinedCandidates = true;
 
     private ArrayList<MultiCse> genMultiCse(ArrayList<SingleCse> singleCse) {
         long start = System.nanoTime();
@@ -346,10 +358,6 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             int lb = rb.right - rb.left;
             return lb - la;
         });
-//        for (int j = 0; j < singleCse.size(); j++) {
-//            LOG.debug(singleCse.get(j).ranges.get(0));
-//        }
-
         ArrayList<MultiCse> result = new ArrayList<>();
         for (int j = 0; j < singleCse.size(); j++) {
             MultiCse c = new MultiCse();
@@ -357,30 +365,28 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             c.last_index = j;
             result.add(c);
         }
-        if (searchCombinedCandidates) {
-            for (int i = 0; i < result.size(); i++) {
-                if (i % 1000 == 0) {
-                    LOG.info("i: " + i + ", multicse number: " + result.size());
+        for (int i = 0; i < result.size(); i++) {
+            if (i % 1000 == 0) {
+                LOG.info("i: " + i + ", multicse number: " + result.size());
+            }
+            if (maxMultiCseNumber >= 0 && result.size() >= maxMultiCseNumber) break;
+            MultiCse frontMC = result.get(i);
+            if (showMultiCse) {
+                LOG.debug(frontMC);
+            }
+            for (int index = frontMC.last_index + 1; index < singleCse.size(); index++) {
+                SingleCse scA = singleCse.get(index);
+                boolean ok = true;
+                for (int k = 0; ok && k < frontMC.cses.size(); k++) {
+                    SingleCse scB = frontMC.cses.get(k);
+                    if (scB.hash == scA.hash || scB.conflict(scA) || !scB.contain(scA)) ok = false;
                 }
-                if (maxMultiCseNumber >= 0 && result.size() >= maxMultiCseNumber) break;
-                MultiCse frontMC = result.get(i);
-                if (showMultiCse) {
-                    LOG.debug(frontMC);
-                }
-                for (int index = frontMC.last_index + 1; index < singleCse.size(); index++) {
-                    SingleCse scA = singleCse.get(index);
-                    boolean ok = true;
-                    for (int k = 0; ok && k < frontMC.cses.size(); k++) {
-                        SingleCse scB = frontMC.cses.get(k);
-                        if (scB.hash == scA.hash || scB.conflict(scA) || !scB.contain(scA)) ok = false;
-                    }
-                    if (ok) {
-                        MultiCse newMC = new MultiCse();
-                        newMC.cses = (ArrayList<SingleCse>) frontMC.cses.clone();
-                        newMC.cses.add(scA);
-                        newMC.last_index = index;
-                        result.add(newMC);
-                    }
+                if (ok) {
+                    MultiCse newMC = new MultiCse();
+                    newMC.cses = (ArrayList<SingleCse>) frontMC.cses.clone();
+                    newMC.cses.add(scA);
+                    newMC.last_index = index;
+                    result.add(newMC);
                 }
             }
         }
@@ -388,6 +394,99 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         LOG.info("number of multi cse = " + result.size());
         LOG.info("bfs search all multi cses cost " + ((end - start) / 1e6) + "ms");
         return result;
+    }
+
+
+
+    private void genMultiCseMultiThreads(ArrayList<SingleCse> singleCses) {
+        long start = System.nanoTime();
+        // 按长度，降序
+        singleCses.sort((SingleCse a, SingleCse b) -> b.cseLength() - a.cseLength());
+        //ArrayList<MultiCse> result = new ArrayList<>();
+        ConcurrentLinkedQueue<MultiCse> result = new ConcurrentLinkedQueue<>();
+        IDSequence idSequence = new IDSequence();
+
+        for (int j = 0; j < singleCses.size(); j++) {
+            result.add(new MultiCse(singleCses.get(j), j,idSequence.getNextID()));
+        }
+        CountDownLatch latch = new CountDownLatch(threadNum);
+        ExecutorService fixedThreadPool = Executors.newCachedThreadPool();
+        for (int i = 0; i < threadNum; i++) {
+            fixedThreadPool.execute(new GenMultiCseRunnable(result, singleCses, latch,idSequence));
+        }
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        long end = System.nanoTime();
+        LOG.info("number of multi cse = " + result.size());
+        LOG.info("bfs search all multi cses cost " + ((end - start) / 1e6) + "ms");
+//        return result;
+    }
+
+    static class GenMultiCseRunnable implements Runnable {
+
+        ConcurrentLinkedQueue<MultiCse> result;
+        ArrayList<SingleCse> singleCse;
+        CountDownLatch latch;
+        IDSequence idSequence;
+        public GenMultiCseRunnable(ConcurrentLinkedQueue<MultiCse> result,
+                                   ArrayList<SingleCse> singleCse,
+                                   CountDownLatch latch,
+                                   IDSequence idSequence) {
+            this.result = result;
+            this.singleCse = singleCse;
+            this.latch = latch;
+            this.idSequence = idSequence;
+        }
+
+        @Override
+        public void run() {
+            LOG.info("GenMultiCseRunnable start");
+            try {
+                while (!Thread.currentThread().isInterrupted()) {
+                    MultiCse frontMC = null;
+                    for (int i = 0; i < 3; i++) {
+                        frontMC = result.poll();
+                        if (frontMC != null) {
+                            break;
+                        } else {
+                            Thread.sleep(1000);
+                        }
+                    }
+                    if (frontMC == null) {
+                        break;
+                    } else {
+                        if (frontMC.id%100==0) {
+                            LOG.info(result.size() + " " + frontMC);
+                        }
+                        for (int index = frontMC.last_index + 1; index < singleCse.size(); index++) {
+                            SingleCse scA = singleCse.get(index);
+                            boolean ok = true;
+                            for (int k = 0; ok && k < frontMC.cses.size(); k++) {
+                                SingleCse scB = frontMC.cses.get(k);
+                                if (scB.hash == scA.hash || scB.conflict(scA) || !scB.contain(scA)) ok = false;
+                            }
+                            if (ok) {
+                                MultiCse newMC = new MultiCse();
+                                newMC.cses = (ArrayList<SingleCse>) frontMC.cses.clone();
+                                newMC.cses.add(scA);
+                                newMC.last_index = index;
+                                newMC.id = idSequence.getNextID();
+                                result.add(newMC);
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            } finally {
+                LOG.info("GenMultiCseRunnable stop");
+                latch.countDown();
+            }
+        }
     }
 
 
