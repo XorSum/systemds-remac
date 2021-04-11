@@ -2,16 +2,16 @@ package org.apache.sysds.hops.rewrite.dfp.coordinate;
 
 public class ManualSolution {
 
-    RewriteCoordinate rewriteCoordinate;
+    Coordinate coordinate;
 
-    public ManualSolution(RewriteCoordinate rewriteCoordinate) {
-        this.rewriteCoordinate = rewriteCoordinate;
+    public ManualSolution(Coordinate coordinate) {
+        this.coordinate = coordinate;
     }
 
-     SingleCse createSingleCseBfgsAta() {
+    SingleCse createSingleCseBfgsAta() {
         SingleCse sAta = new SingleCse();
         sAta.isConstant = true;
-        sAta.name =  rewriteCoordinate.getRangeName(39, 40);
+        sAta.name = coordinate.getRangeName(39, 40);
         sAta.ranges.add(Range.of(39, 40, true));
         sAta.ranges.add(Range.of(52, 53, true));
         sAta.ranges.add(Range.of(7, 8, true));
@@ -23,17 +23,17 @@ public class ManualSolution {
         return sAta;
     }
 
-     SingleCse createSingleCseBfgsDtd2() {
+    SingleCse createSingleCseBfgsDtd2() {
         SingleCse sDtd = new SingleCse();
-        sDtd.name = rewriteCoordinate.getRangeName(1, 4);
+        sDtd.name = coordinate.getRangeName(1, 4);
         sDtd.ranges.add(Range.of(1, 4, false));
         sDtd.ranges.add(Range.of(11, 14, false));
         return sDtd;
     }
 
-     SingleCse createSingleCseBfgsDtd4() {
+    SingleCse createSingleCseBfgsDtd4() {
         SingleCse sDtd = new SingleCse();
-        sDtd.name = rewriteCoordinate.getRangeName(1, 4);
+        sDtd.name = coordinate.getRangeName(1, 4);
         sDtd.ranges.add(Range.of(1, 4, false));
         sDtd.ranges.add(Range.of(11, 14, false));
         sDtd.ranges.add(Range.of(30, 33, false));
@@ -42,9 +42,9 @@ public class ManualSolution {
     }
 
 
-     SingleCse createSingleCseBfgsAtad() {
+    SingleCse createSingleCseBfgsAtad() {
         SingleCse sAtahg = new SingleCse();
-        sAtahg.name = rewriteCoordinate.getRangeName(7, 10);
+        sAtahg.name = coordinate.getRangeName(7, 10);
         sAtahg.ranges.add(Range.of(7, 10, false));
         sAtahg.ranges.add(Range.of(17, 20, false));
         sAtahg.ranges.add(Range.of(21, 24, true));
@@ -54,9 +54,9 @@ public class ManualSolution {
         return sAtahg;
     }
 
-     SingleCse createSingleCseBfgsDtatad() {
+    SingleCse createSingleCseBfgsDtatad() {
         SingleCse sDtatad = new SingleCse();
-        sDtatad.name = rewriteCoordinate.getRangeName(5, 10);
+        sDtatad.name = coordinate.getRangeName(5, 10);
         sDtatad.ranges.add(Range.of(5, 10, false));
         sDtatad.ranges.add(Range.of(15, 20, false));
         sDtatad.ranges.add(Range.of(37, 42, false));
@@ -64,17 +64,17 @@ public class ManualSolution {
         return sDtatad;
     }
 
-     SingleCse createSingleCseBfgsAtah() {
+    SingleCse createSingleCseBfgsAtah() {
         SingleCse sAtah = new SingleCse();
-        sAtah.name = rewriteCoordinate.getRangeName(34, 36);
+        sAtah.name = coordinate.getRangeName(34, 36);
         sAtah.ranges.add(Range.of(34, 36, false));
         sAtah.ranges.add(Range.of(43, 45, true));
         return sAtah;
     }
 
-     SingleCse createSingleCseBfgsHy() {
+    SingleCse createSingleCseBfgsHy() {
         SingleCse sHy = new SingleCse();
-        sHy.name = rewriteCoordinate.getRangeName(5, 9);
+        sHy.name = coordinate.getRangeName(5, 9);
         sHy.ranges.add(Range.of(5, 9, true));
         sHy.ranges.add(Range.of(15, 19, true));
         sHy.ranges.add(Range.of(21, 25, true));
@@ -85,9 +85,9 @@ public class ManualSolution {
         return sHy;
     }
 
-     SingleCse createSingleCseBfgsY() {
+    SingleCse createSingleCseBfgsY() {
         SingleCse sY = new SingleCse();
-        sY.name = rewriteCoordinate.getRangeName(5, 8);
+        sY.name = coordinate.getRangeName(5, 8);
         sY.ranges.add(Range.of(5, 8, true));
         sY.ranges.add(Range.of(15, 18, true));
         sY.ranges.add(Range.of(21, 24, true));
@@ -99,9 +99,9 @@ public class ManualSolution {
         return sY;
     }
 
-     SingleCse createSingleCseBfgsD() {
+    SingleCse createSingleCseBfgsD() {
         SingleCse sd = new SingleCse();
-        sd.name = rewriteCoordinate.getRangeName(1, 2);
+        sd.name = coordinate.getRangeName(1, 2);
         sd.ranges.add(Range.of(1, 2, false));
         sd.ranges.add(Range.of(3, 4, true));
         sd.ranges.add(Range.of(5, 6, true));
@@ -119,17 +119,17 @@ public class ManualSolution {
         return sd;
     }
 
-     SingleCse createSingleCseBfgsDYtH() {
+    SingleCse createSingleCseBfgsDYtH() {
         SingleCse sd = new SingleCse();
-        sd.name = rewriteCoordinate.getRangeName(30, 36);
+        sd.name = coordinate.getRangeName(30, 36);
         sd.ranges.add(Range.of(30, 36, false));
         sd.ranges.add(Range.of(43, 49, true));
         return sd;
     }
 
-     SingleCse createSingleCseBfgsDFull() {
+    SingleCse createSingleCseBfgsDFull() {
         SingleCse sd = new SingleCse();
-        sd.name = rewriteCoordinate.getRangeName(1, 2);
+        sd.name = coordinate.getRangeName(1, 2);
         sd.ranges.add(Range.of(1, 2, false));
         sd.ranges.add(Range.of(3, 4, true));
         sd.ranges.add(Range.of(5, 6, true));
@@ -151,9 +151,9 @@ public class ManualSolution {
         return sd;
     }
 
-     SingleCse createSingleCseDfpY() {
+    SingleCse createSingleCseDfpY() {
         SingleCse sY = new SingleCse(); // atahg
-        sY.name = rewriteCoordinate.getRangeName(2, 5);
+        sY.name = coordinate.getRangeName(2, 5);
         sY.ranges.add(Range.of(2, 5, false));
         sY.ranges.add(Range.of(6, 9, true));
         sY.ranges.add(Range.of(11, 14, true));
@@ -162,9 +162,9 @@ public class ManualSolution {
         return sY;
     }
 
-     SingleCse createSingleCseDfpHy() {
+    SingleCse createSingleCseDfpHy() {
         SingleCse sHy = new SingleCse(); // hatahg
-        sHy.name = rewriteCoordinate.getRangeName(1, 5);
+        sHy.name = coordinate.getRangeName(1, 5);
         sHy.ranges.add(Range.of(1, 5, false));
         sHy.ranges.add(Range.of(6, 10, true));
 //        sHy.ranges.add(Range.of(15, 19, false));
@@ -173,10 +173,10 @@ public class ManualSolution {
         return sHy;
     }
 
-     SingleCse createSingleCseDfpAta() {
+    SingleCse createSingleCseDfpAta() {
         SingleCse sAta = new SingleCse(); // ata
         sAta.isConstant = true;
-        sAta.name = rewriteCoordinate.getRangeName(2, 3);
+        sAta.name = coordinate.getRangeName(2, 3);
         sAta.ranges.add(Range.of(2, 3, false));
         sAta.ranges.add(Range.of(8, 9, true));
         sAta.ranges.add(Range.of(13, 14, true));
@@ -185,9 +185,9 @@ public class ManualSolution {
         return sAta;
     }
 
-     SingleCse createSingleCseDfpD() {
+    SingleCse createSingleCseDfpD() {
         SingleCse sD = new SingleCse(); // d
-        sD.name = rewriteCoordinate.getRangeName(4, 5);
+        sD.name = coordinate.getRangeName(4, 5);
         sD.ranges.add(Range.of(4, 5, false));
         sD.ranges.add(Range.of(6, 7, true));
         sD.ranges.add(Range.of(11, 12, true));
@@ -198,32 +198,32 @@ public class ManualSolution {
         return sD;
     }
 
-     SingleCse createSingleCseDfpDtd() {
+    SingleCse createSingleCseDfpDtd() {
         SingleCse sDtd = new SingleCse(); // dtd
-        sDtd.name = rewriteCoordinate.getRangeName(4, 7);
+        sDtd.name = coordinate.getRangeName(4, 7);
         sDtd.ranges.add(Range.of(4, 7, false));
         sDtd.ranges.add(Range.of(20, 23, false));
         return sDtd;
     }
 
-     SingleCse createSingleCseDfpHata() {
+    SingleCse createSingleCseDfpHata() {
         SingleCse sHata = new SingleCse();
-        sHata.name = rewriteCoordinate.getRangeName(1, 3);
+        sHata.name = coordinate.getRangeName(1, 3);
         sHata.ranges.add(Range.of(1, 3, false));
         sHata.ranges.add(Range.of(8, 10, true));
         return sHata;
     }
 
-     SingleCse createSingleCseDfpAtad() {
+    SingleCse createSingleCseDfpAtad() {
         SingleCse sAtad = new SingleCse();
-        sAtad.name = rewriteCoordinate.getRangeName(11, 14);
+        sAtad.name = coordinate.getRangeName(11, 14);
         sAtad.ranges.add(Range.of(11, 14, false));
         sAtad.ranges.add(Range.of(16, 19, true));
         sAtad.ranges.add(Range.of(26, 29, true));
         return sAtad;
     }
 
-     MultiCse createMultiCseDfpAtaDtd() {
+    MultiCse createMultiCseDfpAtaDtd() {
         MultiCse multiCse = new MultiCse();
         multiCse.cses.add(createSingleCseDfpAta());
         SingleCse sD = createSingleCseDfpD();
@@ -235,7 +235,7 @@ public class ManualSolution {
         return multiCse;
     }
 
-     MultiCse createMultiCseDfpAta() {
+    MultiCse createMultiCseDfpAta() {
         MultiCse multiCse = new MultiCse();
         multiCse.cses.add(createSingleCseDfpAta());
         multiCse.cses.add(createSingleCseDfpHy());
@@ -244,7 +244,7 @@ public class ManualSolution {
         return multiCse;
     }
 
-     MultiCse createMultiCseDfp() {
+    MultiCse createMultiCseDfp() {
         MultiCse multiCse = new MultiCse();
         multiCse.cses.add(createSingleCseDfpHy());
         multiCse.cses.add(createSingleCseDfpY());
@@ -252,13 +252,13 @@ public class ManualSolution {
         return multiCse;
     }
 
-     MultiCse createMultiCseDfpSporseAta() {
+    MultiCse createMultiCseDfpSporseAta() {
         SingleCse sHy = new SingleCse();
-        sHy.name = rewriteCoordinate.getRangeName(1, 4);
+        sHy.name = coordinate.getRangeName(1, 4);
         sHy.ranges.add(Range.of(1, 4, false));
         sHy.ranges.add(Range.of(6, 9, true));
         SingleCse sAta = new SingleCse();
-        sAta.name = rewriteCoordinate.getRangeName(3, 4);
+        sAta.name = coordinate.getRangeName(3, 4);
         sAta.ranges.add(Range.of(3, 4, false));
         sAta.ranges.add(Range.of(6, 7, true));
         MultiCse multiCse = new MultiCse();
@@ -267,7 +267,7 @@ public class ManualSolution {
         return multiCse;
     }
 
-     MultiCse createMultiCseBfgsAtaDtd() {
+    MultiCse createMultiCseBfgsAtaDtd() {
         MultiCse multiCse = new MultiCse();
         multiCse.cses.add(createSingleCseBfgsDFull());
         multiCse.cses.add(createSingleCseBfgsAta());
@@ -279,7 +279,7 @@ public class ManualSolution {
         return multiCse;
     }
 
-     MultiCse createMultiCseBfgsAta() {
+    MultiCse createMultiCseBfgsAta() {
         MultiCse multiCse = new MultiCse();
         multiCse.cses.add(createSingleCseBfgsHy());
         multiCse.cses.add(createSingleCseBfgsY());
@@ -292,7 +292,7 @@ public class ManualSolution {
     }
 
 
-     MultiCse createMultiCseBfgs() {
+    MultiCse createMultiCseBfgs() {
         MultiCse multiCse = new MultiCse();
         multiCse.cses.add(createSingleCseBfgsHy());
         multiCse.cses.add(createSingleCseBfgsY());
@@ -303,22 +303,22 @@ public class ManualSolution {
         return multiCse;
     }
 
-     MultiCse createMultiCseGdAta() {
+    MultiCse createMultiCseGdAta() {
         MultiCse multiCse = new MultiCse();
         SingleCse sAtATheta = new SingleCse();
         SingleCse sAtA = new SingleCse();
         SingleCse sAtB = new SingleCse();
-        sAtATheta.name = rewriteCoordinate.getRangeName(1, 3);
+        sAtATheta.name = coordinate.getRangeName(1, 3);
         sAtATheta.ranges.add(Range.of(1, 3, false));
         sAtATheta.ranges.add(Range.of(7, 9, false));
         sAtATheta.ranges.add(Range.of(14, 16, false));
         sAtATheta.ranges.add(Range.of(20, 22, false));
-        sAtA.name = rewriteCoordinate.getRangeName(1, 2);
+        sAtA.name = coordinate.getRangeName(1, 2);
         sAtA.ranges.add(Range.of(1, 2, false));
         sAtA.ranges.add(Range.of(7, 8, false));
         sAtA.ranges.add(Range.of(14, 15, false));
         sAtA.ranges.add(Range.of(20, 21, false));
-        sAtB.name = rewriteCoordinate.getRangeName(4, 5);
+        sAtB.name = coordinate.getRangeName(4, 5);
         sAtB.ranges.add(Range.of(4, 5, false));
         sAtB.ranges.add(Range.of(10, 11, false));
         sAtB.ranges.add(Range.of(17, 18, false));
@@ -329,45 +329,45 @@ public class ManualSolution {
         return multiCse;
     }
 
-     MultiCse createMultiCseGdAtaTheta() {
+    MultiCse createMultiCseGdAtaTheta() {
         MultiCse multiCse = new MultiCse();
         SingleCse sAtA = new SingleCse();
         SingleCse sAtB = new SingleCse();
         sAtA.isConstant = true;
         sAtB.isConstant = true;
-        sAtA.name = rewriteCoordinate.getRangeName(1, 2);
+        sAtA.name = coordinate.getRangeName(1, 2);
         sAtA.ranges.add(Range.of(1, 2, false));
-        sAtB.name = rewriteCoordinate.getRangeName(4, 5);
+        sAtB.name = coordinate.getRangeName(4, 5);
         sAtB.ranges.add(Range.of(4, 5, false));
         multiCse.cses.add(sAtA);
         multiCse.cses.add(sAtB);
         return multiCse;
     }
 
-     MultiCse createMultiCseGdAtbTheta() {
+    MultiCse createMultiCseGdAtbTheta() {
         MultiCse multiCse = new MultiCse();
         SingleCse sAtB = new SingleCse();
         sAtB.isConstant = true;
-        sAtB.name = rewriteCoordinate.getRangeName(4, 5);
+        sAtB.name = coordinate.getRangeName(4, 5);
         sAtB.ranges.add(Range.of(4, 5, false));
         multiCse.cses.add(sAtB);
         return multiCse;
     }
 
-     MultiCse createMultiCseGAtA() {
+    MultiCse createMultiCseGAtA() {
         MultiCse multiCse = new MultiCse();
         SingleCse sAtA = new SingleCse();
         sAtA.isConstant = true;
-        sAtA.name = rewriteCoordinate.getRangeName(0, 1);
+        sAtA.name = coordinate.getRangeName(0, 1);
         sAtA.ranges.add(Range.of(0, 1, false));
         multiCse.cses.add(sAtA);
         return multiCse;
     }
 
-     MultiCse createMultiCseGdAtb() {
+    MultiCse createMultiCseGdAtb() {
         MultiCse multiCse = new MultiCse();
         SingleCse sAtB = new SingleCse();
-        sAtB.name = rewriteCoordinate.getRangeName(4, 5);
+        sAtB.name = coordinate.getRangeName(4, 5);
         sAtB.ranges.add(Range.of(4, 5, false));
         sAtB.ranges.add(Range.of(10, 11, false));
         sAtB.ranges.add(Range.of(17, 18, false));
@@ -375,9 +375,6 @@ public class ManualSolution {
         multiCse.cses.add(sAtB);
         return multiCse;
     }
-
-
-
 
 
 }

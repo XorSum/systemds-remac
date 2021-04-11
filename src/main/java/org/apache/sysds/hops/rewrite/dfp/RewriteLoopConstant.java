@@ -73,7 +73,8 @@ public class RewriteLoopConstant extends StatementBlockRewriteRule {
         RewriteCoordinate rewriteCoordinate = new RewriteCoordinate(ec, sb);
 //        rewriteCoordinate.constantUtil = new ConstantUtil(variablesUpdated);
         rewriteCoordinate.constantUtilByTag = new ConstantUtilByTag();
-        rewriteCoordinate.variablesUpdated = variablesUpdated;
+        rewriteCoordinate.coordinate.variablesUpdated = variablesUpdated;
+
         rewriteCoordinate.iterationNumber = iterationNumber;
         for (int k = 0; k < sb.getHops().size(); k++) {
             Hop hop = sb.getHops().get(k);
