@@ -43,7 +43,6 @@ public class CostGraph {
     long iterationNumber = 2;
     public VariableSet variablesUpdated = null;
 
-    public static long estimateTime = 0;
     public static long dynamicProgramTime = 0;
 
     public ArrayList<OperatorNode> testOperatorGraph(ArrayList<SinglePlan> pairs,
@@ -352,10 +351,7 @@ public class CostGraph {
             node.accCost = 0;
             node.accCostDetails = NodeCost.ZERO();
         }
-        long start = System.nanoTime();
         NodeCost thisCostDetail = this.nodeCostEstimator.getNodeCost(node);
-        long end = System.nanoTime();
-        estimateTime += end - start;
         node.thisCost = thisCostDetail.getSummary();
         node.thisCostDetails = thisCostDetail;
         for (int i = 0; i < node.inputs.size(); i++) {
@@ -374,10 +370,7 @@ public class CostGraph {
             node.accCost = 0;
             node.accCostDetails = NodeCost.ZERO();
         }
-        long start = System.nanoTime();
         NodeCost thisCostDetail = this.nodeCostEstimator.getNodeCost(node);
-        long end = System.nanoTime();
-        estimateTime += end - start;
         for (int i = 0; i < node.inputs.size(); i++) {
             analyzeOperatorCost(node.inputs.get(i));
         }
@@ -454,6 +447,8 @@ public class CostGraph {
 //        System.out.println(acNode.range + " remove " + removed1 + " " + removed2);
     }
 
+    public static boolean parallelDynamicProgramming = true;
+
     ArrayList<OperatorNode> selectBest(CseStateMaintainer MAINTAINER) {
 //        dp = new HashMap<>();
         ArrayList<Pair<Integer, Integer>> sortedRanges = new ArrayList<>(range2acnode.keySet());
@@ -487,8 +482,10 @@ public class CostGraph {
 //                System.out.println(rops);
 //                System.out.println(mids);
 
-                Stream<Triple<OperatorNode, OperatorNode, OperatorNode>> tmp3 = lops
-                        .parallelStream()
+                Stream<OperatorNode> opstream = parallelDynamicProgramming?lops.parallelStream():lops.stream();
+
+                List<OperatorNode> tmp  =
+                        opstream
                         .flatMap(lop -> {
                             ArrayList<Triple<OperatorNode, OperatorNode, OperatorNode>> arrayList = new ArrayList<>();
                             for (OperatorNode mid : mids) {
@@ -499,9 +496,7 @@ public class CostGraph {
                                 }
                             }
                             return arrayList.stream();
-                        });
-
-                List<OperatorNode> tmp = tmp3
+                        })
                         .map(triple -> createOperatorNode(triple.getLeft(), lRange, triple.getRight(), rRange, triple.getMiddle(), boundery))
                         .filter(Objects::nonNull)
                         .collect(Collectors.toList());
@@ -743,12 +738,8 @@ public class CostGraph {
             e.printStackTrace();
         }
         NodeCost constantCost = NodeCost.ZERO();
-        long start = System.nanoTime();
         NodeCost cost = analyzeHopCost(node, new HashSet<>(), constantCost);
-        long end = System.nanoTime();
-        estimateTime += end - start;
 //        System.out.println("all cost = "+cost);
-        //    NodeCost cost = NodeCost.ZERO();
         return Triple.of(cost, constantCost, node);
     }
 

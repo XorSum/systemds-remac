@@ -63,8 +63,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     private boolean useManualPolicy = false;
     private boolean useDynamicProgramPolicy = false;
-    private boolean useBruceForcePolicy = false;
-    private boolean useBruceForcePolicyMultiThreads = true;
+    private boolean useBruceForcePolicy = true;
+    private boolean useBruceForcePolicyMultiThreads = false;
 
 
     // </configuration>
@@ -86,7 +86,6 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 LOG.debug("small leaves size, return original solution");
                 return originalSolution;
             }
-
             Hop template = triple.getLeft();
             ArrayList<Range> blockRanges = triple.getMiddle();
             ArrayList<SingleCse> singleCses = triple.getRight();
@@ -233,7 +232,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     }
 
     MySolution testBruteForceMultiThreads(ArrayList<SingleCse> singleCses, Hop template, ArrayList<Range> blockRanges) {
-        genMultiCseMultiThreads(singleCses);
+        genMultiCseMultiThreads(singleCses,template,blockRanges);
         return null;
     }
 
@@ -265,6 +264,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         costGraph.nodeCostEstimator.printCache();
         MySolution mySolution = constantUtilByTag.liftLoopConstant(result);
         return mySolution;
+//        return null;
     }
 
     MySolution testDynamicProgramming(ArrayList<SingleCse> singleCses, Hop template, ArrayList<Range> blockRanges) {
@@ -398,7 +398,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
 
 
-    private void genMultiCseMultiThreads(ArrayList<SingleCse> singleCses) {
+    private void genMultiCseMultiThreads(ArrayList<SingleCse> singleCses,
+                                         Hop template,
+                                         ArrayList<Range> blockRanges) {
         long start = System.nanoTime();
         // 按长度，降序
         singleCses.sort((SingleCse a, SingleCse b) -> b.cseLength() - a.cseLength());
@@ -410,9 +412,11 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             result.add(new MultiCse(singleCses.get(j), j,idSequence.getNextID()));
         }
         CountDownLatch latch = new CountDownLatch(threadNum);
+        CostGraph costGraph = new CostGraph(coordinate.variablesUpdated,iterationNumber,ec);
         ExecutorService fixedThreadPool = Executors.newCachedThreadPool();
         for (int i = 0; i < threadNum; i++) {
-            fixedThreadPool.execute(new GenMultiCseRunnable(result, singleCses, latch,idSequence));
+            fixedThreadPool.execute(new GenMultiCseRunnable(result, singleCses, latch,idSequence,
+                    template,blockRanges,costGraph));
         }
         try {
             latch.await();
@@ -426,20 +430,31 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //        return result;
     }
 
-    static class GenMultiCseRunnable implements Runnable {
+     class GenMultiCseRunnable implements Runnable {
 
         ConcurrentLinkedQueue<MultiCse> result;
         ArrayList<SingleCse> singleCse;
         CountDownLatch latch;
         IDSequence idSequence;
+        Hop template;
+        ArrayList<Range> blockRanges;
+        CostGraph costGraph;
+
         public GenMultiCseRunnable(ConcurrentLinkedQueue<MultiCse> result,
                                    ArrayList<SingleCse> singleCse,
                                    CountDownLatch latch,
-                                   IDSequence idSequence) {
+                                   IDSequence idSequence,
+                                   Hop template,
+                                   ArrayList<Range> blockRanges,
+                                   CostGraph costGraph
+                                   ) {
             this.result = result;
             this.singleCse = singleCse;
             this.latch = latch;
             this.idSequence = idSequence;
+            this.template = template;
+            this.blockRanges = blockRanges;
+            this.costGraph = costGraph;
         }
 
         @Override
@@ -462,6 +477,12 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                         if (frontMC.id%100==0) {
                             LOG.info(result.size() + " " + frontMC);
                         }
+
+                        // estimate
+//                        Hop hop = createHop(frontMC, template, blockRanges);
+//                        Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop);
+
+
                         for (int index = frontMC.last_index + 1; index < singleCse.size(); index++) {
                             SingleCse scA = singleCse.get(index);
                             boolean ok = true;

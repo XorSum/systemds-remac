@@ -68,14 +68,20 @@ public class Coordinate {
         }
 
         // 生成singleCes
-        ArrayList<Range> blockRanges = new ArrayList<>();
-//        ArrayList<SingleCse> singleCses = genSingleCseSameBlockAttention(djs, blockRanges);
-        ArrayList<SingleCse> singleCses = genSingleCse(djs, blockRanges);
+//        ArrayList<Range> blockRanges1 = new ArrayList<>();
+//        ArrayList<SingleCse> singleCses1 = genSingleCseSameBlockAttention(djs, blockRanges1);
+
+        ArrayList<Range> blockRanges2 = new ArrayList<>();
+        ArrayList<SingleCse> singleCses2 = genSingleCse(djs, blockRanges2);
+
+//        LOG.info("singleCses1:" + singleCses1.size() + ", singleCses2:" + singleCses2.size());
 
         long end2 = System.nanoTime();
         RewriteCoordinate.allGenerateOptionsTime += end2 - start2;
 
-        return Triple.of(template, blockRanges, singleCses);
+        return Triple.of(template, blockRanges2, singleCses2);
+//        return Triple.of(template, blockRanges1, singleCses1);
+
     }
 
 
@@ -113,7 +119,7 @@ public class Coordinate {
         }
     }
 
-    private void genBlocksSameBlockAttention(DisjointSet djs, ArrayList<Range> blockRanges, HashMap<HashKey, ArrayList<HashSet<Range>>> hash2Rangesset) {
+    private void genBlocksPerceiveSameBlock(DisjointSet djs, ArrayList<Range> blockRanges, HashMap<HashKey, ArrayList<HashSet<Range>>> hash2Rangesset) {
         // 3. 把叶子根据并查集分为多个块
         for (int i = 0; i < leaves.size(); i++) {
             if (djs.find(i) == i) {
@@ -289,6 +295,10 @@ public class Coordinate {
         HashMap<HashKey, ArrayList<Range>> hash2Ranges = new HashMap<>();
         // 划分 块
         genBlocks(djs, blockRanges, hash2Ranges);
+        hash2Ranges.forEach((x,y)->{
+            System.out.println(x+"->"+y);
+        });
+
 
         // 构造出所有的SingleCse
         long start = System.nanoTime();
@@ -336,16 +346,24 @@ public class Coordinate {
                 }
             }
         }
-        if (ranges.size() > 0) {
-            result.subList(0, ranges.size()).clear();
+        if (ranges.size() < 1) return result;
+        boolean isCons = isConstant(ranges.get(0).left, ranges.get(0).right);
+        if (!isCons) {
+            if (ranges.size() > 0) {
+                result.subList(0, ranges.size()).clear();
+            }
+        } else {
+            for (SingleCse singleCse : result) {
+                singleCse.isConstant = true;
+            }
         }
         return result;
     }
 
-    private ArrayList<SingleCse> genSingleCseSameBlockAttention(DisjointSet djs, ArrayList<Range> blockRanges) {
+    private ArrayList<SingleCse> genSingleCsePerceiveSameBlock(DisjointSet djs, ArrayList<Range> blockRanges) {
         HashMap<HashKey, ArrayList<HashSet<Range>>> hash2Ranges = new HashMap<>();
         // 划分 块
-        genBlocksSameBlockAttention(djs, blockRanges, hash2Ranges);
+        genBlocksPerceiveSameBlock(djs, blockRanges, hash2Ranges);
         hash2Ranges.forEach((x,y)->{
             for (HashSet<Range> hs: y) {
                 System.out.print(hs);

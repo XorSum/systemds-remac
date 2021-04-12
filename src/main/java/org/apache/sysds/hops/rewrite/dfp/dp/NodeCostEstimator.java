@@ -9,7 +9,6 @@ import org.apache.sysds.hops.estim.EstimatorMatrixHistogram;
 import org.apache.sysds.hops.estim.MMNode;
 import org.apache.sysds.hops.estim.SparsityEstimator;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
-import org.apache.sysds.hops.rewrite.dfp.costmodel.CostModelCommon;
 import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
 import org.apache.sysds.lops.LopProperties;
 import org.apache.sysds.runtime.controlprogram.caching.MatrixObject;
@@ -33,7 +32,7 @@ public class NodeCostEstimator {
     private SparkExecutionContext sec;
     protected static final Log LOG = LogFactory.getLog(NodeCostEstimator.class.getName());
 
-
+    public static long estimateTime = 0;
     public HashMap<Pair<Integer, Integer>, MMNode> range2mmnode = new HashMap<>();
 
 //    public HashMap<DRange,MMNode> drange2mmnode = new HashMap<>();
@@ -227,8 +226,9 @@ public class NodeCostEstimator {
         return dc;
     }
 
-    public NodeCost getNodeCost(OperatorNode opnode) {
+    public synchronized NodeCost getNodeCost(OperatorNode opnode) {
 //        LOG.info("start get node cost");
+        long start = System.nanoTime();
         NodeCost ans ;
         Hop hop = opnode.hops.get(0);
         // recurse top-bottom to determine weather a opnode is used by driver
@@ -283,6 +283,8 @@ public class NodeCostEstimator {
             System.exit(-1);
         }
 //        LOG.info("end get node cost");
+        long end = System.nanoTime();
+        estimateTime += end - start;
         return ans.clone();
     }
 

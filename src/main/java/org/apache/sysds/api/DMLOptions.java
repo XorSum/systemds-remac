@@ -35,6 +35,7 @@ import org.apache.sysds.hops.OptimizerUtils;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.CostModelCommon;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
+import org.apache.sysds.hops.rewrite.dfp.dp.CostGraph;
 import org.apache.sysds.hops.rewrite.dfp.dp.NodeCostEstimator;
 import org.apache.sysds.runtime.controlprogram.WhileProgramBlock;
 import org.apache.sysds.runtime.lineage.LineageCacheConfig.LineageCachePolicy;
@@ -159,6 +160,9 @@ public class DMLOptions {
 					throw new org.apache.commons.cli.ParseException("Invalid argument specified for -gpu option");
 				}
 			}
+		}
+		if (line.hasOption("single_dp")) {
+			CostGraph.parallelDynamicProgramming = false;
 		}
 		if (line.hasOption("mnc")) {
 			CostModelCommon.useMncEstimator = true;
@@ -319,6 +323,8 @@ public class DMLOptions {
 		Option cpmmSparsity = OptionBuilder
 				.hasOptionalArg()
 				.create("cpmm_intern_sparsity");
+		Option singleDp = OptionBuilder
+				.create("single_dp");
 
 		options.addOption(configOpt);
 		options.addOption(cleanOpt);
@@ -336,6 +342,7 @@ public class DMLOptions {
 		options.addOption(manualType);
 		options.addOption(checkMnc);
 		options.addOption(cpmmSparsity);
+		options.addOption(singleDp);
 
 		// Either a clean(-clean), a file(-f), a script(-s) or help(-help) needs to be specified
 		OptionGroup fileOrScriptOpt = new OptionGroup()

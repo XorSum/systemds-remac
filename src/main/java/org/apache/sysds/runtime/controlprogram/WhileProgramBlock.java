@@ -33,6 +33,7 @@ import org.apache.sysds.hops.rewrite.ProgramRewriter;
 import org.apache.sysds.hops.rewrite.dfp.RewriteLoopConstant;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
 import org.apache.sysds.hops.rewrite.dfp.dp.CostGraph;
+import org.apache.sysds.hops.rewrite.dfp.dp.NodeCostEstimator;
 import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
 import org.apache.sysds.parser.*;
 import org.apache.sysds.api.DMLScript;
@@ -164,8 +165,8 @@ public class WhileProgramBlock extends ProgramBlock
 				LOG.info("all generate combinations time = " + (RewriteCoordinate.allGenerateCombinationsTime / 1e9) + "s");
 				System.out.println("all generate combinations time = " + (RewriteCoordinate.allGenerateCombinationsTime / 1e9) + "s");
 
-				LOG.info("estimate cost time = " + (CostGraph.estimateTime / 1e9) + "s");
-				System.out.println("estimate time = " + (CostGraph.estimateTime / 1e9) + "s");
+				LOG.info("estimate cost time = " + (NodeCostEstimator.estimateTime / 1e9) + "s");
+				System.out.println("estimate time = " + (NodeCostEstimator.estimateTime / 1e9) + "s");
 
 				LOG.info("dynamic programming time = " + (CostGraph.dynamicProgramTime / 1e9) + "s");
 				System.out.println("dynamic programming time = " + (CostGraph.dynamicProgramTime / 1e9) + "s");
