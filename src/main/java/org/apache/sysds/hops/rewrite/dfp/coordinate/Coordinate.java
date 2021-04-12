@@ -5,6 +5,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
+import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
+import org.apache.sysds.hops.rewrite.RewriteMatrixMultChainOptimization;
 import org.apache.sysds.hops.rewrite.dfp.AnalyzeSymmetryMatrix;
 import org.apache.sysds.hops.rewrite.dfp.DisjointSet;
 import org.apache.sysds.hops.rewrite.dfp.Leaf;
@@ -22,13 +24,26 @@ public class Coordinate {
 
     protected final Log LOG = LogFactory.getLog(Coordinate.class.getName());
 
-    private boolean showBlock = false;
-    private boolean showSingleCse = false;
+    private static RewriteMatrixMultChainOptimization rewriteMatrixMultChainOptimization = new RewriteMatrixMultChainOptimization();
+
+    private static boolean showBlock = false;
+    private static boolean showSingleCse = false;
 
     public ArrayList<Leaf> leaves = new ArrayList<>();
-    public HashMap<Long, Integer> hopId2LeafIndex = new HashMap<>();
 
     public VariableSet variablesUpdated = null;
+
+    @Override
+    protected Coordinate clone() {
+        Coordinate coordinate = new Coordinate();
+        coordinate.variablesUpdated = variablesUpdated;
+        for (Leaf leaf : leaves) {
+            Leaf newLeaf = new Leaf(deepCopyHopsDag(leaf.hop), (ArrayList<Integer>) leaf.path.clone(), leaf.depth);
+            coordinate.leaves.add(newLeaf);
+        }
+        return coordinate;
+    }
+
 
     Triple<Hop, ArrayList<Range>, ArrayList<SingleCse>> generateOptions(Hop root) {
 
@@ -46,11 +61,11 @@ public class Coordinate {
 
         DisjointSet djs = new DisjointSet(1000);
 
-        hopId2LeafIndex = new HashMap<>();
+//        hopId2LeafIndex = new HashMap<>();
         leaves = new ArrayList<>();
 
         // 找到所有的叶子节点
-        findAllLeaf(template, new ArrayList<>(), 0, hopId2LeafIndex, djs);
+        findAllLeaf(template, new ArrayList<>(), 0, djs);
         if (leaves.size() < 4) {
             long end2 = System.nanoTime();
             RewriteCoordinate.allGenerateOptionsTime += end2 - start2;
@@ -85,15 +100,13 @@ public class Coordinate {
     }
 
 
-
-    private int findAllLeaf(Hop hop, ArrayList<Integer> path, int depth, HashMap<Long, Integer> hopId2LeafIndex, DisjointSet djs) {
+    private int findAllLeaf(Hop hop, ArrayList<Integer> path, int depth, DisjointSet djs) {
         //  System.out.println("findAllLeaf visit: " + hop.getHopID() + " " + hop.getName());
         if (isLeafMatrix(hop)
                 || (HopRewriteUtils.isTransposeOperation(hop) && isLeafMatrix(hop.getInput().get(0)))
             // || hop.getParent().size() > 1)
         ) {
             int index = leaves.size();
-            hopId2LeafIndex.put(hop.getHopID(), index);
             Leaf leaf = new Leaf(hop, path, depth);
             leaves.add(leaf);
             return index;
@@ -101,9 +114,9 @@ public class Coordinate {
             if (HopRewriteUtils.isMatrixMultiply(hop)) {
                 if (path.size() <= depth) path.add(0);
                 else path.set(depth, 0);
-                int l = findAllLeaf(hop.getInput().get(0), path, depth + 1, hopId2LeafIndex, djs);
+                int l = findAllLeaf(hop.getInput().get(0), path, depth + 1, djs);
                 path.set(depth, 1);
-                int r = findAllLeaf(hop.getInput().get(1), path, depth + 1, hopId2LeafIndex, djs);
+                int r = findAllLeaf(hop.getInput().get(1), path, depth + 1, djs);
                 if (l >= 0 && r >= 0) {
                     djs.merge(l, r);
                 }
@@ -112,7 +125,7 @@ public class Coordinate {
                 for (int i = 0; i < hop.getInput().size(); i++) {
                     if (path.size() <= depth) path.add(i);
                     else path.set(depth, i);
-                    findAllLeaf(hop.getInput().get(i), path, depth + 1, hopId2LeafIndex, djs);
+                    findAllLeaf(hop.getInput().get(i), path, depth + 1, djs);
                 }
                 return -1;
             }
@@ -295,8 +308,8 @@ public class Coordinate {
         HashMap<HashKey, ArrayList<Range>> hash2Ranges = new HashMap<>();
         // 划分 块
         genBlocks(djs, blockRanges, hash2Ranges);
-        hash2Ranges.forEach((x,y)->{
-            System.out.println(x+"->"+y);
+        hash2Ranges.forEach((x, y) -> {
+            System.out.println(x + "->" + y);
         });
 
 
@@ -364,8 +377,8 @@ public class Coordinate {
         HashMap<HashKey, ArrayList<HashSet<Range>>> hash2Ranges = new HashMap<>();
         // 划分 块
         genBlocksPerceiveSameBlock(djs, blockRanges, hash2Ranges);
-        hash2Ranges.forEach((x,y)->{
-            for (HashSet<Range> hs: y) {
+        hash2Ranges.forEach((x, y) -> {
+            for (HashSet<Range> hs : y) {
                 System.out.print(hs);
             }
             System.out.println("");
@@ -447,7 +460,6 @@ public class Coordinate {
     }
 
 
-
     boolean isTranspose(int l, int r) {
         long first = rangeHash1(l, r);
         long second = rangeHash2(l, r);
@@ -512,5 +524,204 @@ public class Coordinate {
         }
         return second;
     }
+
+
+    Hop createHop(SingleCse sc, Hop template, ArrayList<Range> blockRanges) {
+        try {
+            ArrayList<RangeTree> list = new ArrayList<>();
+            sc.prototype = null;
+            sc.protoRange = null;
+            for (Range range : sc.ranges) {
+                list.add(new RangeTree(range.left, range.right, sc, range.transpose));
+            }
+            return createHopInner(list, template, blockRanges);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    Hop createHop(MultiCse multiCse, Hop template, ArrayList<Range> blockRanges) {
+        try {
+            ArrayList<RangeTree> list = new ArrayList<>();
+            for (SingleCse sc : multiCse.cses) {
+                sc.prototype = null;
+                sc.protoRange = null;
+                for (Range range : sc.ranges) {
+                    list.add(new RangeTree(range.left, range.right, sc.clone(), range.transpose));
+                }
+            }
+            return createHopInner(list, template, blockRanges);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private Hop createHopInner(ArrayList<RangeTree> list, Hop template, ArrayList<Range> blockRanges) {
+        try {
+            Hop copy = deepCopyHopsDag(template);
+            // 准备区间数组
+            for (int i = 0; i < this.leaves.size(); i++) {
+                boolean ok = true;
+                for (RangeTree rangeTree : list) {
+                    if (rangeTree.left == i && rangeTree.right == i) {
+                        ok = false;
+                        break;
+                    }
+                }
+                if (!ok) continue;
+                SingleCse sc = new SingleCse(Range.of(i, i, false), this.leaves.get(i).hop);
+                sc.name = this.getRangeName(i, i);
+                RangeTree rangeTree = new RangeTree(i, i, sc, false);
+                list.add(rangeTree);
+            }
+//            for (Range r : blockRanges) {
+            for (int i = 0; i < blockRanges.size(); i++) {
+                Range r = blockRanges.get(i);
+                boolean ok = true;
+                for (RangeTree rangeTree : list) {
+                    if (rangeTree.left == r.left && rangeTree.right == r.right) {
+                        ok = false;
+                        break;
+                    }
+                }
+                if (!ok) continue;
+                SingleCse sc = new SingleCse(Range.of(r.left, r.right, false), null);
+                sc.name = this.getRangeName(r);
+                list.add(new RangeTree(r.left, r.right, sc, this.isTranspose(r.left, r.right)));
+            }
+            // 把区间数组排序，先按右端点升序，再按左端点降序
+            list.sort((RangeTree ra, RangeTree rb) -> {
+                if (ra.right != rb.right)
+                    return ra.right - rb.right;
+//                if (rb.left - ra.left!=0)
+                return rb.left - ra.left;
+            });
+            // 用栈建起RangeTree
+            Stack<RangeTree> stack = new Stack<>();
+            for (int i = 0; i < list.size(); i++) {
+                RangeTree cur = list.get(i);
+                while (!stack.empty() && stack.peek().left >= cur.left) {
+                    cur.children.add(stack.pop());
+                }
+                Collections.reverse(cur.children);
+                stack.push(cur);
+            }
+            // 递归遍历RangeTree，建起HopDag
+            for (RangeTree rt : stack) {
+//                System.out.println("handle rangetree "+rt);
+//                System.out.println(Explain.explain(copy));
+                // 建起一个块的HopDag
+                //    LOG.debug(rt.toString());
+                Hop block_hop = rCreateHop(rt);
+//                System.out.println(Explain.explain(block_hop));
+                if (block_hop == null) {
+                    //    LOG.debug("BLOCK HOP NULL");
+                    return null;
+                }
+                // 找到这个块的位置
+                Hop cur = copy;
+                Hop parent = null;
+                Leaf leaf1 = this.leaves.get(rt.left);
+                Leaf leaf2 = this.leaves.get(rt.right);
+                for (int i = 0; i < leaf1.depth && i < leaf2.depth; i++) {
+                    if (leaf1.path.get(i).equals(leaf2.path.get(i))) {
+                        parent = cur;
+                        assert cur != null;
+                        cur = cur.getInput().get(leaf1.path.get(i));
+                    } else {
+                        break;
+                    }
+                }
+                // 替换
+                if (parent != null) {
+//                    System.out.println("replace child reference "+parent.getHopID()+" "+cur.getHopID()+" "+block_hop.getHopID());
+                    HopRewriteUtils.replaceChildReference(parent, cur, block_hop);
+//                    HopRewriteUtils.cleanupUnreferenced(cur);
+                } else {
+                    copy = block_hop;
+                }
+            }
+            if (copy != null) {
+//                copy = deepCopyHopsDag(copy);
+//                rewriteCommonSubexpressionElimination.rewriteHopDAG(copy, new ProgramRewriteStatus());
+                return copy;
+            }
+        } catch (Exception e) {
+            LOG.warn("construct hop error");
+            e.printStackTrace();
+            return null;
+        }
+        return null;
+    }
+
+    Hop rCreateHop(RangeTree rt) {
+        if (rt.left == rt.right) {
+            return rt.singleCse.prototype;
+//            return this.leaves.get(rt.left).hop;
+        }
+        if (rt.singleCse.prototype != null) {
+            rt.singleCse.prototype.shouldPersist = true;
+            if (rt.transpose == rt.singleCse.protoRange.transpose) {
+                return rt.singleCse.prototype;
+            } else {
+                return HopRewriteUtils.createTranspose(rt.singleCse.prototype);
+            }
+        }
+
+        ArrayList<Hop> children = new ArrayList<>();
+        for (RangeTree son : rt.children) {
+            Hop s = rCreateHop(son);
+            if (s == null) return null;
+//                if ( ! isSame(son.left,son.right,son.singleCse.protoRange.left,son.singleCse.protoRange.right) )
+//                    if (son.transpose!=son.singleCse.protoRange.transpose)
+//                    s = HopRewriteUtils.createTranspose(s);
+            children.add(s);
+        }
+        Hop ret = build_binary_tree_mmc(children);
+        ret.isConstant = rt.singleCse.isConstant;
+        //           Hop ret = build_binary_tree_naive(children);
+//            if (!Judge.isSame(ret1,ret2)) {
+//                LOG.debug(MyExplain.myExplain(ret2));
+//                LOG.debug("naive");
+//                LOG.debug(Explain.explain(ret2));
+//                if (ret1!=null) {
+//                    LOG.debug("mmc");
+//                    LOG.debug(Explain.explain(ret1));
+//                }
+//                LOG.debug("mmc error");
+//            }
+//            Hop ret = ret1;
+        rt.singleCse.prototype = ret;
+        rt.singleCse.protoRange = Range.of(rt.left, rt.right, rt.transpose);
+        return ret;
+
+    }
+
+
+    private Hop build_binary_tree_mmc(ArrayList<Hop> mmChain) {
+        assert mmChain.size() > 0;
+        if (mmChain.size() == 1) return mmChain.get(0);
+        ArrayList<Hop> mmOperators = new ArrayList<>();
+        Hop ret = mmChain.get(0);
+        for (int i = 1; i < mmChain.size(); i++) {
+            Hop tmp = HopRewriteUtils.createMatrixMultiply(ret, mmChain.get(i));
+            mmOperators.add(tmp);
+            ret = tmp;
+        }
+        Collections.reverse(mmOperators);
+        try {
+            rewriteMatrixMultChainOptimization.optimizeMMChain(ret, mmChain, mmOperators, new ProgramRewriteStatus());
+        } catch (Exception e) {
+            e.printStackTrace();
+//            ret.resetVisitStatusForced(new HashSet<>());
+//            LOG.debug(Explain.explain(ret));
+            ret = null;
+        }
+        if (ret != null) {
+//            LOG.debug("ret no null");
+        }
+        return ret;
+    }
+
 
 }

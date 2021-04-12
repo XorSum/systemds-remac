@@ -19,6 +19,13 @@ public class SingleCse {
 
     public boolean isConstant = false;
 
+    @Override
+    protected SingleCse clone() {
+        SingleCse singleCse = new SingleCse(hash,ranges,last_index);
+        singleCse.name = name;
+        singleCse.isConstant = isConstant;
+        return singleCse;
+    }
 
     public SingleCse() {
         this.ranges = new ArrayList<>();
