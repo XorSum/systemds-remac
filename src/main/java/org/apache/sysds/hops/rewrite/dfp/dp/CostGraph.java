@@ -70,15 +70,15 @@ public class CostGraph {
         analyzeOperatorCostTemplate(emptyNode);
         rGetRanges(emptyNode, ranges);
 
-        hops.parallelStream().forEach(hop-> {
+        for (Hop hop: hops) {
                 OperatorNode node = createOperatorGraph(hop, false);
                 MutableInt mutableInt = new MutableInt(0);
                 analyzeOperatorRange(node, emptyPair.getLeft(), mutableInt);
                 analyzeOperatorCostTemplate(node);
     //            LOG.info(CostGraph.explainOpNode(node,0));
-            });
+        }
 
-        pairs.parallelStream().forEach( p-> {
+        for (SinglePlan p: pairs) {
             SingleCse cse = p.singleCse;
             Hop hop = p.hop;
             //    System.out.println("========================");
@@ -106,7 +106,7 @@ public class CostGraph {
 //            LOG.info(explainOpNode(node, 0));
 //            LOG.info(explainOpNodeJson(node,0));
             p.node = node;
-        });
+        }
 
         long end_build_graph = System.nanoTime();
         LOG.info("build cost graph end");
