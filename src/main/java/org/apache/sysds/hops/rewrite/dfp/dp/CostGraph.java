@@ -23,6 +23,7 @@ import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
 import org.apache.sysds.runtime.controlprogram.context.SparkExecutionContext;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -55,7 +56,10 @@ public class CostGraph {
         System.out.println("Total JVM GC count:\t\t" + getJVMgcCount() + ".\n");
         System.out.println("Total JVM GC time:\t\t" + ((double) getJVMgcTime()) / 1000 + " sec.\n");
         CostModelCommon.MMShowCostFlag = true;
-        int maxIndex = 0;
+
+
+        long start_build_graph = System.nanoTime();
+        LOG.info("build cost graph start");
         HashSet<Pair<Integer, Integer>> ranges = new HashSet<>();
 
         OperatorNode emptyNode = createOperatorGraph(emptyPair.getRight(), false);
@@ -66,15 +70,15 @@ public class CostGraph {
         analyzeOperatorCostTemplate(emptyNode);
         rGetRanges(emptyNode, ranges);
 
-        for (Hop hop : hops) {
-            OperatorNode node = createOperatorGraph(hop, false);
-            MutableInt mutableInt = new MutableInt(0);
-            analyzeOperatorRange(node, emptyPair.getLeft(), mutableInt);
-            analyzeOperatorCostTemplate(node);
-//            LOG.info(CostGraph.explainOpNode(node,0));
-        }
+        hops.parallelStream().forEach(hop-> {
+                OperatorNode node = createOperatorGraph(hop, false);
+                MutableInt mutableInt = new MutableInt(0);
+                analyzeOperatorRange(node, emptyPair.getLeft(), mutableInt);
+                analyzeOperatorCostTemplate(node);
+    //            LOG.info(CostGraph.explainOpNode(node,0));
+            });
 
-        for (SinglePlan p : pairs) {
+        pairs.parallelStream().forEach( p-> {
             SingleCse cse = p.singleCse;
             Hop hop = p.hop;
             //    System.out.println("========================");
@@ -97,22 +101,25 @@ public class CostGraph {
                     //      System.out.println("Uncertain: " + cse);
                 }
             }
-            maxIndex = Math.max(maxIndex, mutableInt.getValue() - 1);
             analyzeOperatorConstant(node);
             analyzeOperatorCost(node);
 //            LOG.info(explainOpNode(node, 0));
 //            LOG.info(explainOpNodeJson(node,0));
             p.node = node;
-        }
+        });
+
+        long end_build_graph = System.nanoTime();
+        LOG.info("build cost graph end");
+        LOG.info("build cost graph time = "+((end_build_graph-start_build_graph)/1e9));
 
 //        if (emptyPair.getRight().getName().equals("h")) {
 //            System.exit(0);
 //        }
 
         // 回收mnc使用的内存
-        for (MMNode mmNode : nodeCostEstimator.range2mmnode.values()) {
-            mmNode.setSynopsis(null);
-        }
+//        for (MMNode mmNode : nodeCostEstimator.range2mmnode.values()) {
+//            mmNode.setSynopsis(null);
+//        }
 //        nodeCostEstimator.range2mmnode.clear();
 
         System.gc();
@@ -406,7 +413,7 @@ public class CostGraph {
     }
 
 
-    HashMap<Pair<Integer, Integer>, ACNode> range2acnode = new HashMap<>();
+   ConcurrentHashMap<Pair<Integer, Integer>, ACNode> range2acnode = new ConcurrentHashMap<>();
 
 
     void classifyOperatorNode(CseStateMaintainer MAINTAINER, ArrayList<OperatorNode> allResults, ACNode acNode) {

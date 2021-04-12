@@ -83,18 +83,26 @@ public class Coordinate {
         }
 
         // 生成singleCes
+
+        ArrayList<Range> blockRanges =new ArrayList<>();
+        ArrayList<SingleCse> singleCses;
+
+        if (RewriteCoordinate.useDynamicProgramPolicy ) {
+            singleCses = genSingleCsePerceiveSameBlock(djs, blockRanges);
+        } else {
+             singleCses = genSingleCse(djs, blockRanges);
+        }
+
 //        ArrayList<Range> blockRanges1 = new ArrayList<>();
 //        ArrayList<SingleCse> singleCses1 = genSingleCseSameBlockAttention(djs, blockRanges1);
-
-        ArrayList<Range> blockRanges2 = new ArrayList<>();
-        ArrayList<SingleCse> singleCses2 = genSingleCse(djs, blockRanges2);
-
+//        ArrayList<Range> blockRanges2 = new ArrayList<>();
+//        ArrayList<SingleCse> singleCses2 = genSingleCse(djs, blockRanges2);
 //        LOG.info("singleCses1:" + singleCses1.size() + ", singleCses2:" + singleCses2.size());
 
         long end2 = System.nanoTime();
         RewriteCoordinate.allGenerateOptionsTime += end2 - start2;
 
-        return Triple.of(template, blockRanges2, singleCses2);
+        return Triple.of(template, blockRanges, singleCses);
 //        return Triple.of(template, blockRanges1, singleCses1);
 
     }

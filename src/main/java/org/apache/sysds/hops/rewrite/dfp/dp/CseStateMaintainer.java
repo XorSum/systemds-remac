@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class CseStateMaintainer {
 
@@ -38,7 +39,7 @@ public class CseStateMaintainer {
         }
     }
 
-    void initRangeCounter(HashMap<Pair<Integer, Integer>, ACNode> range2acnode) {
+    void initRangeCounter(ConcurrentHashMap<Pair<Integer, Integer>, ACNode> range2acnode) {
         for (ACNode acNode : range2acnode.values()) {
             for (Pair<Pair<Integer, Integer>, Pair<Integer, Integer>> drange : acNode.drange2operatornodes.keySet()) {
                 rangeCounter.increment(drange.getLeft());
@@ -69,7 +70,7 @@ public class CseStateMaintainer {
 //        return CseState.uncertain;
     }
 
-    void updateCseState(ACNode acNode, HashMap<Pair<Integer, Integer>, ACNode> range2acnode) {
+    void updateCseState(ACNode acNode, ConcurrentHashMap<Pair<Integer, Integer>, ACNode> range2acnode) {
 
         if (acNode.minAC != null) {
             for (SingleCse cse : acNode.minAC.dependencies) {
