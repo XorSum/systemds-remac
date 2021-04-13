@@ -61,9 +61,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     // private static long epoch = 100;
 
     private static boolean useManualPolicy = false;
-    public static boolean useDynamicProgramPolicy = true;
+    public static boolean useDynamicProgramPolicy = false;
     private static boolean useBruceForcePolicy = false;
-    private static boolean useBruceForcePolicyMultiThreads = false;
+    private static boolean useBruceForcePolicyMultiThreads = true;
 
 
     // </configuration>
@@ -233,28 +233,31 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     MySolution testBruteForceMultiThreads(ArrayList<SingleCse> singleCses, Hop template, ArrayList<Range> blockRanges) {
         CostGraph costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
         ConcurrentLinkedQueue<MultiCse> multiCses = genMultiCseMultiThreads(singleCses, template, costGraph, blockRanges);
-
-        MySolution bestsolution = null;
+        int counter = 0;
         long start_force_estimate = System.nanoTime();
-        while(!multiCses.isEmpty()){
-            MultiCse multiCse = multiCses.poll();
-//        for (MultiCse multiCse : multiCses) {
+        Hop bestHop = null;
+        double minCost = Double.MAX_VALUE;
+        MultiCse bestmultiCse = null;
+        for (MultiCse multiCse : multiCses) {
             Hop hop = coordinate.createHop(multiCse, template, blockRanges);
             Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop);
-            MySolution solution = constantUtilByTag.liftLoopConstant(hop);
-            solution.multiCse = multiCse;
             double cost = costTriple.getLeft().getSummary();
-            if (bestsolution == null || bestsolution.cost < cost) {
-                bestsolution = solution;
+            if (bestHop == null || minCost > cost) {
+                bestHop = hop;
+                minCost = cost;
+                bestmultiCse = multiCse;
             }
-            if (multiCses.size()%1000==0) {
+            if (counter==1000) {
                 LOG.info("estimate "+multiCse+" "+costTriple.getLeft());
+                counter = 0;
             }
+            counter++;
         }
         long end_force_estimate = System.nanoTime();
         LOG.info("force estimante time = " + ((end_force_estimate - start_force_estimate) / 1e9) + "s");
-
-        return bestsolution;
+        MySolution mySolution = constantUtilByTag.liftLoopConstant(bestHop);
+        mySolution.multiCse = bestmultiCse;
+        return mySolution;
     }
 
     MySolution testBruteForce(ArrayList<SingleCse> singleCses, Hop template, ArrayList<Range> blockRanges) {
@@ -450,7 +453,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             e.printStackTrace();
         }
         long end = System.nanoTime();
-        LOG.info("number of multi cse = " + queue.size());
+        LOG.info("number of multi cse = " + generated_multicses.size());
         LOG.info("multi threads force generate combinations time = " + ((end - start) / 1e9) + "s");
 
         return  generated_multicses;
