@@ -282,7 +282,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         }
         long end = System.nanoTime();
         LOG.info("brute force cost time = " + ((end - begin) / 1e9) + "s");
-        costGraph.nodeCostEstimator.printCache();
+        costGraph.nodeCostEstimator.printCacheStats();
         MySolution mySolution = constantUtilByTag.liftLoopConstant(result);
         return mySolution;
 //        return null;
@@ -290,14 +290,17 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     MySolution testDynamicProgramming(ArrayList<SingleCse> singleCses, Hop template, ArrayList<Range> blockRanges) {
         try {
-            ArrayList<Hop> hops = createHops(template, blockRanges);
             SingleCse emptyCse = new SingleCse();
             emptyCse.hash = HashKey.of(0L, 0L);
             Hop emptyHop = coordinate.createHop(emptyCse, template, blockRanges);
-            Pair<SingleCse, Hop> emptyPair = Pair.of(emptyCse, emptyHop);
+            ArrayList<Hop> hops = createHops(template, blockRanges);
+            ArrayList<SinglePlan> placePlans = new ArrayList<>();
+            for (Hop h: hops) {
+                SinglePlan singlePlan = new SinglePlan();
+                singlePlan.hop = h;
+                placePlans.add(singlePlan);
+            }
             ArrayList<Pair<SingleCse, Hop>> list = genHopFromSingleCses(singleCses, template, blockRanges);
-            list.add(emptyPair);
-
             ArrayList<SinglePlan> singlePlans = new ArrayList<>();
             for (Pair<SingleCse, Hop> p : list) {
                 SinglePlan singlePlan = new SinglePlan();
@@ -307,8 +310,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             }
             CostGraph costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
 
+            costGraph.nodeCostEstimator.resetCacheCounter();
+
             MySolution mySolution = null;
-            ArrayList<OperatorNode> operatorNodeArrayList = costGraph.testOperatorGraph(singlePlans, emptyPair, blockRanges, coordinate.leaves, hops);
+            ArrayList<OperatorNode> operatorNodeArrayList = costGraph.testOperatorGraph(singlePlans,emptyCse, emptyHop, placePlans );
 
 //            costGraph.nodeCostEstimator.range2mmnode.forEach((key, value) -> {
 //                System.out.println(key + " -> " + value);
@@ -344,7 +349,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 }
             }
 //            }
-            costGraph.nodeCostEstimator.printCache();
+
+            costGraph.nodeCostEstimator.printCacheStats();
+
             LOG.info("bestId=" + bestId);
             long end = System.nanoTime();
             LOG.info("dynamic programming: ");

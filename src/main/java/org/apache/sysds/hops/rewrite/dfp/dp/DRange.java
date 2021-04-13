@@ -9,6 +9,16 @@ public class DRange {
 
     ArrayList<Integer> index;
     Pair<Integer, Integer> range;
+    Boolean cseRangeTransposeType = null;
+
+    public DRange revverse() {
+        ArrayList<Integer> arr = new ArrayList<>();
+        arr.add(index.get(0));
+        arr.add(index.get(0) + index.get(2) - index.get(1) + 1);
+        arr.add(index.get(2));
+        DRange ans = new DRange(arr);
+        return ans;
+    }
 
     public DRange(ArrayList<Integer> index) {
         this.index = index;
@@ -45,7 +55,7 @@ public class DRange {
 
     @Override
     public String toString() {
-        return "DRange{"  + index + '}';
+        return "DRange{" + index + '}';
     }
 
     @Override

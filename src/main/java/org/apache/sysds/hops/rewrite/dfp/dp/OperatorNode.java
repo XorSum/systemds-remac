@@ -36,7 +36,7 @@ public class OperatorNode {
     MMNode mmNode = null;
 //    SparsityEstimator.OpCode opCode = null;
     int partitionNumber = -1;
-
+    boolean cseTransposeType = false;
 
     @Override
     public String toString() {

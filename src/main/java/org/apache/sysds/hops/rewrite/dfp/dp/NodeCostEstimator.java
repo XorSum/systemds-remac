@@ -9,6 +9,7 @@ import org.apache.sysds.hops.estim.EstimatorMatrixHistogram;
 import org.apache.sysds.hops.estim.MMNode;
 import org.apache.sysds.hops.estim.SparsityEstimator;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
+import org.apache.sysds.hops.rewrite.dfp.GenericDisjointSet;
 import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
 import org.apache.sysds.lops.LopProperties;
 import org.apache.sysds.runtime.controlprogram.caching.MatrixObject;
@@ -33,30 +34,69 @@ public class NodeCostEstimator {
     protected static final Log LOG = LogFactory.getLog(NodeCostEstimator.class.getName());
 
     public static long estimateTime = 0;
-    public HashMap<Pair<Integer, Integer>, MMNode> range2mmnode = new HashMap<>();
 
-//    public HashMap<DRange,MMNode> drange2mmnode = new HashMap<>();
+    public HashMap<Pair<Integer, Integer>, MMNode> range2mmnodeCache = new HashMap<>();
+    public HashMap<DRange, NodeCost> drange2multiplycostCache = new HashMap<>();
 
-    public HashMap<DRange, NodeCost> drange2multiplycost = new HashMap<>();
+    GenericDisjointSet<DRange> dRangeDisjointSet = new GenericDisjointSet<>();
+    GenericDisjointSet<Pair<Integer, Integer>> rangeDisjointSet = new GenericDisjointSet<>();
 
+    boolean useCommonCostCache = true;
 
     public NodeCostEstimator(SparkExecutionContext sec) {
         this.sec = sec;
     }
 
-    public void printCache() {
-        LOG.info("range2mmnode size = "+range2mmnode.size());
-        LOG.info("drange2multiplycost size = "+drange2multiplycost.size());
-        LOG.info(range2mmnode);
-        LOG.info(drange2multiplycost);
+    int build_mmnode_counter = 0;
+    int estimate_matrix_multiply_counter = 0;
+
+    public void resetCacheCounter() {
+        build_mmnode_counter = 0;
+        estimate_matrix_multiply_counter = 0;
     }
 
-    public MMNode addOpnode2Mmnode(OperatorNode opnode) {
+    public void printCacheStats() {
+        LOG.info("range2mmnode size = " + range2mmnodeCache.size());
+        LOG.info("drange2multiplycost size = " + drange2multiplycostCache.size());
+        LOG.info("build mmnode count = " + build_mmnode_counter);
+        LOG.info("estimate matrix multiply count = " + estimate_matrix_multiply_counter);
+        LOG.info(range2mmnodeCache);
+        LOG.info(drange2multiplycostCache);
+    }
+
+    public MMNode getMmnode(OperatorNode opnode) {
+
+        //  查找缓存
         if (opnode.mmNode != null) return opnode.mmNode;
-        if (range2mmnode.containsKey(opnode.dRange.getRange())) {
-            opnode.mmNode = range2mmnode.get(opnode.dRange.getRange());
+        if (range2mmnodeCache.containsKey(opnode.dRange.getRange())) {
+            opnode.mmNode = range2mmnodeCache.get(opnode.dRange.getRange());
             return opnode.mmNode;
         }
+
+        // 如果缓存中没有，就去计算
+        build_mmnode_counter++;
+        MMNode ans = addOpnode2Mmnode(opnode);
+
+        // 更新缓存
+        // todo: update co-cse dranges
+
+        if (useCommonCostCache) {
+            for (Pair<Integer, Integer> range : rangeDisjointSet.elements(opnode.dRange.range)) {
+                if (!range2mmnodeCache.containsKey(range)) {
+                    range2mmnodeCache.put(range, ans);
+                }
+            }
+        }
+        if (!range2mmnodeCache.containsKey(opnode.dRange.getRange())) {
+            range2mmnodeCache.put(opnode.dRange.getRange(), ans);
+        }
+        opnode.mmNode = ans;
+        return ans;
+    }
+
+
+    public MMNode addOpnode2Mmnode(OperatorNode opnode) {
+
 //        LOG.info("start add opnode to mmnode");
         MMNode ans = null;
         Hop hop = opnode.hops.get(0);
@@ -118,18 +158,11 @@ public class NodeCostEstimator {
             MMNode m0 = addOpnode2Mmnode(opnode.inputs.get(0));
             MMNode m1 = addOpnode2Mmnode(opnode.inputs.get(1));
             ans = new MMNode(m0, m1, SparsityEstimator.OpCode.PLUS);
-        } else {
         }
-        if (ans != null) {
-            if (!range2mmnode.containsKey(opnode.dRange.getRange())) {
-                range2mmnode.put(opnode.dRange.getRange(), ans);
-            }
-            opnode.mmNode = ans;
-        } else {
-            //   System.out.println("mmnode == null");
-            System.exit(0);
+        if (ans == null) {
+            System.out.println("mmnode == null");
+            System.exit(-1);
         }
-        // System.out.println("RANGE2NODE SIZE = " +range2mmnode.size());
 //        LOG.info("end add opnode to mmnode");
         return ans;
     }
@@ -182,7 +215,7 @@ public class NodeCostEstimator {
             LOG.info("mnc");
             MMNode mn0 = opNode.inputs.get(0).mmNode;
             MMNode mn1 = opNode.inputs.get(1).mmNode;
-            MMNode mmNode = new MMNode(mn0,mn1, SparsityEstimator.OpCode.MM);
+            MMNode mmNode = new MMNode(mn0, mn1, SparsityEstimator.OpCode.MM);
             mncEstimator.estim(mmNode, false);
             sp = mncEstimator.estimInternSparsity(mmNode, layerNum1, parNum1, layerNum2, parNum2);
         } else {
@@ -200,7 +233,7 @@ public class NodeCostEstimator {
     DataCharacteristics getDC(OperatorNode opNode) {
 //        LOG.info("start get dc");
         DataCharacteristics dc = null;
-        MMNode mmNode = addOpnode2Mmnode(opNode);
+        MMNode mmNode = getMmnode(opNode);
         try {
             if (useMncEstimator) {
                 dc = mncEstimator.estim(mmNode, false);
@@ -217,19 +250,17 @@ public class NodeCostEstimator {
             e.printStackTrace();
             System.exit(-1);
         }
-//        Hop hop = opNode.hops.get(0);
-//        hop.setDim1(dc.getRows());
-//        hop.setDim2(dc.getCols());
-//        hop.setNnz(dc.getNonZeros());
-//        hop.setBlocksize(defaultBlockSize);
-//        LOG.info("end get dc");
         return dc;
     }
 
-    public synchronized NodeCost getNodeCost(OperatorNode opnode) {
+//    public  NodeCost getNodeCost(OperatorNode opnode) {
+//        return NodeCost.ZERO();
+//    }
+
+    public NodeCost getNodeCost(OperatorNode opnode) {
 //        LOG.info("start get node cost");
         long start = System.nanoTime();
-        NodeCost ans ;
+        NodeCost ans;
         Hop hop = opnode.hops.get(0);
         // recurse top-bottom to determine weather a opnode is used by driver
         if (hop.optFindExecType() == LopProperties.ExecType.CP) {
@@ -291,11 +322,16 @@ public class NodeCostEstimator {
 
     NodeCost eMatrixMultiply(OperatorNode node, AggBinaryOp hop) {
 //        LOG.info("start estimate matrix multiply");
-        if (drange2multiplycost.containsKey(node.dRange)) {
-            NodeCost nodeCost = drange2multiplycost.get(node.dRange);
+
+        // 查缓存
+        if (drange2multiplycostCache.containsKey(node.dRange)) {
+            NodeCost nodeCost = drange2multiplycostCache.get(node.dRange);
 //            LOG.info("end estimate matrix multiply");
             return nodeCost.clone();
         }
+
+        // 计算
+        estimate_matrix_multiply_counter++;
         DataCharacteristics dc1 = getDC(node.inputs.get(0));
         DataCharacteristics dc2 = getDC(node.inputs.get(1));
         DataCharacteristics dc3 = getDC(node);
@@ -330,8 +366,31 @@ public class NodeCostEstimator {
             double computeCost = CpuSpeed * 3 * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc2.getSparsity();
             ans = new NodeCost(0, 0, computeCost, 0);
         }
-        drange2multiplycost.put(node.dRange, ans.clone());
-//        LOG.info("end estimate matrix multiply");
+
+        // 更新缓存
+        // todo: update co-cse dranges
+
+        if (useCommonCostCache) {
+
+            DRange dRange1 = dRangeDisjointSet.find(node.dRange);
+            if (dRange1 != null) {
+                for (DRange dRange2 : dRangeDisjointSet.elements(node.dRange)) {
+                    DRange targetDrange;
+                    if (dRange2.cseRangeTransposeType == dRange1.cseRangeTransposeType) {
+                        targetDrange = dRange2;
+                    } else {
+                        targetDrange = dRange2.revverse(); //
+                    }
+                    if (!drange2multiplycostCache.containsKey(targetDrange)) {
+                        drange2multiplycostCache.put(targetDrange, ans.clone());
+                    }
+                }
+            }
+        }
+        if (!drange2multiplycostCache.containsKey(node.dRange)) {
+            drange2multiplycostCache.put(node.dRange, ans.clone());
+        }
+        //        LOG.info("end estimate matrix multiply");
         return ans;
     }
 

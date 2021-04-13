@@ -10,13 +10,11 @@ import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.LiteralOp;
 import org.apache.sysds.hops.NaryOp;
 import org.apache.sysds.hops.TernaryOp;
-import org.apache.sysds.hops.estim.MMNode;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
-import org.apache.sysds.hops.rewrite.dfp.Leaf;
+import org.apache.sysds.hops.rewrite.dfp.GenericDisjointSet;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.Range;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.SingleCse;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.CostModelCommon;
-import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
 import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
 import org.apache.sysds.parser.VariableSet;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
@@ -27,7 +25,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.apache.sysds.utils.Statistics.*;
 
 public class CostGraph {
     protected static final Log LOG = LogFactory.getLog(CostGraph.class.getName());
@@ -46,120 +43,110 @@ public class CostGraph {
 
     public static long dynamicProgramTime = 0;
 
-    public ArrayList<OperatorNode> testOperatorGraph(ArrayList<SinglePlan> pairs,
-                                                     Pair<SingleCse, Hop> emptyPair,
-                                                     ArrayList<Range> blockRanges,
-                                                     ArrayList<Leaf> leaves,
-                                                     ArrayList<Hop> hops) {
-        LOG.info("begin test Operator Graph");
-        System.out.println("before build cost graph");
-        System.out.println("Total JVM GC count:\t\t" + getJVMgcCount() + ".\n");
-        System.out.println("Total JVM GC time:\t\t" + ((double) getJVMgcTime()) / 1000 + " sec.\n");
-        CostModelCommon.MMShowCostFlag = true;
+    public ArrayList<OperatorNode> testOperatorGraph(ArrayList<SinglePlan> singlePlans,
+                                                     SingleCse emptyCse,
+                                                     Hop emptyHop,
+                                                     ArrayList<SinglePlan> placePlans) {
 
-
-        long start_build_graph = System.nanoTime();
-        LOG.info("build cost graph start");
-        HashSet<Pair<Integer, Integer>> ranges = new HashSet<>();
-
-        OperatorNode emptyNode = createOperatorGraph(emptyPair.getRight(), false);
-        emptyPair.getRight().resetVisitStatusForced(new HashSet<>());
-        //  System.out.println(Explain.explain(emptyPair.getRight()));
-        //explainOperatorNode(emptyNode,0);
-        analyzeOperatorRange(emptyNode, emptyPair.getLeft(), new MutableInt(0));
-        analyzeOperatorCostTemplate(emptyNode);
-        rGetRanges(emptyNode, ranges);
-
-        for (Hop hop: hops) {
-                OperatorNode node = createOperatorGraph(hop, false);
-                MutableInt mutableInt = new MutableInt(0);
-                analyzeOperatorRange(node, emptyPair.getLeft(), mutableInt);
-                analyzeOperatorCostTemplate(node);
-    //            LOG.info(CostGraph.explainOpNode(node,0));
-        }
-
-        for (SinglePlan p: pairs) {
-            SingleCse cse = p.singleCse;
-            Hop hop = p.hop;
-            //    System.out.println("========================");
-            //    System.out.println(cse);
-//            System.out.println(Explain.explain(hop));
-            OperatorNode node = createOperatorGraph(hop, false);
-            MutableInt mutableInt = new MutableInt(0);
-            analyzeOperatorRange(node, cse, mutableInt);
-            boolean certainused = rCheckCertainUsed(cse, ranges);
-            if (cse.isConstant) {
-                p.tag = SinglePlan.SinglePlanTag.constant;
-                //     System.out.println("Constant Cse: " + cse);
-            } else {
-                if (certainused) {
-                    p.tag = SinglePlan.SinglePlanTag.Useful;
-                    //        System.out.println("Certainly Useful: " + cse);
-                    // continue;
-                } else {
-                    p.tag = SinglePlan.SinglePlanTag.uncertain;
-                    //      System.out.println("Uncertain: " + cse);
-                }
-            }
-            analyzeOperatorConstant(node);
-            analyzeOperatorCost(node);
-//            LOG.info(explainOpNode(node, 0));
-//            LOG.info(explainOpNodeJson(node,0));
-            p.node = node;
-        }
-
-        long end_build_graph = System.nanoTime();
-        LOG.info("build cost graph end");
-        LOG.info("build cost graph time = "+((end_build_graph-start_build_graph)/1e9));
-
-//        if (emptyPair.getRight().getName().equals("h")) {
-//            System.exit(0);
-//        }
+        // 构建 cost graph
+        build_cost_graph(singlePlans, emptyCse, emptyHop, placePlans);
 
         // 回收mnc使用的内存
 //        for (MMNode mmNode : nodeCostEstimator.range2mmnode.values()) {
 //            mmNode.setSynopsis(null);
 //        }
 //        nodeCostEstimator.range2mmnode.clear();
+//        System.gc();
 
-        System.gc();
-
-        System.out.println("after build cost graph");
-        System.out.println("Total JVM GC count:\t\t" + getJVMgcCount() + ".\n");
-        System.out.println("Total JVM GC time:\t\t" + ((double) getJVMgcTime()) / 1000 + " sec.\n");
+//        System.out.println("after build cost graph");
+//        PrintGcTime.printGcTime();
 
         CseStateMaintainer MAINTAINER = new CseStateMaintainer();
         MAINTAINER.initRangeCounter(range2acnode);
-        MAINTAINER.initCseState(pairs);
+        MAINTAINER.initCseState(singlePlans);
 
-        long start = System.nanoTime();
-        LOG.info("start dp");
+        // 动态规划
         ArrayList<OperatorNode> result = selectBest(MAINTAINER);
-        //showBest(Pair.of(0, maxIndex));
-        result.sort(Comparator.comparingDouble(a -> a.accCost));
-        LOG.info("end dp");
-        long end = System.nanoTime();
-        dynamicProgramTime += end - start;
 
-        System.out.println("after dynamic programming");
-        System.out.println("Total JVM GC count:\t\t" + getJVMgcCount() + ".\n");
-        System.out.println("Total JVM GC time:\t\t" + ((double) getJVMgcTime()) / 1000 + " sec.\n");
+//        System.out.println("after dynamic programming");
+//        PrintGcTime.printGcTime();
 
-//        && list2.get(i).accCost <= bestsinglecsenode.accCost
-//        for (int i = 0; i < 30 && i < result.size(); i++) {
-//            System.out.println(result.get(i));
+        LOG.info("end test Operator Graph");
+        return result;
+    }
+
+    void build_cost_graph(ArrayList<SinglePlan> singlePlans,
+                          SingleCse emptyCse,
+                          Hop emptyHop,
+                          ArrayList<SinglePlan> placePlans) {
+        LOG.info("begin test Operator Graph");
+
+//        System.out.println("before build cost graph");
+//        PrintGcTime.printGcTime();
+
+        CostModelCommon.MMShowCostFlag = true;
+
+        long start_build_graph = System.nanoTime();
+        LOG.info("build cost graph start");
+
+        OperatorNode emptyNode = createOperatorGraph(emptyHop, false);
+        analyzeOperatorRange(emptyNode, emptyCse, new MutableInt(0));
+        HashSet<Pair<Integer, Integer>> ranges = new HashSet<>();
+        rGetRanges(emptyNode, ranges);
+
+        ArrayList<OperatorNode> operatorNodes1 = new ArrayList<>();
+        ArrayList<OperatorNode> operatorNodes2 = new ArrayList<>();
+
+        operatorNodes1.add(emptyNode);
+
+        for (SinglePlan p : placePlans) {
+            OperatorNode node = createOperatorGraph(p.hop, false);
+            analyzeOperatorRange(node, null, new MutableInt(0));
+            p.node = node;
+            operatorNodes1.add(node);
+        }
+
+        for (SinglePlan p : singlePlans) {
+            SingleCse cse = p.singleCse;
+            Hop hop = p.hop;
+            OperatorNode node = createOperatorGraph(hop, false);
+            analyzeOperatorRange(node, cse, new MutableInt(0));
+            boolean certainused = rCheckCertainUsed(cse, ranges);
+            if (cse.isConstant) {
+                p.tag = SinglePlan.SinglePlanTag.constant;
+            } else {
+                p.tag = certainused ? SinglePlan.SinglePlanTag.Useful : SinglePlan.SinglePlanTag.uncertain;
+            }
+            analyzeOperatorConstant(node);
+            operatorNodes2.add(node);
+            p.node = node;
+        }
+
+//        for (Map.Entry<DRange,HashSet<DRange>>  e: commonDranges.entrySet()) {
+//            LOG.info(e.getKey()+" "+e.getValue().size());
 //        }
 
-//        System.out.println(Explain.explain(emptyPair.getRight()));
+        for (DRange dRange: nodeCostEstimator.dRangeDisjointSet.keys()) {
+            HashSet<DRange> values = nodeCostEstimator.dRangeDisjointSet.elements(dRange);
+            LOG.info(dRange+" "+values.size());
+        }
+        for (Pair<Integer, Integer> range: nodeCostEstimator.rangeDisjointSet.keys()) {
+           HashSet<Pair<Integer, Integer>> values = nodeCostEstimator.rangeDisjointSet.elements(range);
+            LOG.info(range+" "+values.size());
+        }
 
-//        System.out.println("done");
+        for (OperatorNode node : operatorNodes1) {
+            analyzeOperatorCostTemplate(node);
+        }
 
-//        return range2acnode.get(Pair.of(0, maxIndex));
-        LOG.info("end test Operator Graph");
+        for (OperatorNode node : operatorNodes2) {
+            analyzeOperatorCost(node);
+        }
 
-//        if (emptyPair.getRight().getName().equals("h"))
-//            System.exit(0);
-        return result;
+        long end_build_graph = System.nanoTime();
+        LOG.info("build cost graph end");
+        LOG.info("build cost graph time = " + ((end_build_graph - start_build_graph) / 1e9));
+
     }
 
 
@@ -307,13 +294,40 @@ public class CostGraph {
         return node;
     }
 
+
+
+//    HashMap<DRange, Range> dRange2RangeHashMap = new HashMap<>();
+
+
     void analyzeOperatorRange(OperatorNode root, SingleCse cse, MutableInt opIndex) {
+        HashSet<Pair<DRange, Range>> cseNodes = new HashSet<>();
+        analyzeOperatorRangeInner(root, cse, opIndex, cseNodes);
+        assert cse.ranges.size() == cseNodes.size();
+//        for (Pair<DRange, Range> p : cseNodes) {
+//            DRange key = p.getLeft();
+//            if (!dRange2RangeHashMap.containsKey(key)) {
+//                dRange2RangeHashMap.put(key, p.getRight());
+//            }
+//        }
+        for (Pair<DRange, Range> p1 : cseNodes) {
+            for (Pair<DRange, Range> p2 : cseNodes) {
+                nodeCostEstimator.dRangeDisjointSet.merge(p1.getLeft(),p2.getLeft());
+                nodeCostEstimator.rangeDisjointSet.merge(p1.getLeft().getRange(),p2.getLeft().getRange());
+            }
+        }
+    }
+
+
+    void analyzeOperatorRangeInner(OperatorNode root,
+                                   SingleCse cse,
+                                   MutableInt opIndex,
+                                   HashSet<Pair<DRange, Range>> cseNodes) {
         ArrayList<Integer> index = new ArrayList<>();
         int begin = opIndex.getValue();
         if (root.inputs.size() > 0) {
             for (int i = 0; i < root.inputs.size(); i++) {
                 index.add(opIndex.getValue());
-                analyzeOperatorRange(root.inputs.get(i), cse, opIndex);
+                analyzeOperatorRangeInner(root.inputs.get(i), cse, opIndex, cseNodes);
                 //  root.dependencies.addAll(root.inputs.get(i).dependencies);
             }
         } else {
@@ -324,9 +338,15 @@ public class CostGraph {
         if (root.dRange == null) {
             root.dRange = new DRange(index);
 //        System.out.println("analyze range: " + root.range);
-            for (Range range : cse.ranges) {
-                if ((range.left == begin && range.right == end) || (range.left == end && range.right == begin)) {
-                    root.dependencies.add(cse);
+            if (cse != null) {
+                for (Range range : cse.ranges) {
+                    if ((range.left == begin && range.right == end) ||
+                            (range.left == end && range.right == begin)) {
+                        root.dependencies.add(cse);
+                        root.dRange.cseRangeTransposeType = range.transpose;
+                        cseNodes.add(Pair.of(root.dRange, range));
+                        break;
+                    }
                 }
             }
         }
@@ -413,7 +433,7 @@ public class CostGraph {
     }
 
 
-   ConcurrentHashMap<Pair<Integer, Integer>, ACNode> range2acnode = new ConcurrentHashMap<>();
+    ConcurrentHashMap<Pair<Integer, Integer>, ACNode> range2acnode = new ConcurrentHashMap<>();
 
 
     void classifyOperatorNode(CseStateMaintainer MAINTAINER, ArrayList<OperatorNode> allResults, ACNode acNode) {
@@ -457,9 +477,10 @@ public class CostGraph {
     public static boolean parallelDynamicProgramming = true;
 
     ArrayList<OperatorNode> selectBest(CseStateMaintainer MAINTAINER) {
-//        dp = new HashMap<>();
+        long start = System.nanoTime();
+        LOG.info("start dp");
+
         ArrayList<Pair<Integer, Integer>> sortedRanges = new ArrayList<>(range2acnode.keySet());
-//        ranges.sort(Comparator.comparingInt((Pair<Integer,Integer> a)->(a.getRight()-a.getLeft())));
         sortedRanges.sort(Comparator.comparingInt((Pair<Integer, Integer> a) -> (a.getRight() - a.getLeft())).thenComparingInt(Pair::getLeft));
         LOG.info(sortedRanges);
         for (Pair<Integer, Integer> boundery : sortedRanges) {
@@ -489,10 +510,9 @@ public class CostGraph {
 //                System.out.println(rops);
 //                System.out.println(mids);
 
-                Stream<OperatorNode> opstream = parallelDynamicProgramming?lops.parallelStream():lops.stream();
+                Stream<OperatorNode> opstream = parallelDynamicProgramming ? lops.parallelStream() : lops.stream();
 
-                List<OperatorNode> tmp  =
-                        opstream
+                List<OperatorNode> tmp = opstream
                         .flatMap(lop -> {
                             ArrayList<Triple<OperatorNode, OperatorNode, OperatorNode>> arrayList = new ArrayList<>();
                             for (OperatorNode mid : mids) {
@@ -543,19 +563,15 @@ public class CostGraph {
 
         }
 
-        for (Pair<Integer, Integer> range : sortedRanges) {
-            if (!range2acnode.containsKey(range)) {
-//                System.out.println(range + " " + 0);
-            } else {
-//                System.out.println(range + " " + range2acnode.get(range).uncertainACs.size());
-            }
-        }
+        ArrayList<OperatorNode> resultNodes = null;
         if (sortedRanges.size() > 0) {
-            ArrayList<OperatorNode> opnodess = range2acnode.get(sortedRanges.get(sortedRanges.size() - 1)).getOperatorNodes(MAINTAINER);
-            return opnodess;
-        } else {
-            return null;
+            resultNodes = range2acnode.get(sortedRanges.get(sortedRanges.size() - 1)).getOperatorNodes(MAINTAINER);
+            resultNodes.sort(Comparator.comparingDouble(a -> a.accCost));
         }
+        LOG.info("end dp");
+        long end = System.nanoTime();
+        dynamicProgramTime += end - start;
+        return resultNodes;
     }
 
 
