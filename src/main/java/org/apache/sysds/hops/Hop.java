@@ -1422,4 +1422,8 @@ public abstract class Hop implements ParseInfo {
 		_filename = parseInfo.getFilename();
 	}
 
+	public DataCharacteristics getCharacteristics() {
+		return _dc;
+	}
+
 } // end class

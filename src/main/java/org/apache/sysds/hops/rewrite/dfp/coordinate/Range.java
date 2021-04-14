@@ -9,7 +9,7 @@ import static java.lang.Integer.min;
 import static java.lang.Integer.reverse;
 import static org.apache.commons.lang3.ObjectUtils.max;
 
-public class Range {
+public class Range implements Comparable<Range> {
     public int left;
     public int right;
     public boolean transpose;
@@ -54,4 +54,17 @@ public class Range {
     public int hashCode() {
         return Objects.hash(left, right, transpose);
     }
+
+    @Override
+    public int compareTo(Range b) {
+        if (left == b.left) {
+            return right - b.right;
+        }
+        return left - b.left;
+    }
+
+    public int size() {
+        return right - left + 1;
+    }
+
 }

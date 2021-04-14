@@ -290,13 +290,32 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     MySolution testDynamicProgramming(ArrayList<SingleCse> singleCses, Hop template, ArrayList<Range> blockRanges) {
         try {
-            ArrayList<Hop> hops = createHops(template, blockRanges);
             SingleCse emptyCse = new SingleCse();
             emptyCse.hash = HashKey.of(0L, 0L);
             Hop emptyHop = coordinate.createHop(emptyCse, template, blockRanges);
             Pair<SingleCse, Hop> emptyPair = Pair.of(emptyCse, emptyHop);
             ArrayList<Pair<SingleCse, Hop>> list = genHopFromSingleCses(singleCses, template, blockRanges);
             list.add(emptyPair);
+
+            ArrayList<Hop> hops = createNecessaryHops(singleCses, emptyHop, blockRanges);
+//            ArrayList<Hop> hops = createHops(template, blockRanges);
+
+//            // debug
+//            ArrayList<Hop> hops2 = createHops(template, blockRanges);
+//            TreeSet<String> set = new TreeSet<>();
+//            TreeSet<String> set2 = new TreeSet<>();
+//            TreeSet<String> dSet = new TreeSet<>();
+//            TreeSet<String> dSet2 = new TreeSet<>();
+//            for (Hop hop : hops) {
+//                set.addAll(Explain.explainBlocks(hop));
+//            }
+//            for (Hop hop : hops2) {
+//                set2.addAll(Explain.explainBlocks(hop));
+//            }
+//            dSet.addAll(set);
+//            dSet2.addAll(set2);
+//            dSet.removeAll(set2);
+//            dSet2.removeAll(set);
 
             ArrayList<SinglePlan> singlePlans = new ArrayList<>();
             for (Pair<SingleCse, Hop> p : list) {
@@ -804,112 +823,254 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         }
     }
 
+    // deprecated
     private ArrayList<Hop> createHops(Hop template, ArrayList<Range> blockRanges) {
-        try {
-            ArrayList<RangeTree> list = new ArrayList<>();
-            return createHopInner_s(list, template, blockRanges);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+        ArrayList<RangeTree> list = new ArrayList<>();
+        return createHopInner_s(list, template, blockRanges);
     }
 
     private ArrayList<Hop> createHopInner_s(ArrayList<RangeTree> list, Hop template, ArrayList<Range> blockRanges) {
-        try {
-            // 准备区间数组
-            for (int i = 0; i < coordinate.leaves.size(); i++) {
-                boolean ok = true;
-                for (RangeTree rangeTree : list) {
-                    if (rangeTree.left == i && rangeTree.right == i) {
-                        ok = false;
-                        break;
-                    }
-                }
-                if (!ok) continue;
-                SingleCse sc = new SingleCse(Range.of(i, i, false), coordinate.leaves.get(i).hop);
-                sc.name = coordinate.getRangeName(i, i);
-                RangeTree rangeTree = new RangeTree(i, i, sc, false);
-                list.add(rangeTree);
-            }
-//            for (Range r : blockRanges) {
-            for (int i = 0; i < blockRanges.size(); i++) {
-                Range r = blockRanges.get(i);
-                boolean ok = true;
-                for (RangeTree rangeTree : list) {
-                    if (rangeTree.left == r.left && rangeTree.right == r.right) {
-                        ok = false;
-                        break;
-                    }
-                }
-                if (!ok) continue;
-                SingleCse sc = new SingleCse(Range.of(r.left, r.right, false), null);
-                sc.name = coordinate.getRangeName(r);
-                list.add(new RangeTree(r.left, r.right, sc, coordinate.isTranspose(r.left, r.right)));
-            }
-            // 把区间数组排序，先按右端点升序，再按左端点降序
-            list.sort((RangeTree ra, RangeTree rb) -> {
-                if (ra.right != rb.right)
-                    return ra.right - rb.right;
-//                if (rb.left - ra.left!=0)
-                return rb.left - ra.left;
-            });
-            // 用栈建起RangeTree
-            Stack<RangeTree> stack = new Stack<>();
-            for (int i = 0; i < list.size(); i++) {
-                RangeTree cur = list.get(i);
-                while (!stack.empty() && stack.peek().left >= cur.left) {
-                    cur.children.add(stack.pop());
-                }
-                Collections.reverse(cur.children);
-                stack.push(cur);
-            }
-            ArrayList<Hop> ret = new ArrayList<>();
-
-            for (RangeTree rt : stack) {
-                try {
-                    ArrayList<Hop> block_hops = rCreateHop_s(rt);
-                    assert block_hops != null;
-                    for (Hop block_hop : block_hops) {
-                        // 找到这个块的位置
-                        Hop copy = deepCopyHopsDag(template);
-                        Hop cur = copy;
-                        Hop parent = null;
-                        Leaf leaf1 = coordinate.leaves.get(rt.left);
-                        Leaf leaf2 = coordinate.leaves.get(rt.right);
-                        for (int i = 0; i < leaf1.depth && i < leaf2.depth; i++) {
-                            if (leaf1.path.get(i).equals(leaf2.path.get(i))) {
-                                parent = cur;
-                                assert cur != null;
-                                cur = cur.getInput().get(leaf1.path.get(i));
-                            } else {
-                                break;
-                            }
-                        }
-                        // 替换
-                        if (parent != null) {
-                            HopRewriteUtils.replaceChildReference(parent, cur, block_hop);
-                        } else {
-                            copy = block_hop;
-                        }
-                        ret.add(copy);
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-            return ret;
-        } catch (Exception e) {
-            LOG.warn("construct hops error");
-            return null;
+        // 准备区间数组
+        for (int i = 0; i < coordinate.leaves.size(); i++) {
+            SingleCse sc = new SingleCse(Range.of(i, i, false), coordinate.leaves.get(i).hop);
+            sc.name = coordinate.getRangeName(i, i);
+            RangeTree rangeTree = new RangeTree(i, i, sc, false);
+            list.add(rangeTree);
         }
+
+        ArrayList<RangeTree> blockList = new ArrayList<>();
+        for (Range r : blockRanges) {
+            boolean ok = true;
+            for (RangeTree rangeTree : list) {
+                if (rangeTree.left == r.left && rangeTree.right == r.right) {
+                    ok = false;
+                    break;
+                }
+            }
+            if (!ok) continue;
+            SingleCse sc = new SingleCse(Range.of(r.left, r.right, false), null);
+            sc.name = coordinate.getRangeName(r);
+            blockList.add(new RangeTree(r.left, r.right, sc, coordinate.isTranspose(r.left, r.right)));
+        }
+        list.addAll(blockList);
+
+        // 把区间数组排序，先按右端点升序，再按左端点降序
+        list.sort((RangeTree ra, RangeTree rb) -> {
+            if (ra.right != rb.right)
+                return ra.right - rb.right;
+            return rb.left - ra.left;
+        });
+
+        // 用栈建起RangeTree
+        Stack<RangeTree> stack = new Stack<>();
+        for (RangeTree cur : list) {
+            while (!stack.empty() && stack.peek().left >= cur.left) {
+                cur.children.add(stack.pop());
+            }
+            Collections.reverse(cur.children);
+            stack.push(cur);
+        }
+        ArrayList<Hop> ret = new ArrayList<>();
+
+        // 创建并替换block的hop
+        for (RangeTree rt : stack) {
+            try {
+                ArrayList<Hop> block_hops = rCreateHop_s(rt);
+                assert block_hops != null;
+                for (Hop block_hop : block_hops) {
+                    // 找到这个块的位置
+                    Hop copy = deepCopyHopsDag(template);
+                    Hop cur = copy;
+                    Hop parent = null;
+                    Leaf leaf1 = coordinate.leaves.get(rt.left);
+                    Leaf leaf2 = coordinate.leaves.get(rt.right);
+                    for (int i = 0; i < leaf1.depth && i < leaf2.depth; i++) {
+                        if (leaf1.path.get(i).equals(leaf2.path.get(i))) {
+                            parent = cur;
+                            assert cur != null;
+                            cur = cur.getInput().get(leaf1.path.get(i));
+                        } else {
+                            break;
+                        }
+                    }
+                    // 替换
+                    if (parent != null) {
+                        HopRewriteUtils.replaceChildReference(parent, cur, block_hop);
+                    } else {
+                        copy = block_hop;
+                    }
+                    ret.add(copy);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        return ret;
     }
 
+    private ArrayList<Hop> createNecessaryHops(ArrayList<SingleCse> singleCses, Hop template,
+                                               ArrayList<Range> blockRanges) {
+        if (singleCses.size() == 0) {
+            return new ArrayList<>(0);
+        }
+
+        ArrayList<Hop> ret = new ArrayList<>();
+
+        TreeSet<Range> cseRangeSet = new TreeSet<>();
+        for (SingleCse cse : singleCses) {
+            cseRangeSet.addAll(cse.ranges);
+        }
+        ArrayList<Range> cseRanges = new ArrayList<>(cseRangeSet);
+
+        blockRanges.sort(Comparator.comparingInt((Range a) -> a.left));
+        int idx = 0;
+        for (Range blockRange : blockRanges) {
+            int preIdx = idx;
+            while (idx < cseRanges.size() && cseRanges.get(idx).right <= blockRange.right) {
+                idx++;
+            }
+            ret.addAll(createNecessaryHopsPerBlock(blockRange, cseRanges.subList(preIdx, idx), template));
+        }
+
+        return ret;
+    }
+
+    private ArrayList<Hop> createNecessaryHopsPerBlock(Range blockRange, List<Range> cseRanges, Hop template) {
+        ArrayList<Hop> ret = new ArrayList<>();
+
+        ArrayList<RangeTree> dataList = new ArrayList<>(blockRange.size());
+        for (int i = blockRange.left; i <= blockRange.right; i++) {
+            SingleCse sc = new SingleCse(Range.of(i, i, false), coordinate.leaves.get(i).hop);
+            sc.name = coordinate.getRangeName(i, i);
+            dataList.add(new RangeTree(i, i, sc, false));
+        }
+
+        for (Range cseRange : cseRanges) {
+            ArrayList<RangeTree> children = new ArrayList<>(cseRange.size());
+            for (int i = cseRange.left; i <= cseRange.right; i++) {
+                children.add(dataList.get(i - blockRange.left));
+            }
+            RangeTree cseTree = createOptimalRangeTrees(children, false).get(0);
+
+            children = new ArrayList<>(blockRange.size() - cseRange.size() + 1);
+            for (int i = blockRange.left; i <= blockRange.right; i++) {
+                if (i == cseRange.left) {
+                    children.add(cseTree);
+                    i += cseRange.size() - 1;
+                } else {
+                    children.add(dataList.get(i - blockRange.left));
+                }
+            }
+            ArrayList<RangeTree> blockTrees = createOptimalRangeTrees(children, true);
+
+            for (RangeTree tree : blockTrees) {
+                Hop hop = coordinate.rCreateHop(tree);
+                Hop copy = deepCopyHopsDag(template);
+                Hop cur = copy;
+                Hop parent = null;
+                Leaf leaf1 = coordinate.leaves.get(tree.left);
+                Leaf leaf2 = coordinate.leaves.get(tree.right);
+
+                for (int i = 0; i < leaf1.depth && i < leaf2.depth; i++) {
+                    if (leaf1.path.get(i).equals(leaf2.path.get(i))) {
+                        parent = cur;
+                        assert cur != null;
+                        cur = cur.getInput().get(leaf1.path.get(i));
+                    } else {
+                        break;
+                    }
+                }
+
+                if (parent != null) {
+                    HopRewriteUtils.replaceChildReference(parent, cur, hop);
+                } else {
+                    copy = hop;
+                }
+
+                ret.add(copy);
+            }
+        }
+
+        return ret;
+    }
+
+    private ArrayList<RangeTree> createOptimalRangeTrees(ArrayList<RangeTree> treesList, boolean mult) {
+        Queue<ArrayList<RangeTree>> queue = new LinkedList<>();
+        ArrayList<RangeTree> ret = new ArrayList<>();
+
+        queue.offer(treesList);
+        while (!queue.isEmpty()) {
+            ArrayList<RangeTree> trees = queue.poll();
+            ArrayList<ArrayList<RangeTree>> list = createOptimalRangeTreesList(trees, mult);
+            for (ArrayList<RangeTree> l : list) {
+                if (l.size() == 1) {
+                    ret.add(l.get(0));
+                } else {
+                    queue.offer(l);
+                }
+            }
+        }
+
+        return ret;
+    }
+
+    private ArrayList<ArrayList<RangeTree>> createOptimalRangeTreesList(ArrayList<RangeTree> trees, boolean mult) {
+        ArrayList<ArrayList<RangeTree>> ret = new ArrayList<>();
+
+        if (trees.size() < 2) {
+            ret.add(trees);
+            return ret;
+        }
+
+        Long[] costs = new Long[trees.size() - 1];
+        for (int i = 0; i < trees.size() - 1; i++) {
+            RangeTree a = trees.get(i);
+            RangeTree b = trees.get(i + 1);
+            long nRow = coordinate.leaves.get(a.left).hop.getCharacteristics().getRows();
+            long nMiddle = coordinate.leaves.get(a.left).hop.getCharacteristics().getCols();
+            long nCol = coordinate.leaves.get(b.right).hop.getCharacteristics().getCols();
+            costs[i] = nRow * nMiddle * nCol;
+        }
+
+        long min = Collections.min(Arrays.asList(costs));
+        ArrayList<Integer> idxList = new ArrayList<>();
+        for (int i = 0; i < costs.length; i++) {
+            if (costs[i] == min) {
+                idxList.add(i);
+                if (!mult) {
+                    break;
+                }
+            }
+        }
+
+        for (int idx : idxList) {
+            ArrayList<RangeTree> list = new ArrayList<>(costs.length);
+            for (int i = 0; i < trees.size(); i++) {
+                RangeTree a = trees.get(i);
+                if (i == idx) {
+                    i++;
+                    RangeTree b = trees.get(i);
+                    SingleCse sc = new SingleCse(Range.of(a.left, b.right, false), null);
+                    sc.name = coordinate.getRangeName(Range.of(a.left, b.right, false));
+                    RangeTree newTree = new RangeTree(a.left, b.right, sc, coordinate.isTranspose(a.left, b.right));
+                    newTree.children.add(a);
+                    newTree.children.add(b);
+                    list.add(newTree);
+                } else {
+                    list.add(a);
+                }
+            }
+            ret.add(list);
+        }
+
+        return ret;
+    }
 
     private ArrayList<Hop> rCreateHop_s(RangeTree rt) {
         ArrayList<Hop> children = new ArrayList<>();
         for (RangeTree son : rt.children) {
             Hop s = coordinate.rCreateHop(son);
-            if (s == null) return null;
+            if (s == null) throw new NullPointerException();
             children.add(s);
         }
         ArrayList<Pair<HashSet<Triple<Integer, Integer, Integer>>, Hop>> hops = build_binary_trees_all(children);

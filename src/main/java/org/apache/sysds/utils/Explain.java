@@ -19,19 +19,14 @@
 
 package org.apache.sysds.utils;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.List;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Stack;
 
 import org.apache.commons.lang3.mutable.MutableInt;
-import org.apache.sysds.hops.Hop;
-import org.apache.sysds.hops.LiteralOp;
-import org.apache.sysds.hops.OptimizerUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.sysds.hops.*;
 import org.apache.sysds.hops.codegen.cplan.CNode;
 import org.apache.sysds.hops.codegen.cplan.CNodeMultiAgg;
 import org.apache.sysds.hops.codegen.cplan.CNodeTpl;
@@ -68,6 +63,8 @@ import org.apache.sysds.runtime.instructions.spark.ReblockSPInstruction;
 import org.apache.sysds.runtime.instructions.spark.SPInstruction;
 import org.apache.sysds.runtime.lineage.LineageItem;
 import org.apache.sysds.runtime.lineage.LineageItemUtils;
+
+import static org.apache.sysds.common.Types.OpOpData.TRANSIENTREAD;
 
 public class Explain
 {
@@ -419,6 +416,55 @@ public class Explain
 
 	public static String explain( CNode node, int level ) {
 		return explainCNode(node, level);
+	}
+
+	public static Pair<String, TreeSet<String>> explainMultChain(Hop hop) {
+		Pair<String, TreeSet<String>> ret = new MutablePair<>();
+
+		if (hop instanceof DataOp && ((DataOp) hop).getOp() == TRANSIENTREAD) {
+			return new ImmutablePair<>(hop.getName(), new TreeSet<>());
+		}
+
+		ArrayList<Hop> inputs = hop.getInput();
+
+		if (hop instanceof ReorgOp || hop instanceof DataOp) {
+			return explainMultChain(inputs.get(0));
+		}
+
+		if (hop instanceof AggBinaryOp) {
+			Pair<String, TreeSet<String>> a = explainMultChain(inputs.get(0));
+			Pair<String, TreeSet<String>> b = explainMultChain(inputs.get(1));
+
+			String left = String.format("%s %s", a.getLeft(), b.getLeft());
+
+			TreeSet<String> right = new TreeSet<>();
+			right.addAll(a.getRight());
+			right.addAll(b.getRight());
+			right.add(String.format("(%s) (%s)", a.getLeft(), b.getLeft()));
+
+			return new ImmutablePair<>(left, right);
+		}
+
+		throw new IllegalArgumentException();
+	}
+
+	public static TreeSet<String> explainBlocks(Hop hop) {
+		Queue<Hop> queue = new LinkedList<>();
+		TreeSet<String> ret = new TreeSet<>();
+
+		queue.offer(hop);
+		while (!queue.isEmpty()) {
+			Hop current = queue.poll();
+			if (current instanceof AggBinaryOp) {
+				ret.addAll(explainMultChain(current).getRight());
+			} else {
+				for (Hop children : current.getInput()) {
+					queue.offer(children);
+				}
+			}
+		}
+
+		return ret;
 	}
 
 	/**
