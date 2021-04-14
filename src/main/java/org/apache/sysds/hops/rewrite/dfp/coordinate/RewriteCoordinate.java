@@ -324,18 +324,29 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             int i = 0;
             OperatorNode operatorNode = operatorNodeArrayList.get(i);
             MultiCse multiCse = createMultiCseFromOperatorNode(operatorNode);
+            LOG.info(multiCse);
+            System.out.println(multiCse);
+            String s =  CostGraph.explainOpNode(operatorNode,0);
+            LOG.info(s);
+            System.out.println(s);
+
             if (multiCse != null) {
                 //      multiCseArrayList.add(multiCse);
                 Hop hop = coordinate.createHop(multiCse, template, blockRanges);
+                hop.resetVisitStatusForced(new HashSet<>());
+                System.out.println(Explain.explain(hop));
                 hop = copyAndEliminateHop(hop);
+                hop.resetVisitStatusForced(new HashSet<>());
+                System.out.println(Explain.explain(hop));
+
                 double dpcost = operatorNode.accCost;
-                Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop);
-                NodeCost cost3 = costTriple.getLeft();
-                double hcost = cost3.getSummary();
-                double rate = (dpcost - hcost) / hcost;
-                LOG.info("candidate multi cse:  rcost=" + hcost + ", dpcost=" + dpcost + ", rate=" + rate + "\n" + operatorNode.accCostDetails + "\n" + multiCse);
-                LOG.info("rcostdetail=" + cost3 + ", dpcostdetail=" + operatorNode.accCostDetails);
-                LOG.info(CostGraph.explainOpNode(operatorNode, 0));
+//                Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop);
+//                NodeCost cost3 = costTriple.getLeft();
+//                double hcost = cost3.getSummary();
+//                double rate = (dpcost - hcost) / hcost;
+//                LOG.info("candidate multi cse:  rcost=" + hcost + ", dpcost=" + dpcost + ", rate=" + rate + "\n" + operatorNode.accCostDetails + "\n" + multiCse);
+//                LOG.info("rcostdetail=" + cost3 + ", dpcostdetail=" + operatorNode.accCostDetails);
+//                LOG.info(CostGraph.explainOpNode(operatorNode, 0));
                 MySolution solution = constantUtilByTag.liftLoopConstant(hop);
                 solution.multiCse = multiCse;
                 if (mySolution == null || mySolution.cost < dpcost) {

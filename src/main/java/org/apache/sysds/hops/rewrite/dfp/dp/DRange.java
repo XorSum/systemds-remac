@@ -17,6 +17,12 @@ public class DRange {
         range = Pair.of(begin, end);
     }
 
+    public DRange(int ll,int rl,int rr) {
+        index = new ArrayList<>();
+        index.add(ll);index.add(rl);index.add(rr);
+        range = Pair.of(ll,rr);
+    }
+
     Pair<Integer, Integer> getRange() {
         return this.range;
     }

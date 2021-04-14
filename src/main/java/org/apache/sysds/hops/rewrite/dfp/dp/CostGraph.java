@@ -13,6 +13,7 @@ import org.apache.sysds.hops.TernaryOp;
 import org.apache.sysds.hops.estim.MMNode;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.Leaf;
+import org.apache.sysds.hops.rewrite.dfp.coordinate.HashKey;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.Range;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.SingleCse;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.CostModelCommon;
@@ -70,15 +71,15 @@ public class CostGraph {
         analyzeOperatorCostTemplate(emptyNode);
         rGetRanges(emptyNode, ranges);
 
-        for (Hop hop: hops) {
-                OperatorNode node = createOperatorGraph(hop, false);
-                MutableInt mutableInt = new MutableInt(0);
-                analyzeOperatorRange(node, emptyPair.getLeft(), mutableInt);
-                analyzeOperatorCostTemplate(node);
-    //            LOG.info(CostGraph.explainOpNode(node,0));
+        for (Hop hop : hops) {
+            OperatorNode node = createOperatorGraph(hop, false);
+            MutableInt mutableInt = new MutableInt(0);
+            analyzeOperatorRange(node, emptyPair.getLeft(), mutableInt);
+            analyzeOperatorCostTemplate(node);
+            //            LOG.info(CostGraph.explainOpNode(node,0));
         }
 
-        for (SinglePlan p: pairs) {
+        for (SinglePlan p : pairs) {
             SingleCse cse = p.singleCse;
             Hop hop = p.hop;
             //    System.out.println("========================");
@@ -110,7 +111,7 @@ public class CostGraph {
 
         long end_build_graph = System.nanoTime();
         LOG.info("build cost graph end");
-        LOG.info("build cost graph time = "+((end_build_graph-start_build_graph)/1e9));
+        LOG.info("build cost graph time = " + ((end_build_graph - start_build_graph) / 1e9));
 
 //        if (emptyPair.getRight().getName().equals("h")) {
 //            System.exit(0);
@@ -413,7 +414,7 @@ public class CostGraph {
     }
 
 
-   ConcurrentHashMap<Pair<Integer, Integer>, ACNode> range2acnode = new ConcurrentHashMap<>();
+    ConcurrentHashMap<Pair<Integer, Integer>, ACNode> range2acnode = new ConcurrentHashMap<>();
 
 
     void classifyOperatorNode(CseStateMaintainer MAINTAINER, ArrayList<OperatorNode> allResults, ACNode acNode) {
@@ -489,24 +490,24 @@ public class CostGraph {
 //                System.out.println(rops);
 //                System.out.println(mids);
 
-                Stream<OperatorNode> opstream = parallelDynamicProgramming?lops.parallelStream():lops.stream();
+                Stream<OperatorNode> opstream = parallelDynamicProgramming ? lops.parallelStream() : lops.stream();
 
-                List<OperatorNode> tmp  =
+                List<OperatorNode> tmp =
                         opstream
-                        .flatMap(lop -> {
-                            ArrayList<Triple<OperatorNode, OperatorNode, OperatorNode>> arrayList = new ArrayList<>();
-                            for (OperatorNode mid : mids) {
-                                for (OperatorNode rop : rops) {
-                                    if (check(lop, rop, mid.dependencies)) {
-                                        arrayList.add(Triple.of(lop, mid, rop));
+                                .flatMap(lop -> {
+                                    ArrayList<Triple<OperatorNode, OperatorNode, OperatorNode>> arrayList = new ArrayList<>();
+                                    for (OperatorNode mid : mids) {
+                                        for (OperatorNode rop : rops) {
+                                            if (check(lop, rop, mid.dependencies)) {
+                                                arrayList.add(Triple.of(lop, mid, rop));
+                                            }
+                                        }
                                     }
-                                }
-                            }
-                            return arrayList.stream();
-                        })
-                        .map(triple -> createOperatorNode(triple.getLeft(), lRange, triple.getRight(), rRange, triple.getMiddle(), boundery))
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
+                                    return arrayList.stream();
+                                })
+                                .map(triple -> createOperatorNode(triple.getLeft(), lRange, triple.getRight(), rRange, triple.getMiddle(), boundery))
+                                .filter(Objects::nonNull)
+                                .collect(Collectors.toList());
                 allResults.addAll(tmp);
             }
 
@@ -558,59 +559,157 @@ public class CostGraph {
         }
     }
 
+    static SingleCse createSingleCseDfpY() {
+        SingleCse sY = new SingleCse(); // atahg
+        sY.hash = HashKey.of(0l,1l);
+        sY.ranges.add(Range.of(2, 5, false));
+        sY.ranges.add(Range.of(6, 9, true));
+        sY.ranges.add(Range.of(11, 14, true));
+        sY.ranges.add(Range.of(16, 19, false));
+        sY.ranges.add(Range.of(24, 27, true));
+        return sY;
+    }
 
-    boolean check(OperatorNode operatorNode1,
-                  OperatorNode operatorNode2,
-                  HashSet<SingleCse> midcses) {
+    static SingleCse createSingleCseDfpD() {
+        SingleCse sD = new SingleCse(); // d
+        sD.hash = HashKey.of(2l,3l);
+        sD.ranges.add(Range.of(4, 5, false));
+        sD.ranges.add(Range.of(6, 7, true));
+        sD.ranges.add(Range.of(11, 12, true));
+        sD.ranges.add(Range.of(18, 19, false));
+        sD.ranges.add(Range.of(20, 21, false));
+        sD.ranges.add(Range.of(22, 23, true));
+        sD.ranges.add(Range.of(24, 25, true));
+        return sD;
+    }
+
+    static SingleCse createSingleCseDfpAta() {
+        SingleCse sAta = new SingleCse(); // ata
+        sAta.isConstant = true;
+        sAta.hash = HashKey.of(4l,5l);
+        sAta.ranges.add(Range.of(2, 3, false));
+        sAta.ranges.add(Range.of(8, 9, true));
+        sAta.ranges.add(Range.of(13, 14, true));
+        sAta.ranges.add(Range.of(16, 17, false));
+        sAta.ranges.add(Range.of(26, 27, true));
+        return sAta;
+    }
+
+    public static void main(String[] args) {
+        OperatorNode node_left = new OperatorNode();
+        node_left.dRange = new DRange(2, 3, 3);
+        OperatorNode node_right = new OperatorNode();
+        node_right.dRange = new DRange(4, 5, 5);
+        OperatorNode node_mid = new OperatorNode();
+        node_mid.dRange = new DRange(2, 4, 5);
+
+        SingleCse cseD = createSingleCseDfpD();
+        SingleCse cseY = createSingleCseDfpY();
+        SingleCse cseAta = createSingleCseDfpAta();
+        node_left.dependencies.add(cseAta);
+        node_right.dependencies.add(cseD);
+        node_mid.dependencies.add(cseY);
+
+        boolean ans = check(node_left, node_right, node_mid.dependencies);
+        System.out.println(ans);
+    }
+
+    static boolean hasRange(Collection<SingleCse> singleCses,int l,int r) {
+        boolean has = false;
+        for (SingleCse singleCse: singleCses) {
+            for (Range range: singleCse.ranges) {
+                if (range.left == l && range.right == r) {
+                    has = true;
+                    break;
+                }
+            }
+        }
+        return has;
+    }
+
+    static boolean check(OperatorNode operatorNode1,
+                         OperatorNode operatorNode2,
+                         HashSet<SingleCse> midcses) {
+        boolean has25 = hasRange(operatorNode1.dependencies, 2,5)
+                || hasRange(operatorNode1.oldDependencies, 2,5)
+                || hasRange(operatorNode2.dependencies, 2,5)
+                || hasRange(operatorNode2.oldDependencies, 2,5)
+                || hasRange(midcses, 2,5);
+        boolean has23 = hasRange(operatorNode1.dependencies, 2,3)
+                || hasRange(operatorNode1.oldDependencies, 2,3)
+                || hasRange(operatorNode2.dependencies, 2,3)
+                || hasRange(operatorNode2.oldDependencies, 2,3)
+                || hasRange(midcses, 2,3);
+
+        if (has23&&has25) {
+            boolean fff = checkFFFFF(operatorNode1, operatorNode2, midcses);
+            boolean aaa = checkAAAAAA(operatorNode1, operatorNode2, midcses);
+            if (fff||aaa) {
+                LOG.info("check has23&&25");
+                LOG.info("FFF " + fff);
+                LOG.info("AAA " + aaa);
+            }
+        }
+
+        boolean ans = check1(operatorNode1,operatorNode2,midcses);
+//        boolean ans = checkFFFFF(operatorNode1,operatorNode2,midcses);
+
+//        LOG.info(ans);
+
+
+//        if (has23&&has25&&ans) {
+//            LOG.info("check has23&&25");
+//        }
+
+        return ans;
+    }
+
+    static boolean checkFFFFF(OperatorNode operatorNode1,
+                          OperatorNode operatorNode2,
+                          HashSet<SingleCse> midcses) {
+
+        if (!checkConflict(operatorNode1.dependencies, operatorNode2.dependencies)) return false;
+        if (!checkConflict(midcses, operatorNode1.dependencies)) return false;
+        if (!checkConflict(midcses, operatorNode2.dependencies)) return false;
+        if (!checkConflict(operatorNode1.oldDependencies, operatorNode2.oldDependencies)) return false;
+        return true;
+    }
+
+    static boolean checkAAAAAA(OperatorNode operatorNode1,
+                          OperatorNode operatorNode2,
+                          HashSet<SingleCse> midcses) {
+       if (!checkAAA(operatorNode1.dependencies, operatorNode1.dRange.getRange(),
+                operatorNode2.dependencies, operatorNode2.dRange.getRange()))
+            return false;
+       if (!checkAAA(operatorNode1.oldDependencies, operatorNode1.dRange.getRange(),
+                operatorNode2.oldDependencies, operatorNode2.dRange.getRange()))
+            return false;
+        return true;
+    }
+
+    static boolean check1(OperatorNode operatorNode1,
+                          OperatorNode operatorNode2,
+                          HashSet<SingleCse> midcses) {
 
         if (!checkConflict(operatorNode1.dependencies, operatorNode2.dependencies)) return false;
         if (!checkAAA(operatorNode1.dependencies, operatorNode1.dRange.getRange(),
                 operatorNode2.dependencies, operatorNode2.dRange.getRange()))
             return false;
 
-        if (!checkOOOO(operatorNode1, operatorNode2, midcses)) {
-////            System.out.println(midcses);
-////            System.out.println(operatorNode1);
-////            System.out.println(operatorNode2);
-////            System.out.println("------------------------");
-            return false;
-        }
-
-        if (!checkIIII(operatorNode1, operatorNode2)) {
-//            System.out.println(operatorNode1);
-//            System.out.println(operatorNode2);
-//            System.out.println("------------------------");
-            return false;
-        }
-
-        return true;
-    }
-
-    boolean checkOOOO(OperatorNode operatorNode1, OperatorNode operatorNode2,
-                      HashSet<SingleCse> midcses) {
         if (!checkConflict(midcses, operatorNode1.dependencies)) return false;
         if (!checkConflict(midcses, operatorNode2.dependencies)) return false;
-//        if (!checkConflict(midcses, operatorNode1.oldDependencies)) return false;
-//        if (!checkConflict(midcses, operatorNode2.oldDependencies)) return false;
-        return true;
-    }
 
-    boolean checkIIII(OperatorNode operatorNode1, OperatorNode operatorNode2) {
-//        if (!checkConflict(operatorNode1.dependencies, operatorNode2.oldDependencies)) return false;
-//        if (!checkConflict(operatorNode1.oldDependencies, operatorNode2.dependencies)) return false;
+
         if (!checkConflict(operatorNode1.oldDependencies, operatorNode2.oldDependencies)) return false;
-
-//        if (!checkAAA(operatorNode1.dependencies,operatorNode1.range, operatorNode2.oldDependencies,operatorNode2.range)) return false;
-//        if (!checkAAA(operatorNode1.oldDependencies,operatorNode1.range, operatorNode2.dependencies,operatorNode2.range)) return false;
-
         if (!checkAAA(operatorNode1.oldDependencies, operatorNode1.dRange.getRange(),
                 operatorNode2.oldDependencies, operatorNode2.dRange.getRange()))
             return false;
+
+
         return true;
     }
 
-
-    boolean checkConflict(HashSet<SingleCse> singleCses1, HashSet<SingleCse> singleCses2) {
+    static boolean checkConflict(HashSet<SingleCse> singleCses1, HashSet<SingleCse> singleCses2) {
         if (singleCses1.isEmpty() || singleCses2.isEmpty()) return true;
         for (SingleCse lcse : singleCses1) {
             if (lcse.ranges.size() == 0) continue;
@@ -624,8 +723,8 @@ public class CostGraph {
         return true;
     }
 
-    boolean checkAAA(HashSet<SingleCse> lcses, Pair<Integer, Integer> lRange,
-                     HashSet<SingleCse> rcses, Pair<Integer, Integer> rRange) {
+    static boolean checkAAA(HashSet<SingleCse> lcses, Pair<Integer, Integer> lRange,
+                            HashSet<SingleCse> rcses, Pair<Integer, Integer> rRange) {
         for (SingleCse lcse : lcses) {
             boolean intersect = false;
             for (Range range : lcse.ranges) {
@@ -720,6 +819,8 @@ public class CostGraph {
             }
         }
 
+        checkatay(node);
+
 //        if (node.accCost < Double.MAX_VALUE / 2 && Math.abs(node.accCost - node.accCostDetails.getSummary()) > 1000) {
 //            System.out.println("acc cost error");
 //            System.out.println(explainOpNode(node, 0));
@@ -729,6 +830,31 @@ public class CostGraph {
 //        System.out.println(node);
 //        System.out.println("cost : "+lNode.accCost+" "+rNode.accCost+" "+node.thisCost);
         return node;
+    }
+
+
+
+
+
+    static void checkatay(OperatorNode node) {
+        boolean has25 = false,has45=false,has23=false;
+        for (SingleCse singleCse: node.dependencies) {
+            for (Range range: singleCse.ranges) {
+                if (range.left==2 && range.right==5) has25 = true;
+                if (range.left==4 && range.right==5) has45 = true;
+                if (range.left==2 && range.right==3) has23 = true;
+            }
+        }
+        for (SingleCse singleCse: node.oldDependencies) {
+            for (Range range: singleCse.ranges) {
+                if (range.left==2 && range.right==5) has25 = true;
+                if (range.left==4 && range.right==5) has45 = true;
+                if (range.left==2 && range.right==3) has23 = true;
+            }
+        }
+        if (has25&&has23) {
+            LOG.info("has25&&has23  "+node.dRange);
+        }
     }
 
 
