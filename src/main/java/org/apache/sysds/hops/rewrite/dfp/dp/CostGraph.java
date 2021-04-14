@@ -10,6 +10,7 @@ import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.LiteralOp;
 import org.apache.sysds.hops.NaryOp;
 import org.apache.sysds.hops.TernaryOp;
+import org.apache.sysds.hops.estim.MMNode;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.GenericDisjointSet;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.Range;
@@ -51,12 +52,15 @@ public class CostGraph {
         // 构建 cost graph
         build_cost_graph(singlePlans, emptyCse, emptyHop, placePlans);
 
+        nodeCostEstimator.printCacheStats();
+
         // 回收mnc使用的内存
-//        for (MMNode mmNode : nodeCostEstimator.range2mmnode.values()) {
-//            mmNode.setSynopsis(null);
-//        }
-//        nodeCostEstimator.range2mmnode.clear();
-//        System.gc();
+        for (MMNode mmNode : nodeCostEstimator.range2mmnodeCache.values()) {
+            mmNode.setSynopsis(null);
+        }
+        nodeCostEstimator.range2mmnodeCache.clear();
+        nodeCostEstimator.drange2multiplycostCache.clear();
+        System.gc();
 
 //        System.out.println("after build cost graph");
 //        PrintGcTime.printGcTime();

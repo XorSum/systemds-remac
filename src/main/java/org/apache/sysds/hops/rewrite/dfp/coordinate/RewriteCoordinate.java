@@ -334,12 +334,13 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 Hop hop = coordinate.createHop(multiCse, template, blockRanges);
                 hop = copyAndEliminateHop(hop);
                 double dpcost = operatorNode.accCost;
-                Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop);
-                NodeCost cost3 = costTriple.getLeft();
-                double hcost = cost3.getSummary();
-                double rate = (dpcost - hcost) / hcost;
-                LOG.info("candidate multi cse:  rcost=" + hcost + ", dpcost=" + dpcost + ", rate=" + rate + "\n" + operatorNode.accCostDetails + "\n" + multiCse);
-                LOG.info("rcostdetail=" + cost3 + ", dpcostdetail=" + operatorNode.accCostDetails);
+//                Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop);
+//                NodeCost cost3 = costTriple.getLeft();
+//                double hcost = cost3.getSummary();
+//                double rate = (dpcost - hcost) / hcost;
+//                LOG.info("candidate multi cse:  rcost=" + hcost + ", dpcost=" + dpcost + ", rate=" + rate + "\n" + operatorNode.accCostDetails + "\n" + multiCse);
+//                LOG.info("rcostdetail=" + cost3 + ", dpcostdetail=" + operatorNode.accCostDetails);
+                LOG.info("dpcost=" + dpcost + ", \ndpcostdetail=" + operatorNode.accCostDetails);
                 LOG.info(CostGraph.explainOpNode(operatorNode, 0));
                 MySolution solution = constantUtilByTag.liftLoopConstant(hop);
                 solution.multiCse = multiCse;
@@ -349,8 +350,6 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 }
             }
 //            }
-
-            costGraph.nodeCostEstimator.printCacheStats();
 
             LOG.info("bestId=" + bestId);
             long end = System.nanoTime();
