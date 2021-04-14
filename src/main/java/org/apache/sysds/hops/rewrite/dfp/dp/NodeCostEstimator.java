@@ -79,13 +79,14 @@ public class NodeCostEstimator {
 
         // 更新缓存
         // todo: update co-cse dranges
+        // todo: transpose
 
         if (useCommonCostCache) {
-            for (Pair<Integer, Integer> range : rangeDisjointSet.elements(opnode.dRange.range)) {
-                if (!range2mmnodeCache.containsKey(range)) {
-                    range2mmnodeCache.put(range, ans);
-                }
-            }
+//            for (Pair<Integer, Integer> range : rangeDisjointSet.elements(opnode.dRange.range)) {
+//                if (!range2mmnodeCache.containsKey(range)) {
+//                    range2mmnodeCache.put(range, ans);
+//                }
+//            }
         }
         if (!range2mmnodeCache.containsKey(opnode.dRange.getRange())) {
             range2mmnodeCache.put(opnode.dRange.getRange(), ans);
@@ -108,9 +109,10 @@ public class NodeCostEstimator {
                 if (histogram == null) {
                     dc.setNonZeros(dc.getRows() * dc.getCols());
                     histogram = createFullHistogram((int) dc.getRows(), (int) dc.getCols());
-//                    LOG.info("get by mnc null "+hop.getName()+" "+dc);
+                    LOG.info("get by mnc null "+hop.getName()+" "+dc);
                 } else {
-//                    LOG.info("get by mnc not null "+hop.getName()+" "+histogram.getNonZeros());
+                    dc.setNonZeros(histogram.getNonZeros());
+                    LOG.info("get by mnc not null "+hop.getName()+" "+histogram.getNonZeros());
                 }
                 ans = new MMNode(dc);
                 ans.setSynopsis(histogram);
@@ -129,23 +131,23 @@ public class NodeCostEstimator {
             }
             if (opnode.isTranspose) ans = new MMNode(ans, SparsityEstimator.OpCode.TRANS);
         } else if (HopRewriteUtils.isMatrixMultiply(hop)) {
-            MMNode m0 = addOpnode2Mmnode(opnode.inputs.get(0));
-            MMNode m1 = addOpnode2Mmnode(opnode.inputs.get(1));
+            MMNode m0 = getMmnode(opnode.inputs.get(0));
+            MMNode m1 = getMmnode(opnode.inputs.get(1));
             ans = new MMNode(m0, m1, SparsityEstimator.OpCode.MM);
         } else if (hop instanceof BinaryOp) {
             if (HopRewriteUtils.isBinaryMatrixScalarOperation(hop)) {
                 if (hop.getInput().get(0).isMatrix() || opnode.inputs.size() < 2) {
-                    ans = addOpnode2Mmnode(opnode.inputs.get(0));
+                    ans = getMmnode(opnode.inputs.get(0));
                 } else {
-                    ans = addOpnode2Mmnode(opnode.inputs.get(1));
+                    ans = getMmnode(opnode.inputs.get(1));
                 }
             } else if (hop.getInput().get(0).isScalar() && hop.getInput().get(1).isScalar()) {
                 //   System.out.println("scalar scalar operation");
-                ans = addOpnode2Mmnode(opnode.inputs.get(0));
-                addOpnode2Mmnode(opnode.inputs.get(1));
+                ans = getMmnode(opnode.inputs.get(0));
+                getMmnode(opnode.inputs.get(1));
             } else {
-                MMNode m0 = addOpnode2Mmnode(opnode.inputs.get(0));
-                MMNode m1 = addOpnode2Mmnode(opnode.inputs.get(1));
+                MMNode m0 = getMmnode(opnode.inputs.get(0));
+                MMNode m1 = getMmnode(opnode.inputs.get(1));
                 if (hop.getOpString().equals("b(+)") || hop.getOpString().equals("b(-)")) {
                     ans = new MMNode(m0, m1, SparsityEstimator.OpCode.PLUS);
                 } else if (hop.getOpString().equals("b(*)") || hop.getOpString().equals("b(/)")) {
@@ -155,8 +157,8 @@ public class NodeCostEstimator {
                 }
             }
         } else if (hop instanceof NaryOp || hop instanceof TernaryOp) {
-            MMNode m0 = addOpnode2Mmnode(opnode.inputs.get(0));
-            MMNode m1 = addOpnode2Mmnode(opnode.inputs.get(1));
+            MMNode m0 = getMmnode(opnode.inputs.get(0));
+            MMNode m1 = getMmnode(opnode.inputs.get(1));
             ans = new MMNode(m0, m1, SparsityEstimator.OpCode.PLUS);
         }
         if (ans == null) {
@@ -234,6 +236,10 @@ public class NodeCostEstimator {
 //        LOG.info("start get dc");
         DataCharacteristics dc = null;
         MMNode mmNode = getMmnode(opNode);
+//        Hop hop = opNode.hops.get(0);
+//        if(Judge.isLeafMatrix(hop) && hop.getName().equals("h") ) {
+//            System.out.println("h");
+//        }
         try {
             if (useMncEstimator) {
                 dc = mncEstimator.estim(mmNode, false);
@@ -250,6 +256,9 @@ public class NodeCostEstimator {
             e.printStackTrace();
             System.exit(-1);
         }
+//        if (dc.getNonZeros()==-1) {
+//            System.out.println("x");
+//        }
         return dc;
     }
 
@@ -339,6 +348,7 @@ public class NodeCostEstimator {
         if (hop.optFindExecType() == LopProperties.ExecType.SPARK) {
             hop.constructLops();
             AggBinaryOp.MMultMethod method = hop.getMMultMethod();
+//            method = AggBinaryOp.MMultMethod.CPMM;
             node.method = method;
             switch (method) {
                 case MAPMM_R:
@@ -370,25 +380,29 @@ public class NodeCostEstimator {
         // 更新缓存
         // todo: update co-cse dranges
 
-        if (useCommonCostCache) {
-
+        if (useCommonCostCache && dRangeDisjointSet.exist(node.dRange) ) {
             DRange dRange1 = dRangeDisjointSet.find(node.dRange);
-            if (dRange1 != null) {
-                for (DRange dRange2 : dRangeDisjointSet.elements(node.dRange)) {
-                    DRange targetDrange;
-                    if (dRange2.cseRangeTransposeType == dRange1.cseRangeTransposeType) {
-                        targetDrange = dRange2;
-                    } else {
-                        targetDrange = dRange2.revverse(); //
-                    }
-                    if (!drange2multiplycostCache.containsKey(targetDrange)) {
-                        drange2multiplycostCache.put(targetDrange, ans.clone());
-                    }
+            for (DRange dRange2 : dRangeDisjointSet.elements(node.dRange)) {
+                DRange targetDrange;
+                if (dRange2.cseRangeTransposeType.equals(dRange1.cseRangeTransposeType)) {
+                    targetDrange = dRange2;
+                } else {
+                    targetDrange = dRange2.revverse(); //
                 }
+                if (!drange2multiplycostCache.containsKey(targetDrange)) {
+                    drange2multiplycostCache.put(targetDrange, ans.clone());
+                }
+//                    if (drange2multiplycostCache.containsKey(targetDrange)) {
+//                        NodeCost cost2 = drange2multiplycostCache.get(targetDrange);
+//                        if ( Math.abs(ans.getSummary()-cost2.getSummary())>1e4 ) {
+//                            System.out.println("x");
+//                        }
+//                    }
             }
-        }
-        if (!drange2multiplycostCache.containsKey(node.dRange)) {
-            drange2multiplycostCache.put(node.dRange, ans.clone());
+        } else {
+            if (!drange2multiplycostCache.containsKey(node.dRange)) {
+                drange2multiplycostCache.put(node.dRange, ans.clone());
+            }
         }
         //        LOG.info("end estimate matrix multiply");
         return ans;

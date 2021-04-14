@@ -23,10 +23,13 @@ public class GenericDisjointSet<E> {
 
     public E find(E e) {
         initElement(e);
-        if (parent.get(e).equals(e)) {
-            return e;
+        E e2 = parent.get(e);
+        if (e2.equals(e)) {
+            return e2;
         } else {
-            return find(parent.get(e));
+            E e3 = find(e2);
+            parent.put(e,e3);
+            return e3;
         }
     }
 

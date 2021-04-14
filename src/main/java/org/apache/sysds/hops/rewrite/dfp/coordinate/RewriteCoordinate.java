@@ -350,7 +350,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 }
             }
 //            }
-
+            costGraph.nodeCostEstimator.printCacheStats();
             LOG.info("bestId=" + bestId);
             long end = System.nanoTime();
             LOG.info("dynamic programming: ");

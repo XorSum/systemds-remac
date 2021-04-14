@@ -98,16 +98,11 @@ public class CostGraph {
         HashSet<Pair<Integer, Integer>> ranges = new HashSet<>();
         rGetRanges(emptyNode, ranges);
 
-        ArrayList<OperatorNode> operatorNodes1 = new ArrayList<>();
-        ArrayList<OperatorNode> operatorNodes2 = new ArrayList<>();
-
-        operatorNodes1.add(emptyNode);
 
         for (SinglePlan p : placePlans) {
             OperatorNode node = createOperatorGraph(p.hop, false);
             analyzeOperatorRange(node, null, new MutableInt(0));
             p.node = node;
-            operatorNodes1.add(node);
         }
 
         for (SinglePlan p : singlePlans) {
@@ -122,7 +117,6 @@ public class CostGraph {
                 p.tag = certainused ? SinglePlan.SinglePlanTag.Useful : SinglePlan.SinglePlanTag.uncertain;
             }
             analyzeOperatorConstant(node);
-            operatorNodes2.add(node);
             p.node = node;
         }
 
@@ -139,12 +133,14 @@ public class CostGraph {
             LOG.info(range+" "+values.size());
         }
 
-        for (OperatorNode node : operatorNodes1) {
-            analyzeOperatorCostTemplate(node);
+        analyzeOperatorCostTemplate(emptyNode);
+
+        for (SinglePlan singlePlan: placePlans) {
+            analyzeOperatorCostTemplate(singlePlan.node);
         }
 
-        for (OperatorNode node : operatorNodes2) {
-            analyzeOperatorCost(node);
+        for (SinglePlan singlePlan: singlePlans) {
+            analyzeOperatorCost(singlePlan.node);
         }
 
         long end_build_graph = System.nanoTime();
