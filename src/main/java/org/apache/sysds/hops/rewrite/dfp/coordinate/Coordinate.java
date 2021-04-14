@@ -555,7 +555,7 @@ public class Coordinate {
                 sc.prototype = null;
                 sc.protoRange = null;
                 for (Range range : sc.ranges) {
-                    list.add(new RangeTree(range.left, range.right, sc.clone(), range.transpose));
+                    list.add(new RangeTree(range.left, range.right, sc, range.transpose));
                 }
             }
             return createHopInner(list, template, blockRanges);
