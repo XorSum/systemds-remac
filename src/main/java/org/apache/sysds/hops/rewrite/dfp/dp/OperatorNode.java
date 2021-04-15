@@ -103,4 +103,28 @@ public class OperatorNode {
         return sb.toString();
     }
 
+
+    protected OperatorNode copy()  {
+        OperatorNode node = new OperatorNode();
+        node.dRange = this.dRange;
+        node.dependencies = (HashSet<SingleCse>) this.dependencies.clone();
+        node.oldDependencies = (HashSet<SingleCse>) this.oldDependencies.clone();
+        node.hops = this.hops;
+        node.thisCost = this.thisCost;
+        node. accCost = this.accCost;
+        node. thisCostDetails = this.thisCostDetails.clone();
+        node.accCostDetails = this.accCostDetails.clone();
+        node.inputs = this.inputs;
+        node. isConstant = this.isConstant;
+        node.isTranspose = this.isTranspose;
+        node.isXtXv = this.isXtXv;
+        node.shouldCollect = this.shouldCollect;
+        node.isSpark = this.isSpark;
+        node.isUsedByCp = this.isUsedByCp;
+        node. method = this.method;
+        node. mmNode = this.mmNode;
+        node. partitionNumber = this.partitionNumber;
+        node. cseTransposeType = this.cseTransposeType;
+        return node;
+    }
 }

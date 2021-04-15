@@ -40,17 +40,27 @@ public class DRange {
     }
 
     Pair<Integer, Integer> getLeftRange() {
-        if (index.size() != 3) {
+        if (index.size()==1) {
+            return Pair.of(index.get(0),index.get(0));
+        } else if (index.size() ==2) {
+            return Pair.of(index.get(0),index.get(1));
+        } else if (index.size() ==3) {
+            return Pair.of(index.get(0), index.get(1) - 1);
+        } else {
             return null;
         }
-        return Pair.of(index.get(0), index.get(1) - 1);
     }
 
-    Pair<Integer, Integer> getRighttRange() {
-        if (index.size() != 3) {
+    Pair<Integer, Integer> getRightRange() {
+        if (index.size()==1) {
+            return Pair.of(index.get(0),index.get(0));
+        }else if (index.size() ==2) {
+            return Pair.of(index.get(0),index.get(1));
+        }else if (index.size() ==3) {
+            return Pair.of(index.get(1), index.get(2));
+        }else {
             return null;
         }
-        return Pair.of(index.get(1), index.get(2));
     }
 
     @Override

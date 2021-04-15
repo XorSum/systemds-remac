@@ -10,18 +10,26 @@ public class ACNode {
     public Pair<Integer, Integer> range = null;
     // ArrayList<OperatorNode> operatorNodes = new ArrayList<>();
 
-    //todo: HashMap< ,ArrayList<OperatorNode> > drange2operatornodes =new HashMap<>();
-    HashMap<Pair<Pair<Integer, Integer>, Pair<Integer, Integer>>, HashMap<HashSet<SingleCse>, OperatorNode>> drange2operatornodes = new HashMap<>();
+    HashMap<DRange, HashMap<HashSet<SingleCse>, OperatorNode>> drange2operatornodes = new HashMap<>();
+    HashMap<DRange,OperatorNode> drange2emptynodes = new HashMap<>();
+
+    void addEmptyOperatorNode(OperatorNode node) {
+        if (!drange2emptynodes.containsKey(node.dRange)) {
+            drange2emptynodes.put(node.dRange,node);
+        } else {
+            OperatorNode tmp = drange2emptynodes.get(node.dRange);
+            if (tmp.thisCost> node.thisCost) {
+                drange2emptynodes.put(node.dRange, node);
+            }
+        }
+    }
+
+    Collection<OperatorNode> getEmptyOperatorNodes() {
+        return drange2emptynodes.values();
+    }
 
     void addOperatorNode(OperatorNode node) {
-        Pair<Pair<Integer, Integer>, Pair<Integer, Integer>> p2;
-        if (node.inputs.size() == 2) {
-            Pair<Integer, Integer> p0 = node.inputs.get(0).dRange.getRange();
-            Pair<Integer, Integer> p1 = node.inputs.get(1).dRange.getRange();
-            p2 = Pair.of(p0, p1);
-        } else {
-            p2 = Pair.of(node.dRange.getRange(), node.dRange.getRange());
-        }
+        DRange p2 = node.dRange;
         HashMap<HashSet<SingleCse>, OperatorNode> cses2node;
         if (drange2operatornodes.containsKey(p2)) {
             cses2node = drange2operatornodes.get(p2);

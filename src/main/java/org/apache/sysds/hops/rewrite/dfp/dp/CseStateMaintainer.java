@@ -41,9 +41,9 @@ public class CseStateMaintainer {
 
     void initRangeCounter(ConcurrentHashMap<Pair<Integer, Integer>, ACNode> range2acnode) {
         for (ACNode acNode : range2acnode.values()) {
-            for (Pair<Pair<Integer, Integer>, Pair<Integer, Integer>> drange : acNode.drange2operatornodes.keySet()) {
-                rangeCounter.increment(drange.getLeft());
-                rangeCounter.increment(drange.getRight());
+            for (DRange drange : acNode.drange2operatornodes.keySet()) {
+                rangeCounter.increment(drange.getLeftRange());
+                rangeCounter.increment(drange.getRightRange());
             }
         }
 //        for (ACNode acNode : range2acnode.values()) {
@@ -78,11 +78,12 @@ public class CseStateMaintainer {
             }
         }
 
-        for (Pair<Pair<Integer, Integer>, Pair<Integer, Integer>> drange : acNode.drange2operatornodes.keySet()) {
-            rangeCounter.decrement(drange.getLeft());
-            if (rangeCounter.getValue(drange.getLeft()) == 0) {
-                if (rangeCounter.getValue(drange.getLeft()) == 0) {
-                    ACNode acNode1 = range2acnode.get(drange.getLeft());
+        for (DRange drange : acNode.drange2operatornodes.keySet()) {
+            Pair<Integer,Integer> leftRange = drange.getLeftRange();
+            rangeCounter.decrement(leftRange);
+            if (rangeCounter.getValue(leftRange) == 0) {
+                if (rangeCounter.getValue(leftRange) == 0) {
+                    ACNode acNode1 = range2acnode.get(leftRange);
                     if (acNode1.minAC != null) {
                         for (SingleCse cse : acNode1.minAC.dependencies) {
                             cseCounter.decrement(cse);
@@ -93,10 +94,11 @@ public class CseStateMaintainer {
                     }
                 }
             }
-            rangeCounter.decrement(drange.getRight());
-            if (rangeCounter.getValue(drange.getRight()) == 0) {
-                if (rangeCounter.getValue(drange.getRight()) == 0) {
-                    ACNode acNode1 = range2acnode.get(drange.getRight());
+            Pair<Integer,Integer> rightRange = drange.getRightRange();
+            rangeCounter.decrement(rightRange);
+            if (rangeCounter.getValue(rightRange) == 0) {
+                if (rangeCounter.getValue(rightRange) == 0) {
+                    ACNode acNode1 = range2acnode.get(rightRange);
                     if (acNode1.minAC != null) {
                         for (SingleCse cse : acNode1.minAC.dependencies) {
                             cseCounter.decrement(cse);

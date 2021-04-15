@@ -12,7 +12,6 @@ import org.apache.sysds.hops.NaryOp;
 import org.apache.sysds.hops.TernaryOp;
 import org.apache.sysds.hops.estim.MMNode;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
-import org.apache.sysds.hops.rewrite.dfp.GenericDisjointSet;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.Range;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.SingleCse;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.CostModelCommon;
@@ -389,50 +388,85 @@ public class CostGraph {
             ACNode acNode = new ACNode();
             acNode.range = node.dRange.getRange();
             acNode.emptyOpnode = node;
+            acNode.addEmptyOperatorNode(node);
+            acNode.addOperatorNode(node);
             range2acnode.put(node.dRange.getRange(), acNode);
+        } else {
+            ACNode acNode = range2acnode.get(node.dRange.getRange());
+            acNode.addEmptyOperatorNode(node);
+            acNode.addOperatorNode(node);
         }
     }
+
+//    void analyzeOperatorCost(OperatorNode node) {
+//        if (node.inputs.size() == 0) {
+//            node.accCost = 0;
+//            node.accCostDetails = NodeCost.ZERO();
+//        }
+//        NodeCost thisCostDetail = this.nodeCostEstimator.getNodeCost(node);
+//        for (int i = 0; i < node.inputs.size(); i++) {
+//            analyzeOperatorCost(node.inputs.get(i));
+//        }
+//        int csesize = 1;
+//        for (SingleCse singleCse : node.dependencies) {
+//            for (int i = 0; i < singleCse.ranges.size(); i++) {
+//                if (singleCse.ranges.get(i).left == node.dRange.getLeft()
+//                        && singleCse.ranges.get(i).right == node.dRange.getRight()) {
+//                    csesize = singleCse.ranges.size();
+//                    break;
+//                }
+//            }
+//        }
+//        if (csesize > 0) {
+////            thisCost = thisCost / csesize;
+//            thisCostDetail.multiply(1.0 / csesize);
+//            //   accCost = accCost / csesize;
+//        }
+//        if (node.isConstant) {
+//            thisCostDetail.multiply(1.0 / iterationNumber);
+//        }
+//        //  accCost += thisCost;
+//        //  node.accCost = accCost;
+//        node.thisCostDetails = thisCostDetail;
+//        node.thisCost = thisCostDetail.getSummary();
+//        // if (node.range.getLeft()==2&&node.range.getRight()==3)   System.out.println(thisCost);
+//        //  System.out.println(node);
+//        range2acnode.get(node.dRange.getRange()).addOperatorNode(node);
+////        if (node.range.getLeft()==2&&node.range.getRight()==3) {
+////            System.out.println("node(2,3): "+ node);
+////        }
+////        System.out.println("add node "+node.range+" "+node);
+//    }
+
 
     void analyzeOperatorCost(OperatorNode node) {
         if (node.inputs.size() == 0) {
-            node.accCost = 0;
-            node.accCostDetails = NodeCost.ZERO();
+            return;
         }
-        NodeCost thisCostDetail = this.nodeCostEstimator.getNodeCost(node);
         for (int i = 0; i < node.inputs.size(); i++) {
             analyzeOperatorCost(node.inputs.get(i));
         }
-        int csesize = 1;
-        for (SingleCse singleCse : node.dependencies) {
-            for (int i = 0; i < singleCse.ranges.size(); i++) {
-                if (singleCse.ranges.get(i).left == node.dRange.getLeft()
-                        && singleCse.ranges.get(i).right == node.dRange.getRight()) {
-                    csesize = singleCse.ranges.size();
-                    break;
+        if (!node.dependencies.isEmpty()) {
+            for (SingleCse singleCse : node.dependencies) {
+                int  csesize = singleCse.ranges.size();
+                Collection<OperatorNode> operators = range2acnode.get(node.dRange.getRange()).getEmptyOperatorNodes();
+                for (OperatorNode n : operators) {
+                    OperatorNode node1 =  n.copy();
+                    NodeCost thisCostDetail = n.thisCostDetails.clone();
+                    if (csesize > 0) {
+                        thisCostDetail.multiply(1.0 / csesize);
+                    }
+                    if (node.isConstant) {
+                        thisCostDetail.multiply(1.0 / iterationNumber);
+                    }
+                    node1.thisCostDetails = thisCostDetail;
+                    node1.thisCost = thisCostDetail.getSummary();
+                    node1.dependencies.add(singleCse);
+                    range2acnode.get(node1.dRange.getRange()).addOperatorNode(node1);
                 }
             }
         }
-        if (csesize > 0) {
-//            thisCost = thisCost / csesize;
-            thisCostDetail.multiply(1.0 / csesize);
-            //   accCost = accCost / csesize;
-        }
-        if (node.isConstant) {
-            thisCostDetail.multiply(1.0 / iterationNumber);
-        }
-        //  accCost += thisCost;
-        //  node.accCost = accCost;
-        node.thisCostDetails = thisCostDetail;
-        node.thisCost = thisCostDetail.getSummary();
-        // if (node.range.getLeft()==2&&node.range.getRight()==3)   System.out.println(thisCost);
-        //  System.out.println(node);
-        range2acnode.get(node.dRange.getRange()).addOperatorNode(node);
-//        if (node.range.getLeft()==2&&node.range.getRight()==3) {
-//            System.out.println("node(2,3): "+ node);
-//        }
-//        System.out.println("add node "+node.range+" "+node);
     }
-
 
     ConcurrentHashMap<Pair<Integer, Integer>, ACNode> range2acnode = new ConcurrentHashMap<>();
 
@@ -494,9 +528,9 @@ public class CostGraph {
             ACNode acNode = range2acnode.get(boundery);
             ArrayList<OperatorNode> allResults = new ArrayList<>();
 
-            for (Pair<Pair<Integer, Integer>, Pair<Integer, Integer>> drange : acNode.drange2operatornodes.keySet()) {
-                Pair<Integer, Integer> lRange = drange.getLeft();
-                Pair<Integer, Integer> rRange = drange.getRight();
+            for (DRange drange : acNode.drange2operatornodes.keySet()) {
+                Pair<Integer, Integer> lRange = drange.getLeftRange();
+                Pair<Integer, Integer> rRange = drange.getRightRange();
                 if (lRange == null || rRange == null) continue;
                 if (lRange.equals(boundery) || rRange.equals(boundery)) continue;
                 ACNode lac = range2acnode.get(lRange);
