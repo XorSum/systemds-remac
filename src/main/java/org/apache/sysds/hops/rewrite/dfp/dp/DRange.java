@@ -11,7 +11,7 @@ public class DRange {
     Pair<Integer, Integer> range;
     Boolean cseRangeTransposeType = null;
 
-    public DRange revverse() {
+    public DRange reverse() {
         ArrayList<Integer> arr = new ArrayList<>();
         arr.add(index.get(0));
         arr.add(index.get(0) + index.get(2) - index.get(1) + 1);

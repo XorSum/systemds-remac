@@ -10,6 +10,7 @@ import org.apache.sysds.hops.estim.MMNode;
 import org.apache.sysds.hops.estim.SparsityEstimator;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.dfp.GenericDisjointSet;
+import org.apache.sysds.hops.rewrite.dfp.coordinate.Range;
 import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
 import org.apache.sysds.lops.LopProperties;
 import org.apache.sysds.runtime.controlprogram.caching.MatrixObject;
@@ -36,7 +37,10 @@ public class NodeCostEstimator {
     public static long estimateTime = 0;
 
     public HashMap<Pair<Integer, Integer>, MMNode> range2mmnodeCache = new HashMap<>();
+    public HashMap<Pair<Integer, Integer>, MMNode> range2mmnodeCacheTrans = new HashMap<>();
+
     public HashMap<DRange, NodeCost> drange2multiplycostCache = new HashMap<>();
+    public HashMap<Pair<Integer, Integer>, Range> rangepair2rangeclass = new HashMap<>();
 
     GenericDisjointSet<DRange> dRangeDisjointSet = new GenericDisjointSet<>();
     GenericDisjointSet<Pair<Integer, Integer>> rangeDisjointSet = new GenericDisjointSet<>();
@@ -68,8 +72,22 @@ public class NodeCostEstimator {
 
         //  查找缓存
         if (opnode.mmNode != null) return opnode.mmNode;
-        if (range2mmnodeCache.containsKey(opnode.dRange.getRange())) {
-            opnode.mmNode = range2mmnodeCache.get(opnode.dRange.getRange());
+        Pair<Integer,Integer> range = opnode.dRange.getRange();
+        if (useCommonCostCache && rangeDisjointSet.exist(range)) {
+            Pair<Integer,Integer> rootRange = rangeDisjointSet.find(range);
+            if (range2mmnodeCache.containsKey(rootRange)) {
+                MMNode tmp ;
+                if (rangepair2rangeclass.get(range).transpose == rangepair2rangeclass.get(rootRange).transpose) {
+                    tmp =  range2mmnodeCache.get(rootRange);
+                } else {
+                    tmp = range2mmnodeCacheTrans.get(rootRange);
+                }
+                    opnode.mmNode = tmp;
+                    return tmp;
+            }
+        }
+        if (range2mmnodeCache.containsKey(range)) {
+            opnode.mmNode = range2mmnodeCache.get(range);
             return opnode.mmNode;
         }
 
@@ -81,20 +99,33 @@ public class NodeCostEstimator {
         // todo: update co-cse dranges
         // todo: transpose
 
-        if (useCommonCostCache) {
-//            for (Pair<Integer, Integer> range : rangeDisjointSet.elements(opnode.dRange.range)) {
-//                if (!range2mmnodeCache.containsKey(range)) {
-//                    range2mmnodeCache.put(range, ans);
-//                }
-//            }
+        if (useCommonCostCache && rangeDisjointSet.exist(range) ) {
+            Pair<Integer,Integer> rootRange = rangeDisjointSet.find(range);
+            if (rangepair2rangeclass.get(range).transpose==rangepair2rangeclass.get(rootRange).transpose) {
+                range2mmnodeCache.put(rootRange,ans);
+                range2mmnodeCacheTrans.put(rootRange,getTransposeMMNode(ans));
+            } else {
+                range2mmnodeCache.put(rootRange,getTransposeMMNode(ans));
+                range2mmnodeCacheTrans.put(rootRange,ans);
+            }
         }
         if (!range2mmnodeCache.containsKey(opnode.dRange.getRange())) {
             range2mmnodeCache.put(opnode.dRange.getRange(), ans);
+            range2mmnodeCacheTrans.put(opnode.dRange.getRange(),getTransposeMMNode(ans));
         }
         opnode.mmNode = ans;
         return ans;
     }
 
+    private MMNode getTransposeMMNode(MMNode mmNode) {
+        MMNode trans;
+        if (mmNode.getOp()== SparsityEstimator.OpCode.TRANS) {
+            trans = mmNode.getLeft();
+        }else {
+            trans = new MMNode(mmNode, SparsityEstimator.OpCode.TRANS);
+        }
+        return trans;
+    }
 
     public MMNode addOpnode2Mmnode(OperatorNode opnode) {
 
@@ -333,11 +364,19 @@ public class NodeCostEstimator {
 //        LOG.info("start estimate matrix multiply");
 
         // 查缓存
+
+//        if (useCommonCostCache && dRangeDisjointSet.exist(node.dRange)) {
+//            DRange rootDrange = dRangeDisjointSet.find(node.dRange);
+//            if (drange2multiplycostCache.containsKey(rootDrange)) {
+//                NodeCost nodeCost = drange2multiplycostCache.get(rootDrange);
+//                return nodeCost.clone();
+//            }
+//        } else {
         if (drange2multiplycostCache.containsKey(node.dRange)) {
             NodeCost nodeCost = drange2multiplycostCache.get(node.dRange);
-//            LOG.info("end estimate matrix multiply");
             return nodeCost.clone();
         }
+//        }
 
         // 计算
         estimate_matrix_multiply_counter++;
@@ -380,30 +419,33 @@ public class NodeCostEstimator {
         // 更新缓存
         // todo: update co-cse dranges
 
-        if (useCommonCostCache && dRangeDisjointSet.exist(node.dRange) ) {
-            DRange dRange1 = dRangeDisjointSet.find(node.dRange);
-            for (DRange dRange2 : dRangeDisjointSet.elements(node.dRange)) {
-                DRange targetDrange;
-                if (dRange2.cseRangeTransposeType.equals(dRange1.cseRangeTransposeType)) {
-                    targetDrange = dRange2;
-                } else {
-                    targetDrange = dRange2.revverse(); //
-                }
-                if (!drange2multiplycostCache.containsKey(targetDrange)) {
-                    drange2multiplycostCache.put(targetDrange, ans.clone());
-                }
-//                    if (drange2multiplycostCache.containsKey(targetDrange)) {
-//                        NodeCost cost2 = drange2multiplycostCache.get(targetDrange);
-//                        if ( Math.abs(ans.getSummary()-cost2.getSummary())>1e4 ) {
-//                            System.out.println("x");
-//                        }
-//                    }
-            }
-        } else {
+//        if (useCommonCostCache && dRangeDisjointSet.exist(node.dRange) ) {
+//            DRange rootDrange = dRangeDisjointSet.find(node.dRange);
+//            if (!drange2multiplycostCache.containsKey(rootDrange)) {
+//                drange2multiplycostCache.put(rootDrange, ans.clone());
+//            }
+////            for (DRange dRange2 : dRangeDisjointSet.elements(node.dRange)) {
+////                DRange targetDrange;
+////                if (dRange2.cseRangeTransposeType.equals(node.dRange.cseRangeTransposeType)) {
+////                    targetDrange = dRange2;
+////                } else {
+////                    targetDrange = dRange2.reverse();
+////                }
+////                if (!drange2multiplycostCache.containsKey(targetDrange)) {
+////                    drange2multiplycostCache.put(targetDrange, ans.clone());
+////                }
+////                    if (drange2multiplycostCache.containsKey(targetDrange)) {
+////                        NodeCost cost2 = drange2multiplycostCache.get(targetDrange);
+////                        if ( Math.abs(ans.getSummary()-cost2.getSummary())>0.00001 ) {
+////                            System.out.println("x");
+////                        }
+////                    }
+////            }
+//        }else {
             if (!drange2multiplycostCache.containsKey(node.dRange)) {
                 drange2multiplycostCache.put(node.dRange, ans.clone());
             }
-        }
+//        }
         //        LOG.info("end estimate matrix multiply");
         return ans;
     }

@@ -310,6 +310,7 @@ public class CostGraph {
 //            }
 //        }
         for (Pair<DRange, Range> p1 : cseNodes) {
+            nodeCostEstimator.rangepair2rangeclass.put(p1.getLeft().getRange(),p1.getRight());
             for (Pair<DRange, Range> p2 : cseNodes) {
                 nodeCostEstimator.dRangeDisjointSet.merge(p1.getLeft(),p2.getLeft());
                 nodeCostEstimator.rangeDisjointSet.merge(p1.getLeft().getRange(),p2.getLeft().getRange());
