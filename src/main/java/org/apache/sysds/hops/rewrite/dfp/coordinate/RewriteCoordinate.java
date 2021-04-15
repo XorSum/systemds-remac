@@ -282,7 +282,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         }
         long end = System.nanoTime();
         LOG.info("brute force cost time = " + ((end - begin) / 1e9) + "s");
-        costGraph.nodeCostEstimator.printCache();
+        costGraph.nodeCostEstimator.printCacheStats();
         MySolution mySolution = constantUtilByTag.liftLoopConstant(result);
         return mySolution;
 //        return null;
@@ -293,9 +293,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             SingleCse emptyCse = new SingleCse();
             emptyCse.hash = HashKey.of(0L, 0L);
             Hop emptyHop = coordinate.createHop(emptyCse, template, blockRanges);
-            Pair<SingleCse, Hop> emptyPair = Pair.of(emptyCse, emptyHop);
             ArrayList<Pair<SingleCse, Hop>> list = genHopFromSingleCses(singleCses, template, blockRanges);
-            list.add(emptyPair);
 
             ArrayList<Hop> hops = createNecessaryHops(singleCses, emptyHop, blockRanges);
 //            ArrayList<Hop> hops = createHops(template, blockRanges);
@@ -317,6 +315,13 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //            dSet.removeAll(set2);
 //            dSet2.removeAll(set);
 
+            ArrayList<SinglePlan> placePlans = new ArrayList<>();
+            for (Hop h: hops) {
+                SinglePlan singlePlan = new SinglePlan();
+                singlePlan.hop = h;
+                placePlans.add(singlePlan);
+            }
+
             ArrayList<SinglePlan> singlePlans = new ArrayList<>();
             for (Pair<SingleCse, Hop> p : list) {
                 SinglePlan singlePlan = new SinglePlan();
@@ -326,8 +331,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             }
             CostGraph costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
 
+            costGraph.nodeCostEstimator.resetCacheCounter();
             MySolution mySolution = null;
-            ArrayList<OperatorNode> operatorNodeArrayList = costGraph.testOperatorGraph(singlePlans, emptyPair, blockRanges, coordinate.leaves, hops);
+            ArrayList<OperatorNode> operatorNodeArrayList = costGraph.testOperatorGraph(singlePlans,emptyCse, emptyHop, placePlans );
 
 //            costGraph.nodeCostEstimator.range2mmnode.forEach((key, value) -> {
 //                System.out.println(key + " -> " + value);
@@ -348,12 +354,13 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 Hop hop = coordinate.createHop(multiCse, template, blockRanges);
                 hop = copyAndEliminateHop(hop);
                 double dpcost = operatorNode.accCost;
-                Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop);
-                NodeCost cost3 = costTriple.getLeft();
-                double hcost = cost3.getSummary();
-                double rate = (dpcost - hcost) / hcost;
-                LOG.info("candidate multi cse:  rcost=" + hcost + ", dpcost=" + dpcost + ", rate=" + rate + "\n" + operatorNode.accCostDetails + "\n" + multiCse);
-                LOG.info("rcostdetail=" + cost3 + ", dpcostdetail=" + operatorNode.accCostDetails);
+//                Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop);
+//                NodeCost cost3 = costTriple.getLeft();
+//                double hcost = cost3.getSummary();
+//                double rate = (dpcost - hcost) / hcost;
+//                LOG.info("candidate multi cse:  rcost=" + hcost + ", dpcost=" + dpcost + ", rate=" + rate + "\n" + operatorNode.accCostDetails + "\n" + multiCse);
+//                LOG.info("rcostdetail=" + cost3 + ", dpcostdetail=" + operatorNode.accCostDetails);
+                LOG.info("dpcost=" + dpcost + ", \ndpcostdetail=" + operatorNode.accCostDetails);
                 LOG.info(CostGraph.explainOpNode(operatorNode, 0));
                 MySolution solution = constantUtilByTag.liftLoopConstant(hop);
                 solution.multiCse = multiCse;
@@ -363,7 +370,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 }
             }
 //            }
-            costGraph.nodeCostEstimator.printCache();
+            costGraph.nodeCostEstimator.printCacheStats();
             LOG.info("bestId=" + bestId);
             long end = System.nanoTime();
             LOG.info("dynamic programming: ");
