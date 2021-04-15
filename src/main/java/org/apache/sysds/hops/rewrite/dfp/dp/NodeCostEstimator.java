@@ -365,18 +365,17 @@ public class NodeCostEstimator {
 
         // 查缓存
 
-//        if (useCommonCostCache && dRangeDisjointSet.exist(node.dRange)) {
-//            DRange rootDrange = dRangeDisjointSet.find(node.dRange);
-//            if (drange2multiplycostCache.containsKey(rootDrange)) {
-//                NodeCost nodeCost = drange2multiplycostCache.get(rootDrange);
-//                return nodeCost.clone();
-//            }
-//        } else {
+        if (useCommonCostCache && dRangeDisjointSet.exist(node.dRange)) {
+            DRange rootDrange = dRangeDisjointSet.find(node.dRange);
+            if (drange2multiplycostCache.containsKey(rootDrange)) {
+                NodeCost nodeCost = drange2multiplycostCache.get(rootDrange);
+                return nodeCost.clone();
+            }
+        }
         if (drange2multiplycostCache.containsKey(node.dRange)) {
             NodeCost nodeCost = drange2multiplycostCache.get(node.dRange);
             return nodeCost.clone();
         }
-//        }
 
         // 计算
         estimate_matrix_multiply_counter++;
@@ -419,33 +418,15 @@ public class NodeCostEstimator {
         // 更新缓存
         // todo: update co-cse dranges
 
-//        if (useCommonCostCache && dRangeDisjointSet.exist(node.dRange) ) {
-//            DRange rootDrange = dRangeDisjointSet.find(node.dRange);
-//            if (!drange2multiplycostCache.containsKey(rootDrange)) {
-//                drange2multiplycostCache.put(rootDrange, ans.clone());
-//            }
-////            for (DRange dRange2 : dRangeDisjointSet.elements(node.dRange)) {
-////                DRange targetDrange;
-////                if (dRange2.cseRangeTransposeType.equals(node.dRange.cseRangeTransposeType)) {
-////                    targetDrange = dRange2;
-////                } else {
-////                    targetDrange = dRange2.reverse();
-////                }
-////                if (!drange2multiplycostCache.containsKey(targetDrange)) {
-////                    drange2multiplycostCache.put(targetDrange, ans.clone());
-////                }
-////                    if (drange2multiplycostCache.containsKey(targetDrange)) {
-////                        NodeCost cost2 = drange2multiplycostCache.get(targetDrange);
-////                        if ( Math.abs(ans.getSummary()-cost2.getSummary())>0.00001 ) {
-////                            System.out.println("x");
-////                        }
-////                    }
-////            }
-//        }else {
-            if (!drange2multiplycostCache.containsKey(node.dRange)) {
-                drange2multiplycostCache.put(node.dRange, ans.clone());
+        if (useCommonCostCache && dRangeDisjointSet.exist(node.dRange) ) {
+            DRange rootDrange = dRangeDisjointSet.find(node.dRange);
+            if (!drange2multiplycostCache.containsKey(rootDrange)) {
+                drange2multiplycostCache.put(rootDrange, ans.clone());
             }
-//        }
+        }
+        if (!drange2multiplycostCache.containsKey(node.dRange)) {
+            drange2multiplycostCache.put(node.dRange, ans.clone());
+        }
         //        LOG.info("end estimate matrix multiply");
         return ans;
     }
