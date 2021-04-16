@@ -351,7 +351,14 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             long start = System.nanoTime();
             //ArrayList<MultiCse> multiCseArrayList = new ArrayList<>();
             int bestId = -1;
-//            for (int i = 0; i < 200 && i < operatorNodeArrayList.size(); i++) {
+            for (int i = 0; i < 200 && i < operatorNodeArrayList.size(); i++) {
+                OperatorNode operatorNode = operatorNodeArrayList.get(i);
+                MultiCse multiCse = createMultiCseFromOperatorNode(operatorNode);
+                LOG.info(i);
+                LOG.info(multiCse);
+                LOG.info(operatorNode.accCostDetails);
+                LOG.info(CostGraph.explainOpNode(operatorNode,0));
+            }
             int i = 0;
             OperatorNode operatorNode = operatorNodeArrayList.get(i);
             MultiCse multiCse = createMultiCseFromOperatorNode(operatorNode);

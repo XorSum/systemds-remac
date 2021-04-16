@@ -377,6 +377,8 @@ public class NodeCostEstimator {
 
         // 计算
         estimate_matrix_multiply_counter++;
+        LOG.info("estimate matrix multiply "+node.dRange);
+
         DataCharacteristics dc1 = getDC(node.inputs.get(0));
         DataCharacteristics dc2 = getDC(node.inputs.get(1));
         DataCharacteristics dc3 = getDC(node);
@@ -384,7 +386,8 @@ public class NodeCostEstimator {
         if (hop.optFindExecType() == LopProperties.ExecType.SPARK) {
             hop.constructLops();
             AggBinaryOp.MMultMethod method = hop.getMMultMethod();
-//            method = AggBinaryOp.MMultMethod.CPMM;
+//            if (method!= AggBinaryOp.MMultMethod.MAPMM_CHAIN)
+//                method = AggBinaryOp.MMultMethod.CPMM;
             node.method = method;
             switch (method) {
                 case MAPMM_R:
@@ -409,6 +412,7 @@ public class NodeCostEstimator {
                     ans = eCPMM(node, hop, dc1, dc2, dc3);
             }
         } else { // LopProperties.ExecType.CP
+            node.method = AggBinaryOp.MMultMethod.MM;
             double computeCost = CpuSpeed * 3 * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc2.getSparsity();
             ans = new NodeCost(0, 0, computeCost, 0);
         }
@@ -419,6 +423,16 @@ public class NodeCostEstimator {
             if (!drange2multiplycostCache.containsKey(rootDrange)) {
                 drange2multiplycostCache.put(rootDrange, ans.clone());
             }
+//            for (DRange neibor: dRangeDisjointSet.elements(node.dRange)) {
+//                if (drange2multiplycostCache.containsKey(neibor)) {
+//                    NodeCost neiborcost = drange2multiplycostCache.get(neibor);
+//                    if (Math.abs(neiborcost.getSummary() - ans.getSummary()) > 0.01) {
+//                        LOG.info("neibor: " + neiborcost + " " + neiborcost);
+//                        LOG.info("ans: " + node.dRange + " " + ans);
+//                        System.out.println("x");
+//                    }
+//                }
+//            }
         }
         if (!drange2multiplycostCache.containsKey(node.dRange)) {
             drange2multiplycostCache.put(node.dRange, ans.clone());
