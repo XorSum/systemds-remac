@@ -39,7 +39,7 @@ public class CseStateMaintainer {
         }
     }
 
-    void initRangeCounter(ConcurrentHashMap<Pair<Integer, Integer>, ACNode> range2acnode) {
+    void initRangeCounter(HashMap<Pair<Integer, Integer>, ACNode> range2acnode) {
         for (ACNode acNode : range2acnode.values()) {
             for (DRange drange : acNode.drange2operatornodes.keySet()) {
                 rangeCounter.increment(drange.getLeftRange());
@@ -70,7 +70,7 @@ public class CseStateMaintainer {
 //        return CseState.uncertain;
     }
 
-    void updateCseState(ACNode acNode, ConcurrentHashMap<Pair<Integer, Integer>, ACNode> range2acnode) {
+    void updateCseState(ACNode acNode, HashMap<Pair<Integer, Integer>, ACNode> range2acnode) {
 
         if (acNode.minAC != null) {
             for (SingleCse cse : acNode.minAC.dependencies) {

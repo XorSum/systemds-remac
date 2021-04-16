@@ -468,7 +468,7 @@ public class CostGraph {
         }
     }
 
-    ConcurrentHashMap<Pair<Integer, Integer>, ACNode> range2acnode = new ConcurrentHashMap<>();
+   HashMap<Pair<Integer, Integer>, ACNode> range2acnode = new HashMap<>();
 
 
     void classifyOperatorNode(CseStateMaintainer MAINTAINER, ArrayList<OperatorNode> allResults, ACNode acNode) {
