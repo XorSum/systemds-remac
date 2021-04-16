@@ -295,7 +295,7 @@ public class NodeCostEstimator {
 //        return NodeCost.ZERO();
 //    }
 
-    public NodeCost getNodeCost(OperatorNode opnode) {
+    public synchronized NodeCost getNodeCost(OperatorNode opnode) {
 //        LOG.info("start get node cost");
         long start = System.nanoTime();
         NodeCost ans;

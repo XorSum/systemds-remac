@@ -564,6 +564,24 @@ public class Coordinate {
         }
     }
 
+    Hop createHop_copy_sc(MultiCse multiCse, Hop template, ArrayList<Range> blockRanges) {
+        try {
+            ArrayList<RangeTree> list = new ArrayList<>();
+            for (SingleCse sc : multiCse.cses) {
+                sc.prototype = null;
+                sc.protoRange = null;
+                SingleCse copy_sc = sc.clone();
+                for (Range range : sc.ranges) {
+                    list.add(new RangeTree(range.left, range.right, copy_sc, range.transpose));
+                }
+            }
+            return createHopInner(list, template, blockRanges);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
     private Hop createHopInner(ArrayList<RangeTree> list, Hop template, ArrayList<Range> blockRanges) {
         try {
             Hop copy = deepCopyHopsDag(template);
