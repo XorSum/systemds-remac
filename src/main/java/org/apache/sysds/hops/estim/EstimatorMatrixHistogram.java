@@ -22,6 +22,7 @@ package org.apache.sysds.hops.estim;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.NotImplementedException;
 import org.apache.sysds.hops.OptimizerUtils;
+import org.apache.sysds.runtime.DMLRuntimeException;
 import org.apache.sysds.runtime.data.DenseBlock;
 import org.apache.sysds.runtime.data.SparseBlock;
 import org.apache.sysds.runtime.matrix.data.LibMatrixAgg;
@@ -215,39 +216,66 @@ public class EstimatorMatrixHistogram extends SparsityEstimator
 			return 1;
 		}
 
-		int[] h1RNnz = h1.rNnz;
-		int[] h2CNnz = h2.cNnz;
+		double summary;
 
-		if (h1RNnz == null) {
-			h1RNnz = new int[h1.nRows];
-			Arrays.fill(h1RNnz, h1.nCols);
-		}
-		if (h2CNnz == null) {
-			h2CNnz = new int[h2.nCols];
-			Arrays.fill(h2CNnz, h2.nRows);
-		}
-
-		final int[] fH2CNnz = h2CNnz;
-
-		double summary = Arrays.stream(h1RNnz).limit(30000).parallel().mapToDouble(x -> {
-			double ans = 0;
-			for (int i = 0; i < fH2CNnz.length && i < 30000; i++) {
-//			for (long y : h2.cNnz) {
-				long y = fH2CNnz[i];
-				double s1 = (double) x / h1.getCols();
-				double s2 = (double) y / h2.getRows();
-				if (s1 > 1) s1 = 1;
-				if (s2 > 1) s2 = 1;
-				if (s1 < 0 || s1 > 1 || s2 < 0 || s2 > 1) {
-					System.out.println("cmm_sp error " + x + " " + y + " " + s1 + " " + s2);
-				} else {
-					double tmp1 = 1.0 - Math.pow(1.0 - s1 * s2, layer1);
-					double tmp2 = 1.0 - Math.pow(1.0 - s1 * s2, layer2);
-					ans += (tmp1 * par1 + tmp2 * par2) / (par1 + par2);
+		if (h1.rNnz == null) {
+			summary = Arrays.stream(h2.cNnz).limit(30000).parallel().mapToDouble(y -> {
+				double ans = 0;
+				for (int i = 0; i < h1.nRows && i < 30000; i++) {
+					long x = h1.rMaxNnz;
+					double s1 = (double) x / h1.getCols();
+					double s2 = (double) y / h2.getRows();
+					if (s1 > 1) s1 = 1;
+					if (s2 > 1) s2 = 1;
+					if (s1 < 0 || s1 > 1 || s2 < 0 || s2 > 1) {
+						throw new DMLRuntimeException("cmm_sp error " + x + " " + y + " " + s1 + " " + s2);
+					} else {
+						double tmp1 = 1.0 - Math.pow(1.0 - s1 * s2, layer1);
+						double tmp2 = 1.0 - Math.pow(1.0 - s1 * s2, layer2);
+						ans += (tmp1 * par1 + tmp2 * par2) / (par1 + par2);
+					}
 				}
-			}
-			return ans;
-		}).sum();
+				return ans;
+			}).sum();
+		} else if (h2.cNnz == null) {
+			summary = Arrays.stream(h1.rNnz).limit(30000).parallel().mapToDouble(x -> {
+				double ans = 0;
+				for (int i = 0; i < h2.nCols && i < 30000; i++) {
+					long y = h2.cMaxNnz;
+					double s1 = (double) x / h1.getCols();
+					double s2 = (double) y / h2.getRows();
+					if (s1 > 1) s1 = 1;
+					if (s2 > 1) s2 = 1;
+					if (s1 < 0 || s1 > 1 || s2 < 0 || s2 > 1) {
+						throw new DMLRuntimeException("cmm_sp error " + x + " " + y + " " + s1 + " " + s2);
+					} else {
+						double tmp1 = 1.0 - Math.pow(1.0 - s1 * s2, layer1);
+						double tmp2 = 1.0 - Math.pow(1.0 - s1 * s2, layer2);
+						ans += (tmp1 * par1 + tmp2 * par2) / (par1 + par2);
+					}
+				}
+				return ans;
+			}).sum();
+		} else {
+			summary = Arrays.stream(h1.rNnz).limit(30000).parallel().mapToDouble(x -> {
+				double ans = 0;
+				for (int i = 0; i < h2.nCols && i < 30000; i++) {
+					long y = h2.cNnz[i];
+					double s1 = (double) x / h1.getCols();
+					double s2 = (double) y / h2.getRows();
+					if (s1 > 1) s1 = 1;
+					if (s2 > 1) s2 = 1;
+					if (s1 < 0 || s1 > 1 || s2 < 0 || s2 > 1) {
+						throw new DMLRuntimeException("cmm_sp error " + x + " " + y + " " + s1 + " " + s2);
+					} else {
+						double tmp1 = 1.0 - Math.pow(1.0 - s1 * s2, layer1);
+						double tmp2 = 1.0 - Math.pow(1.0 - s1 * s2, layer2);
+						ans += (tmp1 * par1 + tmp2 * par2) / (par1 + par2);
+					}
+				}
+				return ans;
+			}).sum();
+		}
 
 		return (summary / h1.getRows()) / h2.getCols();
 	}
