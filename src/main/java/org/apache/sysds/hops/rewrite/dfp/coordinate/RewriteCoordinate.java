@@ -301,8 +301,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             Hop emptyHop = coordinate.createHop(emptyCse, template, blockRanges);
             ArrayList<Pair<SingleCse, Hop>> list = genHopFromSingleCses(singleCses, template, blockRanges);
 
-            ArrayList<Hop> hops = createNecessaryHops(singleCses, emptyHop, blockRanges);
-//            ArrayList<Hop> hops = createHops(template, blockRanges);
+//            ArrayList<Hop> hops = createNecessaryHops(singleCses, emptyHop, blockRanges);
+            ArrayList<Hop> hops = createHops(template, blockRanges);
 
 //            // debug
 //            ArrayList<Hop> hops2 = createHops(template, blockRanges);

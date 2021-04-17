@@ -216,6 +216,6 @@ public class OperatorNode {
                 return  pa.getRight().ranges.size() > pb.getRight().ranges.size();
             }
         }
-        return false;
+        return list_a.size()>=list_b.size();
     }
 }
