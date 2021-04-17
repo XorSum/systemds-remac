@@ -37,7 +37,8 @@ public class ACNode {
             cses2node = new HashMap<>();
         }
         if (cses2node.containsKey(node.dependencies)) {
-            if (cses2node.get(node.dependencies).thisCost > node.thisCost) {
+            if (node.lessThan(cses2node.get(node.dependencies))) {
+//            if (cses2node.get(node.dependencies).thisCost > node.thisCost) {
                 cses2node.put(node.dependencies, node);
             }
         } else {
@@ -74,7 +75,7 @@ public class ACNode {
 
     void addUncertainAC(OperatorNode node) {
         if (uncertainACs.containsKey(node.dependencies)) {
-            if (uncertainACs.get(node.dependencies).accCost > node.accCost) {
+            if (node.lessThan(uncertainACs.get(node.dependencies))) {
                 uncertainACs.put(node.dependencies, node);
             }
         } else {

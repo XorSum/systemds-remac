@@ -127,4 +127,11 @@ public class OperatorNode {
         node. cseTransposeType = this.cseTransposeType;
         return node;
     }
+
+    boolean lessThan(OperatorNode that) {
+        if (accCost+1e-3<that.accCost) return true;
+        if (dependencies.size()+oldDependencies.size()<that.dependencies.size()+that.oldDependencies.size()) return true;
+        return false;
+    }
+
 }

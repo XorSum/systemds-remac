@@ -61,9 +61,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     // private static long epoch = 100;
 
     private static boolean useManualPolicy = false;
-    public static boolean useDynamicProgramPolicy = false;
+    public static boolean useDynamicProgramPolicy = true;
     private static boolean useBruceForcePolicy = false;
-    private static boolean useBruceForcePolicyMultiThreads = true;
+    private static boolean useBruceForcePolicyMultiThreads = false;
     private static boolean BruteForceMultiThreadsPipeline = true;
 
     // </configuration>
@@ -357,7 +357,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 LOG.info(i);
                 LOG.info(multiCse);
                 LOG.info(operatorNode.accCostDetails);
-                LOG.info(CostGraph.explainOpNode(operatorNode,0));
+//                LOG.info(CostGraph.explainOpNode(operatorNode,0));
             }
             int i = 0;
             OperatorNode operatorNode = operatorNodeArrayList.get(i);

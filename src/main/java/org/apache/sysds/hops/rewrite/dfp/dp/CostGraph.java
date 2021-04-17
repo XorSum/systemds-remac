@@ -492,17 +492,11 @@ public class CostGraph {
                 acNode.addUncertainAC(node);
             } else {
                 removed2++;
-                if (acNode.certainAC == null
-                        || acNode.certainAC.accCost > node.accCost
-                        || ((Math.abs(acNode.certainAC.accCost - node.accCost) < 0.001)
-                        && acNode.certainAC.dependencies.size() + acNode.certainAC.oldDependencies.size() < node.dependencies.size() + node.oldDependencies.size())) {
+                if (acNode.certainAC == null || node.lessThan(acNode.certainAC)) {
                     acNode.certainAC = node;
                 }
             }
-            if (acNode.minAC == null
-                    || acNode.minAC.accCost > node.accCost
-                    || ((Math.abs(acNode.minAC.accCost - node.accCost) < 0.001)
-                    && acNode.minAC.dependencies.size() + acNode.minAC.oldDependencies.size() < node.dependencies.size() + node.oldDependencies.size())) {
+            if (acNode.minAC == null || node.lessThan(acNode.minAC)) {
                 acNode.minAC = node;
             }
         }
