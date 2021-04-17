@@ -52,13 +52,21 @@ public class NodeCost {
         this.joinCost += that.joinCost;
     }
 
-    public void multiply(double x) {
-        this.shuffleCost *= x;
-        this.broadcastCost *= x;
-        this.computeCost *= x;
-        this.collectCost *= x;
-        this.joinCost *= x;
+    public void divide(double x) {
+        this.shuffleCost /= x;
+        this.broadcastCost /= x;
+        this.computeCost /= x;
+        this.collectCost /= x;
+        this.joinCost /= x;
     }
+
+//    public void multiply(double x) {
+//        this.shuffleCost *= x;
+//        this.broadcastCost *= x;
+//        this.computeCost *= x;
+//        this.collectCost *= x;
+//        this.joinCost *= x;
+//    }
 
     public double getSummary() {
         return shuffleCost + broadcastCost + computeCost + collectCost + joinCost;

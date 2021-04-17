@@ -454,10 +454,10 @@ public class CostGraph {
                     OperatorNode node1 =  n.copy();
                     NodeCost thisCostDetail = n.thisCostDetails.clone();
                     if (csesize > 0) {
-                        thisCostDetail.multiply(1.0 / csesize);
+                        thisCostDetail.divide( csesize);
                     }
                     if (node.isConstant) {
-                        thisCostDetail.multiply(1.0 / iterationNumber);
+                        thisCostDetail.divide( iterationNumber);
                     }
                     node1.thisCostDetails = thisCostDetail;
                     node1.thisCost = thisCostDetail.getSummary();
@@ -613,44 +613,15 @@ public class CostGraph {
                 operatorNode2.dependencies, operatorNode2.dRange.getRange()))
             return false;
 
-        if (!checkOOOO(operatorNode1, operatorNode2, midcses)) {
-////            System.out.println(midcses);
-////            System.out.println(operatorNode1);
-////            System.out.println(operatorNode2);
-////            System.out.println("------------------------");
-            return false;
-        }
-
-        if (!checkIIII(operatorNode1, operatorNode2)) {
-//            System.out.println(operatorNode1);
-//            System.out.println(operatorNode2);
-//            System.out.println("------------------------");
-            return false;
-        }
-
-        return true;
-    }
-
-    boolean checkOOOO(OperatorNode operatorNode1, OperatorNode operatorNode2,
-                      HashSet<SingleCse> midcses) {
         if (!checkConflict(midcses, operatorNode1.dependencies)) return false;
         if (!checkConflict(midcses, operatorNode2.dependencies)) return false;
-//        if (!checkConflict(midcses, operatorNode1.oldDependencies)) return false;
-//        if (!checkConflict(midcses, operatorNode2.oldDependencies)) return false;
-        return true;
-    }
 
-    boolean checkIIII(OperatorNode operatorNode1, OperatorNode operatorNode2) {
-//        if (!checkConflict(operatorNode1.dependencies, operatorNode2.oldDependencies)) return false;
-//        if (!checkConflict(operatorNode1.oldDependencies, operatorNode2.dependencies)) return false;
         if (!checkConflict(operatorNode1.oldDependencies, operatorNode2.oldDependencies)) return false;
-
-//        if (!checkAAA(operatorNode1.dependencies,operatorNode1.range, operatorNode2.oldDependencies,operatorNode2.range)) return false;
-//        if (!checkAAA(operatorNode1.oldDependencies,operatorNode1.range, operatorNode2.dependencies,operatorNode2.range)) return false;
 
         if (!checkAAA(operatorNode1.oldDependencies, operatorNode1.dRange.getRange(),
                 operatorNode2.oldDependencies, operatorNode2.dRange.getRange()))
             return false;
+
         return true;
     }
 
@@ -813,7 +784,7 @@ public class CostGraph {
 //        System.out.println("x");
         NodeCost thisCostDetail = this.nodeCostEstimator.getNodeCost(node);
         if (hasCons) {
-            thisCostDetail.multiply(1.0 / iterationNumber);
+            thisCostDetail.divide( iterationNumber);
         }
         node.thisCostDetails = thisCostDetail;
         node.thisCost = thisCostDetail.getSummary();

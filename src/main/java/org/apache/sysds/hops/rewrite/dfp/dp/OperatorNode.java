@@ -4,6 +4,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.sysds.hops.AggBinaryOp;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.estim.MMNode;
+import org.apache.sysds.hops.rewrite.dfp.coordinate.Range;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.SingleCse;
 
 import java.util.ArrayList;
@@ -128,10 +129,93 @@ public class OperatorNode {
         return node;
     }
 
+//    boolean lessThan(OperatorNode that) {
+//        if (Math.abs(accCost-that.accCost) > Math.max(accCost,that.accCost)*0.001 )
+//            return accCost< that.accCost;
+//        int a =dependencies.size()+oldDependencies.size();
+//        int b = that.dependencies.size()+that.oldDependencies.size();
+//        if (a!=b) return a>b;
+//        int c = dependencies.stream().mapToInt(r->r.ranges.size()).sum()
+//                +oldDependencies.stream().mapToInt(r->r.ranges.size()).sum();
+//        int d = that.dependencies.stream().mapToInt(r->r.ranges.size()).sum()
+//                +that.oldDependencies.stream().mapToInt(r->r.ranges.size()).sum();
+//        return c>d;
+//    }
+//    boolean lessThan(OperatorNode that) {
+//        if (accCost+1e-3<that.accCost) return true;
+//        int cover_a = 0,cover_b=0;
+//        for (SingleCse singleCse: dependencies) {
+//            for (Range range: singleCse.ranges) {
+//                cover_a += range.right - range.left;
+//            }
+//        }
+//        for (SingleCse singleCse: oldDependencies) {
+//            for (Range range: singleCse.ranges) {
+//                cover_a += range.right - range.left;
+//            }
+//        }
+//        for (SingleCse singleCse: that.dependencies) {
+//            for (Range range: singleCse.ranges) {
+//                cover_b += range.right - range.left;
+//            }
+//        }
+//        for (SingleCse singleCse: that.oldDependencies) {
+//            for (Range range: singleCse.ranges) {
+//                cover_b += range.right - range.left;
+//            }
+//        }
+//        if (cover_a!=cover_b) return cover_a>cover_b;
+//
+//        int cse_num_a =dependencies.size()+oldDependencies.size();
+//        int cse_num_b = that.dependencies.size()+that.oldDependencies.size();
+//        if (cse_num_a!=cse_num_b) return cse_num_a>cse_num_b;
+//
+//        int range_num_a = dependencies.stream().mapToInt(r->r.ranges.size()).sum()
+//                +oldDependencies.stream().mapToInt(r->r.ranges.size()).sum();
+//        int range_num_b = that.dependencies.stream().mapToInt(r->r.ranges.size()).sum()
+//                +that.oldDependencies.stream().mapToInt(r->r.ranges.size()).sum();
+//        return range_num_a>range_num_b;
+//    }
+
     boolean lessThan(OperatorNode that) {
-        if (accCost+1e-3<that.accCost) return true;
-        if (dependencies.size()+oldDependencies.size()<that.dependencies.size()+that.oldDependencies.size()) return true;
+        if (Math.abs(accCost-that.accCost) > Math.max(accCost,that.accCost)*0.001 )
+            return accCost< that.accCost;
+        ArrayList<Pair<Integer,SingleCse>> list_a = new ArrayList<>();
+        ArrayList<Pair<Integer,SingleCse>> list_b = new ArrayList<>();
+        for (SingleCse singleCse: dependencies) {
+            int length = singleCse.ranges.get(0).right - singleCse.ranges.get(0).left+1;
+            list_a.add(Pair.of(length,singleCse));
+        }
+        for (SingleCse singleCse: oldDependencies) {
+            int length = singleCse.ranges.get(0).right - singleCse.ranges.get(0).left+1;
+            list_a.add(Pair.of(length,singleCse));
+        }
+        for (SingleCse singleCse: that.dependencies) {
+            int length = singleCse.ranges.get(0).right - singleCse.ranges.get(0).left+1;
+            list_b.add(Pair.of(length,singleCse));
+        }
+        for (SingleCse singleCse: that.oldDependencies) {
+            int length = singleCse.ranges.get(0).right - singleCse.ranges.get(0).left+1;
+            list_b.add(Pair.of(length,singleCse));
+        }
+        list_a.sort((pa,pb)->{
+            if (!pa.getLeft().equals(pb.getLeft())) return pb.getLeft()-pa.getLeft();
+            return pa.getRight().ranges.size() - pb.getRight().ranges.size();
+        });
+        list_b.sort((pa,pb)->{
+            if (!pa.getLeft().equals(pb.getLeft())) return pb.getLeft()-pa.getLeft();
+            return pa.getRight().ranges.size() - pb.getRight().ranges.size();
+        });
+        for (int i=0;i<list_a.size()&&i<list_b.size();i++) {
+            Pair<Integer,SingleCse> pa = list_a.get(i);
+            Pair<Integer,SingleCse> pb = list_b.get(i);
+            if (!pa.getLeft().equals(pb.getLeft())) {
+                return pa.getLeft() > pb.getLeft();
+            }
+            if (pa.getRight().ranges.size()!=pb.getRight().ranges.size()  ) {
+                return  pa.getRight().ranges.size() > pb.getRight().ranges.size();
+            }
+        }
         return false;
     }
-
 }
