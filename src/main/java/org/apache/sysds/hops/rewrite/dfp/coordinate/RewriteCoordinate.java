@@ -61,10 +61,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     // private static long epoch = 100;
 
     private static boolean useManualPolicy = false;
-    public static boolean useDynamicProgramPolicy = false;
+    public static boolean useDynamicProgramPolicy = true;
     private static boolean useBruceForcePolicy = false;
-    private static boolean useBruceForcePolicyMultiThreads = true;
-    private static boolean BruteForceMultiThreadsPipeline = true;
+    private static boolean useBruceForcePolicyMultiThreads = false;
+    private static boolean BruteForceMultiThreadsPipeline = false;
 
     // </configuration>
 
@@ -1065,7 +1065,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             RangeTree a = trees.get(i);
             RangeTree b = trees.get(i + 1);
             long nRow = coordinate.leaves.get(a.left).hop.getCharacteristics().getRows();
-            long nMiddle = coordinate.leaves.get(a.left).hop.getCharacteristics().getCols();
+            long nMiddle = coordinate.leaves.get(a.right).hop.getCharacteristics().getCols();
             long nCol = coordinate.leaves.get(b.right).hop.getCharacteristics().getCols();
             costs[i] = nRow * nMiddle * nCol;
         }
