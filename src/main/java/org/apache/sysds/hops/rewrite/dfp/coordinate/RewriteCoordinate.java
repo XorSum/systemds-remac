@@ -376,7 +376,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             LOG.info(mySolution);
             System.out.println("dynamic programming: ");
             System.out.println(mySolution);
-
+            LOG.info("group time = "+(CostGraph.grouptime*1.0/1e9)+"s");
+            LOG.info("calssify time = "+(CostGraph.classifytime*1.0/1e9)+"s");
+            LOG.info("all old combine num: "+CostGraph.all_old_combine_num );
+            LOG.info("all new combine num: "+CostGraph.all_new_combine_num );
 //            if (mySolution.body.getName().equals("h")) System.exit(-1);
             return mySolution;
         } catch (Exception e) {

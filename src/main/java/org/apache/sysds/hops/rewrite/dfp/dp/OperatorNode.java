@@ -178,7 +178,7 @@ public class OperatorNode {
 //    }
 
     boolean lessThan(OperatorNode that) {
-        if (Math.abs(accCost-that.accCost) > Math.max(accCost,that.accCost)*0.001 )
+        if (Math.abs(accCost-that.accCost) > 1e-3 )
             return accCost< that.accCost;
         ArrayList<Pair<Integer,SingleCse>> list_a = new ArrayList<>();
         ArrayList<Pair<Integer,SingleCse>> list_b = new ArrayList<>();
