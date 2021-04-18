@@ -322,7 +322,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //            dSet2.removeAll(set);
 
             ArrayList<SinglePlan> placePlans = new ArrayList<>();
-            for (Hop h: hops) {
+            for (Hop h : hops) {
                 SinglePlan singlePlan = new SinglePlan();
                 singlePlan.hop = h;
                 placePlans.add(singlePlan);
@@ -338,8 +338,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             CostGraph costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
 
             costGraph.nodeCostEstimator.resetCacheCounter();
-            MySolution mySolution = null;
-            ArrayList<OperatorNode> operatorNodeArrayList = costGraph.testOperatorGraph(singlePlans,emptyCse, emptyHop, placePlans );
+            ArrayList<OperatorNode> operatorNodeArrayList = costGraph.testOperatorGraph(singlePlans, emptyCse, emptyHop, placePlans);
 
 //            costGraph.nodeCostEstimator.range2mmnode.forEach((key, value) -> {
 //                System.out.println(key + " -> " + value);
@@ -349,42 +348,29 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //            });
 
             long start = System.nanoTime();
-            //ArrayList<MultiCse> multiCseArrayList = new ArrayList<>();
-            int bestId = -1;
             for (int i = 0; i < 200 && i < operatorNodeArrayList.size(); i++) {
                 OperatorNode operatorNode = operatorNodeArrayList.get(i);
                 MultiCse multiCse = createMultiCseFromOperatorNode(operatorNode);
                 LOG.info(i);
-                LOG.info(multiCse);
                 LOG.info(operatorNode.accCostDetails);
+                LOG.info(multiCse);
 //                LOG.info(CostGraph.explainOpNode(operatorNode,0));
             }
-            int i = 0;
-            OperatorNode operatorNode = operatorNodeArrayList.get(i);
+            OperatorNode operatorNode = operatorNodeArrayList.get(0);
+            LOG.info("dpcost=" + operatorNode.accCost);
+            LOG.info("dpcostdetail=" + operatorNode.accCostDetails);
+            LOG.info(CostGraph.explainOpNode(operatorNode, 0));
+
             MultiCse multiCse = createMultiCseFromOperatorNode(operatorNode);
-            if (multiCse != null) {
-                //      multiCseArrayList.add(multiCse);
-                Hop hop = coordinate.createHop(multiCse, template, blockRanges);
-                hop = copyAndEliminateHop(hop);
-                double dpcost = operatorNode.accCost;
-//                Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop);
-//                NodeCost cost3 = costTriple.getLeft();
-//                double hcost = cost3.getSummary();
-//                double rate = (dpcost - hcost) / hcost;
-//                LOG.info("candidate multi cse:  rcost=" + hcost + ", dpcost=" + dpcost + ", rate=" + rate + "\n" + operatorNode.accCostDetails + "\n" + multiCse);
-//                LOG.info("rcostdetail=" + cost3 + ", dpcostdetail=" + operatorNode.accCostDetails);
-                LOG.info("dpcost=" + dpcost + ", \ndpcostdetail=" + operatorNode.accCostDetails);
-                LOG.info(CostGraph.explainOpNode(operatorNode, 0));
-                MySolution solution = constantUtilByTag.liftLoopConstant(hop);
-                solution.multiCse = multiCse;
-                if (mySolution == null || mySolution.cost < dpcost) {
-                    mySolution = solution;
-                    bestId = i;
-                }
-            }
-//            }
+            Hop hop = coordinate.createHop(multiCse, template, blockRanges);
+            hop = copyAndEliminateHop(hop);
+
+            MySolution mySolution = constantUtilByTag.liftLoopConstant(hop);
+            mySolution.multiCse = multiCse;
             costGraph.nodeCostEstimator.printCacheStats();
-            LOG.info("bestId=" + bestId);
+            mySolution.cost = operatorNode.accCost;
+            mySolution.costDetail = operatorNode.accCostDetails;
+
             long end = System.nanoTime();
             LOG.info("dynamic programming: ");
             LOG.info(mySolution);
@@ -670,151 +656,6 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return solutions;
     }
 
-    @Deprecated
-    private MySolution selectSolution(ArrayList<MySolution> solutions) {
-        long estimateCostTime = 0;
-        long start, end;
-        int id = -1;
-        start = System.nanoTime();
-        MySolution bestSolution = new MySolution();
-
-//        FakeCostEstimator2.miniumCostBoundery = Double.MAX_VALUE;
-        for (int i = 0; i < solutions.size(); i++) {
-            try {
-                MySolution solution = solutions.get(i);
-                solution.cost = estimate(solution, false);
-                if (showCost)
-                    LOG.debug("cost=" + solution.cost);
-                if (bestSolution.body == null
-                        || bestSolution.cost > solution.cost
-                        || (Math.abs(bestSolution.cost - solution.cost) < 0.0001
-                        && bestSolution.multiCse.cses.size() < solution.multiCse.cses.size())) {
-                    bestSolution = solution;
-                    id = i;
-                }
-            } catch (Exception e) {
-                LOG.error("estimate error");
-            }
-        }
-        LOG.info("minium cost = " + bestSolution.cost);
-        if (bestSolution.body != null) {
-//            FakeCostEstimator2.miniumCostBoundery = Double.MAX_VALUE;
-            bestSolution.cost = estimate(bestSolution, true);
-        } else {
-            return null;
-        }
-        end = System.nanoTime();
-        estimateCostTime += end - start;
-        LOG.info("estimate cost time =" + (estimateCostTime / 1e6) + "ms");
-        LOG.info("minium cost multicse id = " + id);
-        if (bestSolution.multiCse != null) {
-            LOG.info(bestSolution.multiCse);
-        }
-        bestSolution.body = copyAndEliminateHop(bestSolution.body);
-
-        return bestSolution;
-    }
-
-
-    @Deprecated
-    private double estimate(MySolution solution, boolean showDetails) {
-        // 代价估计
-        double cost = 0;
-        if (showDetails) {
-            LOG.debug("runtime program<<<");
-            CostModelCommon.MMShowCostFlag = true;
-        }
-        try {
-            FakeCostEstimator2.ec = ec;
-            double preCost = 0;
-            double bodyCost = 0;
-            double preloopShuffleCost = 0;
-            double preloopBroadcastCost = 0;
-            double preloopComputeCost = 0;
-            double preloopCollectCost = 0;
-            double bodyShuffleCost = 0;
-            double bodyBroadcastCost = 0;
-            double bodyComputeCost = 0;
-            double bodyCollectCost = 0;
-
-            for (Hop h : solution.preLoopConstants) {
-                Program program = constructProgramBlocks(h, statementBlock);
-                if (showDetails)
-                    LOG.debug(Explain.explain(program));
-                preCost += FakeCostEstimator2.estimateRuntimeProgram(program);
-                preloopShuffleCost += FakeCostEstimator2.shuffleCostSummary;
-                preloopBroadcastCost += FakeCostEstimator2.broadcastCostSummary;
-                preloopComputeCost += FakeCostEstimator2.computeCostSummary;
-                preloopCollectCost += FakeCostEstimator2.collectCostSummary;
-//                if (preCost > FakeCostEstimator2.miniumCostBoundery) break;
-            }
-            Program programBlocks = constructProgramBlocks(solution.body, statementBlock);
-            if (showDetails)
-                LOG.debug(Explain.explain(programBlocks));
-//            cost = CostEstimationWrapper.getTimeEstimate(programBlocks, ec);
-//            if (preCost <= FakeCostEstimator2.miniumCostBoundery) {
-            bodyCost = FakeCostEstimator2.estimateRuntimeProgram(programBlocks);
-            bodyShuffleCost += FakeCostEstimator2.shuffleCostSummary;
-            bodyBroadcastCost += FakeCostEstimator2.broadcastCostSummary;
-            bodyComputeCost += FakeCostEstimator2.computeCostSummary;
-            bodyCollectCost += FakeCostEstimator2.collectCostSummary;
-//            }
-            cost = preCost + bodyCost * iterationNumber;
-            solution.cost = cost;
-            solution.preCost = preCost;
-            solution.bodyCost = bodyCost;
-            solution.preloopShuffleCost = preloopShuffleCost;
-            solution.preloopBroadcastCost = preloopBroadcastCost;
-            solution.preloopComputeCost = preloopComputeCost;
-            solution.preloopCollectCost = preloopCollectCost;
-            solution.bodyShuffleCost = bodyShuffleCost;
-            solution.bodyBroadcastCost = bodyBroadcastCost;
-            solution.bodyComputeCost = bodyComputeCost;
-            solution.bodyCollectCost = bodyCollectCost;
-
-//                FakeCostEstimator2.miniumCostBoundery = Math.min(FakeCostEstimator2.miniumCostBoundery,cost);
-            if (showDetails) {
-//                LOG.debug("preCOst=" + preCost + " bodyCost=" + bodyCost + " allcost=" + cost +   " cse=" + solution.multiCse);
-                LOG.debug("multicse=" + solution.multiCse);
-                LOG.debug("allCost=" + cost);
-                LOG.debug("preCost=" + preCost);
-                LOG.debug("bodyCost=" + bodyCost);
-                LOG.debug("allshuffleCost=" + (preloopShuffleCost + bodyShuffleCost * iterationNumber));
-                LOG.debug("allBroadcastCost=" + (preloopBroadcastCost + bodyBroadcastCost * iterationNumber));
-                LOG.debug("allComputeCost=" + (preloopComputeCost + bodyComputeCost * iterationNumber));
-                LOG.debug("allCollectCost=" + (preloopCollectCost + bodyCollectCost * iterationNumber));
-                LOG.debug("preloopShuffleCost=" + preloopShuffleCost);
-                LOG.debug("preloopBroadcastCost=" + preloopBroadcastCost);
-                LOG.debug("preloopComputeCost=" + preloopComputeCost);
-                LOG.debug("preloopCollectCost=" + preloopCollectCost);
-                LOG.debug("bodyShuffleCost=" + bodyShuffleCost);
-                LOG.debug("bodyBroadcastCost=" + bodyBroadcastCost);
-                LOG.debug("bodyComputeCost=" + bodyComputeCost);
-                LOG.debug("bodyCollectCost=" + bodyCollectCost);
-            }
-
-        } catch (Exception e) {
-            //  e.printStackTrace();
-            cost = Double.MAX_VALUE;
-        }
-        if (showDetails) {
-            LOG.debug("runtime program>>>");
-            CostModelCommon.MMShowCostFlag = false;
-        }
-        //  FakeCostEstimator2.cleanUnusedMMNode();
-        return cost;
-    }
-
-//    private void showRtprog(MySolution solution) {
-//        LOG.debug("runtime program<<<");
-//        for (Hop h : solution.preLoopConstants) {
-//            Program program = constructProgramBlocks(h);
-//           LOG.debug(Explain.explain(program));
-//        }
-//        Program programBlocks = constructProgramBlocks(solution.body);
-//        LOG.debug(Explain.explain(programBlocks));
-//        LOG.debug(">>runtime program");
-//    }
 
     private ArrayList<Pair<SingleCse, Hop>> genHopFromSingleCses(ArrayList<SingleCse> singleCses, Hop template, ArrayList<Range> blockRanges) {
         HashMap<Pair<Long, Long>, Pair<SingleCse, Hop>> filter = new HashMap<>();
