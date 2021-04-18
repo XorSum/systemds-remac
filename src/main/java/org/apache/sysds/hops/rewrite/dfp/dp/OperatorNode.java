@@ -212,8 +212,14 @@ public class OperatorNode {
             if (!pa.getLeft().equals(pb.getLeft())) {
                 return pa.getLeft() > pb.getLeft();
             }
-            if (pa.getRight().ranges.size()!=pb.getRight().ranges.size()  ) {
-                return  pa.getRight().ranges.size() > pb.getRight().ranges.size();
+            ArrayList<Range> ranges_a = pa.getRight().ranges;
+            ArrayList<Range> ranges_b = pb.getRight().ranges;
+            if (ranges_a.size()!=ranges_b.size()  ) {
+                return  ranges_a.size() > ranges_b.size();
+            }
+            for (Range range : ranges_a) {
+                if (ranges_a.get(i).left != range.left)
+                    return ranges_a.get(i).left < range.left;
             }
         }
         return list_a.size()>=list_b.size();

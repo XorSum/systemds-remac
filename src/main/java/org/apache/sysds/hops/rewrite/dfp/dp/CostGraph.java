@@ -21,9 +21,7 @@ import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
 import org.apache.sysds.runtime.controlprogram.context.SparkExecutionContext;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 
 public class CostGraph {
@@ -508,6 +506,38 @@ public class CostGraph {
 //        System.out.println(acNode.range + " remove " + removed1 + " " + removed2);
     }
 
+    void classifyOperatorNodeParallel(CseStateMaintainer MAINTAINER, ArrayList<OperatorNode> allResults, ACNode acNode) {
+
+        acNode.certainAC = allResults
+                .parallelStream()
+                .filter(node -> !MAINTAINER.hasUncertain(node.dependencies))
+                .reduce(null, (node1, node2) -> {
+                    if (node1 == null) return node2;
+                    if (node2 == null) return node1;
+                    if (node1.lessThan(node2)) return node1;
+                    return node2;
+                });
+
+        acNode.minAC = allResults
+                .parallelStream()
+                .reduce(null, (node1, node2) -> {
+                    if (node1 == null) return node2;
+                    if (node2 == null) return node1;
+                    if (node1.lessThan(node2)) return node1;
+                    return node2;
+                });
+
+        acNode.uncertainACs = new HashMap<>();
+        allResults
+                .stream()
+                .filter(node -> MAINTAINER.hasUncertain(node.dependencies))
+                .forEach(node -> {
+                        acNode.addUncertainAC(node);
+                });
+
+    }
+
+
     public static boolean parallelDynamicProgramming = true;
 
     ArrayList<OperatorNode> selectBest(CseStateMaintainer MAINTAINER) {
@@ -544,15 +574,23 @@ public class CostGraph {
 //                System.out.println(rops);
 //                System.out.println(mids);
 
-                Stream<OperatorNode> opstream = parallelDynamicProgramming ? lops.parallelStream() : lops.stream();
+                Collection<Pair<ArrayList<OperatorNode>, ArrayList<OperatorNode>>> groupedOps =
+                        groupOperatorNodes(lops,rops,lRange,rRange,boundery);
 
-                List<OperatorNode> tmp = opstream
-                        .flatMap(lop -> {
+                LOG.info(" groupby size: "+groupedOps.size());
+
+                List<OperatorNode> tmp = groupedOps
+                        .parallelStream()
+                        .flatMap(pair -> {
+                            ArrayList<OperatorNode> llops = pair.getLeft();
+                            ArrayList<OperatorNode> rrops = pair.getRight();
                             ArrayList<Triple<OperatorNode, OperatorNode, OperatorNode>> arrayList = new ArrayList<>();
                             for (OperatorNode mid : mids) {
-                                for (OperatorNode rop : rops) {
-                                    if (check(lop, rop, mid.dependencies)) {
-                                        arrayList.add(Triple.of(lop, mid, rop));
+                                for (OperatorNode lop : llops) {
+                                    for (OperatorNode rop : rrops) {
+                                        if (check(lop, rop, mid.dependencies)) {
+                                            arrayList.add(Triple.of(lop, mid, rop));
+                                        }
                                     }
                                 }
                             }
@@ -560,11 +598,22 @@ public class CostGraph {
                         })
                         .map(triple -> createOperatorNode(triple.getLeft(), lRange, triple.getRight(), rRange, triple.getMiddle(), boundery))
                         .filter(Objects::nonNull)
+                        .filter(node -> !MAINTAINER.hasUselessCse(node.dependencies))
+                        .peek(node -> {
+                            for (Iterator<SingleCse> cseIterator = node.dependencies.iterator(); cseIterator.hasNext(); ) {
+                                SingleCse cse = cseIterator.next();
+                                if (MAINTAINER.getCseState(cse) == CseStateMaintainer.CseState.certainlyUseful) {
+                                    node.oldDependencies.add(cse);
+                                    cseIterator.remove();
+                                }
+                            }
+                        })
                         .collect(Collectors.toList());
                 allResults.addAll(tmp);
             }
 
-            classifyOperatorNode(MAINTAINER, allResults, acNode);
+//            classifyOperatorNode(MAINTAINER, allResults, acNode);
+            classifyOperatorNodeParallel(MAINTAINER,allResults,acNode);
 
             if (sortedRanges.indexOf(boundery) < sortedRanges.size() - 1) {
                 LOG.info("update matainer state");
@@ -608,45 +657,87 @@ public class CostGraph {
         return resultNodes;
     }
 
+    HashSet<SingleCse> liftKey(OperatorNode node,Pair<Integer, Integer> targetRange,Pair<Integer, Integer> boundery) {
+        HashSet<SingleCse> ans = new HashSet<>();
+        for (SingleCse singleCse: node.dependencies) {
+            ArrayList<Range> ranges = new ArrayList<>();
+            for (Range range: singleCse.ranges) {
+                if (Math.max(range.left,targetRange.getLeft())<=Math.min(range.right,targetRange.getRight())) {
+                    ranges.add(range);
+                }
+            }
+            if (!ranges.isEmpty()) {
+                ranges.clear();
+                for (Range range: singleCse.ranges) {
+                    if (Math.max(range.left,boundery.getLeft())<=Math.min(range.right,boundery.getRight())) {
+                        ranges.add(range);
+                    }
+                }
+                SingleCse singleCse1 = new SingleCse();
+                singleCse1.hash = singleCse.hash;
+                singleCse1.name = singleCse.name;
+                singleCse1.isConstant = singleCse.isConstant;
+                singleCse1.ranges = ranges;
+                ans.add(singleCse1);
+            }
+        }
+        return ans;
+    }
+
+    Collection<Pair<ArrayList<OperatorNode>, ArrayList<OperatorNode>>> groupOperatorNodes(ArrayList<OperatorNode> lops,
+                                                                                          ArrayList<OperatorNode> rops,
+                                                                                          Pair<Integer, Integer> lRange,
+                                                                                          Pair<Integer, Integer> rRange,
+                                                                                          Pair<Integer, Integer> boundery) {
+        HashMap<HashSet<SingleCse>, Pair<ArrayList<OperatorNode>, ArrayList<OperatorNode>>> joinTable = new HashMap<>();
+        for (OperatorNode lop : lops) {
+            HashSet<SingleCse> key = liftKey(lop, rRange, boundery);
+            joinTable.putIfAbsent(key, Pair.of(new ArrayList<>(), new ArrayList<>()));
+            joinTable.get(key).getLeft().add(lop);
+        }
+        for (OperatorNode rop : rops) {
+            HashSet<SingleCse> key = liftKey(rop, lRange, boundery);
+            joinTable.putIfAbsent(key, Pair.of(new ArrayList<>(), new ArrayList<>()));
+            joinTable.get(key).getRight().add(rop);
+        }
+        return joinTable.values();
+    }
 
     boolean check(OperatorNode operatorNode1,
                   OperatorNode operatorNode2,
                   HashSet<SingleCse> midcses) {
-
-        if (!checkConflict(operatorNode1.dependencies, operatorNode2.dependencies)) return false;
-        if (!checkAAA(operatorNode1.dependencies, operatorNode1.dRange.getRange(),
+        if (isConflict(operatorNode1.dependencies, operatorNode2.dependencies)) return false;
+        if (isConflict(midcses, operatorNode1.dependencies)) return false;
+        if (isConflict(midcses, operatorNode2.dependencies)) return false;
+        if (isConflict(operatorNode1.oldDependencies, operatorNode2.oldDependencies)) return false;
+        if (isConflict(midcses, operatorNode1.oldDependencies)) return false;
+        if (isConflict(midcses, operatorNode2.oldDependencies)) return false;
+        if (!isCompatible(operatorNode1.dependencies, operatorNode1.dRange.getRange(),
                 operatorNode2.dependencies, operatorNode2.dRange.getRange()))
             return false;
-
-        if (!checkConflict(midcses, operatorNode1.dependencies)) return false;
-        if (!checkConflict(midcses, operatorNode2.dependencies)) return false;
-
-        if (!checkConflict(operatorNode1.oldDependencies, operatorNode2.oldDependencies)) return false;
-
-        if (!checkAAA(operatorNode1.oldDependencies, operatorNode1.dRange.getRange(),
+        if (!isCompatible(operatorNode1.oldDependencies, operatorNode1.dRange.getRange(),
                 operatorNode2.oldDependencies, operatorNode2.dRange.getRange()))
             return false;
-
         return true;
     }
 
 
-    boolean checkConflict(HashSet<SingleCse> singleCses1, HashSet<SingleCse> singleCses2) {
-        if (singleCses1.isEmpty() || singleCses2.isEmpty()) return true;
+    boolean isConflict(HashSet<SingleCse> singleCses1, HashSet<SingleCse> singleCses2) {
+        if (singleCses1.isEmpty() || singleCses2.isEmpty()) return false;
         for (SingleCse lcse : singleCses1) {
             if (lcse.ranges.size() == 0) continue;
             for (SingleCse rcse : singleCses2) {
                 if (rcse.ranges.size() == 0) continue;
-                if (lcse.hash == rcse.hash && lcse != rcse) return false;
-                if (lcse.conflict(rcse)) return false;
-                if (lcse.intersect(rcse) && !(lcse.contain(rcse) || rcse.contain(lcse))) return false;
+                if (lcse.hash == rcse.hash && lcse != rcse) return true;
+                if (lcse.conflict(rcse)) return true;
+                if (lcse.intersect(rcse) && !(lcse.contain(rcse) || rcse.contain(lcse))) return true;
             }
         }
-        return true;
+        return false;
     }
 
-    boolean checkAAA(HashSet<SingleCse> lcses, Pair<Integer, Integer> lRange,
-                     HashSet<SingleCse> rcses, Pair<Integer, Integer> rRange) {
+    boolean isCompatible(HashSet<SingleCse> lcses, Pair<Integer, Integer> lRange,
+                         HashSet<SingleCse> rcses, Pair<Integer, Integer> rRange) {
         for (SingleCse lcse : lcses) {
             boolean intersect = false;
             for (Range range : lcse.ranges) {
@@ -674,26 +765,6 @@ public class CostGraph {
     OperatorNode createOperatorNode(OperatorNode lNode, Pair<Integer, Integer> lRange,
                                     OperatorNode rNode, Pair<Integer, Integer> rRange,
                                     OperatorNode originNode, Pair<Integer, Integer> midRange) {
-        if (lNode == null || rNode == null || originNode == null) return null;
-        if ( // lNode.accCost >= Double.MAX_VALUE / 2 ||
-            //   rNode.accCost >= Double.MAX_VALUE / 2 ||
-                lNode.thisCost >= Double.MAX_VALUE / 2 ||
-                        rNode.thisCost >= Double.MAX_VALUE / 2
-        ) {
-//            System.out.println("cost error");
-//            System.out.println(originNode);
-//            System.out.println(lNode);
-//            System.out.println(rNode);
-            System.exit(0);
-        }
-
-        if (lRange.equals(midRange) || rRange.equals(midRange)) {
-//            System.out.println("chong fu ");
-//            System.out.println(lNode);
-//            System.out.println(rNode);
-//            System.out.println(originNode);
-            System.exit(0);
-        }
         OperatorNode node = new OperatorNode();
         ArrayList<Integer> index = new ArrayList<>();
         index.add(lRange.getLeft());
