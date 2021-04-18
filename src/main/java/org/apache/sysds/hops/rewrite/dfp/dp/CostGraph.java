@@ -143,10 +143,8 @@ public class CostGraph {
         }
 
         range2acnode.forEach((range,acnode)->{
-            LOG.info("Range: "+range);
-            acnode.drange2emptynodes.keySet().forEach(dRange -> {
-                LOG.info("    "+dRange);
-            });
+            LOG.info("range: "+range);
+            acnode.drange2emptynodes.keySet().forEach(dRange -> {LOG.info("      "+dRange);});
         });
 
         long end_build_graph = System.nanoTime();

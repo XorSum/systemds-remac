@@ -453,10 +453,15 @@ public class Explain
 		TreeSet<String> ret = new TreeSet<>();
 
 		queue.offer(hop);
+		int idx = -1;
 		while (!queue.isEmpty()) {
 			Hop current = queue.poll();
 			if (current instanceof AggBinaryOp) {
-				ret.addAll(explainMultChain(current).getRight());
+				idx++;
+				TreeSet<String> set = explainMultChain(current).getRight();
+				for (String s : set) {
+					ret.add(String.format("%d: %s", idx, s));
+				}
 			} else {
 				for (Hop children : current.getInput()) {
 					queue.offer(children);

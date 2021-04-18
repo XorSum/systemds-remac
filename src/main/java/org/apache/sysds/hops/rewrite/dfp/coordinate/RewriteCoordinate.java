@@ -64,7 +64,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     public static boolean useDynamicProgramPolicy = true;
     private static boolean useBruceForcePolicy = false;
     private static boolean useBruceForcePolicyMultiThreads = false;
-    private static boolean BruteForceMultiThreadsPipeline = true;
+    private static boolean BruteForceMultiThreadsPipeline = false;
 
     // </configuration>
 
@@ -301,8 +301,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             Hop emptyHop = coordinate.createHop(emptyCse, template, blockRanges);
             ArrayList<Pair<SingleCse, Hop>> list = genHopFromSingleCses(singleCses, template, blockRanges);
 
-//            ArrayList<Hop> hops = createNecessaryHops(singleCses, emptyHop, blockRanges);
-            ArrayList<Hop> hops = createHops(template, blockRanges);
+            ArrayList<Hop> hops = createNecessaryHops(singleCses, emptyHop, blockRanges);
+//            ArrayList<Hop> hops = createHops(template, blockRanges);
 
 //            // debug
 //            ArrayList<Hop> hops2 = createHops(template, blockRanges);
@@ -1065,7 +1065,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             RangeTree a = trees.get(i);
             RangeTree b = trees.get(i + 1);
             long nRow = coordinate.leaves.get(a.left).hop.getCharacteristics().getRows();
-            long nMiddle = coordinate.leaves.get(a.left).hop.getCharacteristics().getCols();
+            long nMiddle = coordinate.leaves.get(a.right).hop.getCharacteristics().getCols();
             long nCol = coordinate.leaves.get(b.right).hop.getCharacteristics().getCols();
             costs[i] = nRow * nMiddle * nCol;
         }
