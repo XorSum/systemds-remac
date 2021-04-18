@@ -142,6 +142,11 @@ public class CostGraph {
             analyzeOperatorCost(singlePlan.node);
         }
 
+        range2acnode.forEach((range,acnode)->{
+            LOG.info("range: "+range);
+            acnode.drange2emptynodes.keySet().forEach(dRange -> {LOG.info("      "+dRange);});
+        });
+
         long end_build_graph = System.nanoTime();
         LOG.info("build cost graph end");
         LOG.info("build cost graph time = " + ((end_build_graph - start_build_graph) / 1e9));
