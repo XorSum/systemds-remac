@@ -36,7 +36,7 @@ public class CostGraph {
     }
 
     private ExecutionContext ec;
-    public NodeCostEstimator nodeCostEstimator;
+    public final NodeCostEstimator nodeCostEstimator;
     long iterationNumber = 2;
     public VariableSet variablesUpdated = null;
 
@@ -864,15 +864,25 @@ public class CostGraph {
 //                dRange2RangeHashMap.put(key, p.getRight());
 //            }
 //        }
-//        for (HashSet<Pair<DRange, Range>> cseNodes: cseNodesMap.values()) {
-//            for (Pair<DRange, Range> p1 : cseNodes) {
-//                nodeCostEstimator.rangepair2rangeclass.put(p1.getLeft().getRange(), p1.getRight());
-//                for (Pair<DRange, Range> p2 : cseNodes) {
-//                    nodeCostEstimator.dRangeDisjointSet.merge(p1.getLeft(), p2.getLeft());
-//                    nodeCostEstimator.rangeDisjointSet.merge(p1.getLeft().getRange(), p2.getLeft().getRange());
-//                }
-//            }
-//        }
+        synchronized (nodeCostEstimator) {
+            for (HashSet<Pair<DRange, Range>> cseNodes : cseNodesMap.values()) {
+                for (Pair<DRange, Range> p1 : cseNodes) {
+                    nodeCostEstimator.rangepair2rangeclass.put(p1.getLeft().getRange(), p1.getRight());
+                    for (Pair<DRange, Range> p2 : cseNodes) {
+                        if (nodeCostEstimator.drange2multiplycostCache.containsKey(p1.getLeft())) {
+                            nodeCostEstimator.dRangeDisjointSet.merge(p1.getLeft(), p2.getLeft());
+                        } else {
+                            nodeCostEstimator.dRangeDisjointSet.merge(p2.getLeft(), p1.getLeft());
+                        }
+                        if (nodeCostEstimator.range2mmnodeCache.containsKey(p1.getLeft().getRange())) {
+                            nodeCostEstimator.rangeDisjointSet.merge(p1.getLeft().getRange(), p2.getLeft().getRange());
+                        } else {
+                            nodeCostEstimator.rangeDisjointSet.merge(p2.getLeft().getRange(), p1.getLeft().getRange());
+                        }
+                    }
+                }
+            }
+        }
     }
 
 
@@ -911,7 +921,6 @@ public class CostGraph {
     }
 
 
-
     private void analyzeHopCost_a(NodeCost allCost, NodeCost constantCost, OperatorNode node) {
         if (node.inputs.size() == 0) {
             node.thisCostDetails = NodeCost.ZERO();
@@ -938,8 +947,25 @@ public class CostGraph {
         node.thisCostDetails = thisCostDetail;
     }
 
+    public Triple<NodeCost, NodeCost, OperatorNode> estimateHopCost_b(Hop hop) {
+        OperatorNode node = createOperatorGraph(hop, false);
+        if (node == null) {
+            return Triple.of(NodeCost.ZERO(), NodeCost.ZERO(), null);
+        }
+//        System.out.println(node);
+        MutableInt mutableInt = new MutableInt(0);
+        try {
+            analyzeOperatorRange(node, new SingleCse(), mutableInt);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        NodeCost constantCost = NodeCost.ZERO();
+        NodeCost cost = analyzeHopCost_b(node, new HashSet<>(), constantCost);
+//        System.out.println("all cost = "+cost);
+        return Triple.of(cost, constantCost, node);
+    }
 
-    private NodeCost analyzeHopCost_a(OperatorNode node, HashSet<Hop> visited, NodeCost constantCost) {
+    private NodeCost analyzeHopCost_b(OperatorNode node, HashSet<Hop> visited, NodeCost constantCost) {
 //        System.out.println(node);
         boolean hasCons = false;
         for (Hop hop : node.hops) {
@@ -962,7 +988,7 @@ public class CostGraph {
         node.thisCost = thisCostDetail.getSummary();
 //        LOG.info(node);
         for (int i = 0; i < node.inputs.size(); i++) {
-            NodeCost tmp = analyzeHopCost_a(node.inputs.get(i), visited, constantCost);
+            NodeCost tmp = analyzeHopCost_b(node.inputs.get(i), visited, constantCost);
             ans = NodeCost.add(ans, tmp);
         }
         ans = NodeCost.add(ans, thisCostDetail);

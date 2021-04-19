@@ -8,11 +8,11 @@ public class GenericDisjointSet<E> {
     private HashMap<E, E> parent = new HashMap<>();
     private HashMap<E, HashSet<E>> elements = new HashMap<>();
 
-    public boolean exist(E e) {
+    public synchronized boolean exist(E e) {
         return elements.containsKey(e);
     }
 
-    private void initElement(E e) {
+    private synchronized void initElement(E e) {
         if (!exist(e)) {
             HashSet<E> set = new HashSet<>();
             set.add(e);
@@ -21,7 +21,7 @@ public class GenericDisjointSet<E> {
         }
     }
 
-    public E find(E e) {
+    public synchronized E find(E e) {
         initElement(e);
         E e2 = parent.get(e);
         if (e2.equals(e)) {
@@ -33,16 +33,16 @@ public class GenericDisjointSet<E> {
         }
     }
 
-    public Set<E> keys() {
+    public synchronized Set<E> keys() {
         return parent.keySet();
     }
 
-    public HashSet<E> elements(E x) {
+    public synchronized HashSet<E> elements(E x) {
         initElement(x);
         return elements.get(find(x));
     }
 
-    public boolean merge(E x, E y) {
+    public synchronized boolean merge(E x, E y) {
         // set x as the parent of y
         E fx = find(x);
         E fy = find(y);
@@ -57,7 +57,7 @@ public class GenericDisjointSet<E> {
         }
     }
 
-    public boolean isSame(E x, E y) {
+    public synchronized boolean isSame(E x, E y) {
         E fx = find(x);
         E fy = find(y);
         return fx.equals(fy);

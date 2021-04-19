@@ -64,7 +64,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     public static boolean useDynamicProgramPolicy = false;
     private static boolean useBruceForcePolicy = false;
     private static boolean useBruceForcePolicyMultiThreads = true;
-    private static boolean BruteForceMultiThreadsPipeline = false;
+    private static boolean BruteForceMultiThreadsPipeline = true;
 
     // </configuration>
 
@@ -72,9 +72,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     public static long allGenerateCombinationsTime = 0;
 //    public static long estimateTime = 0;
 
+    CostGraph costGraph = null;
+
     public MySolution rewiteHopDag(Hop root) {
         MySolution originalSolution = new MySolution(root);
-
         try {
             LOG.debug("start coordinate " + MyExplain.myExplain(root));
             LOG.debug("root: \n" + Explain.explain(root));
@@ -85,6 +86,11 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 LOG.debug("small leaves size, return original solution");
                 return originalSolution;
             }
+            costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
+            Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost_b(root);
+            originalSolution.cost = costTriple.getLeft().getSummary();
+            originalSolution.costDetail = costTriple.getLeft();
+
             Hop template = triple.getLeft();
             ArrayList<Range> blockRanges = triple.getMiddle();
             ArrayList<SingleCse> singleCses = triple.getRight();
@@ -210,7 +216,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         LOG.info("before lift constant");
         LOG.info(Explain.explain(program));
 
-        CostGraph costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
+//        CostGraph costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
         CostModelCommon.MMShowCostFlag = true;
         Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(result,multiCse);
         LOG.info("all cost detail=" + costTriple.getLeft());
@@ -231,7 +237,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     }
 
     MySolution testBruteForceMultiThreads(ArrayList<SingleCse> singleCses, Hop template, ArrayList<Range> blockRanges,boolean pipeline) {
-        CostGraph costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
+//        CostGraph costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
         ConcurrentLinkedQueue<MultiCse> multiCses = genMultiCseMultiThreads(singleCses, template, costGraph, blockRanges,pipeline);
         if (!pipeline) {
             MySolution best_solution = null;
@@ -271,7 +277,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         if (multiCses.size() == 0) return null;
         long begin = System.nanoTime();
 
-        CostGraph costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
+//        CostGraph costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
         Hop result = null;
         double minCost = Double.MAX_VALUE;
         for (int i = 0; i < multiCses.size(); i++) {
@@ -346,8 +352,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 singlePlan.singleCse = p.getLeft();
                 singlePlans.add(singlePlan);
             }
-            CostGraph costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
-
+//            CostGraph costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
             costGraph.nodeCostEstimator.resetCacheCounter();
             ArrayList<OperatorNode> operatorNodeArrayList = costGraph.testOperatorGraph(singlePlans, emptyCse, emptyHop, placePlans);
 
