@@ -240,31 +240,41 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //        CostGraph costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
         ConcurrentLinkedQueue<MultiCse> multiCses = genMultiCseMultiThreads(singleCses, template, costGraph, blockRanges,pipeline);
         if (!pipeline) {
-            MySolution best_solution = null;
             long start_force_estimate = System.nanoTime();
+            double min_cost = Double.MAX_VALUE;
+            Hop best_hop = deepCopyHopsDag(template);
+            MultiCse best_multicse = null;
             while (!multiCses.isEmpty()) {
                 MultiCse multiCse = multiCses.poll();
-//        for (MultiCse multiCse : multiCses) {
                 Hop hop = coordinate.createHop(multiCse, template, blockRanges);
                 Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop,multiCse);
-                MySolution solution = constantUtilByTag.liftLoopConstant(hop);
-                solution.multiCse = multiCse;
                 double cost = costTriple.getLeft().getSummary();
-                solution.cost = cost;
-                if (best_solution == null || best_solution.cost > cost) {
-                    best_solution = solution;
+                if ( min_cost > cost) {
+                    if (best_hop != null )
+                        releaseHopChildReference_iter(best_hop);
+                    best_hop = hop;
+                    best_multicse = multiCse;
+                    min_cost = cost;
+                } else {
+                    releaseHopChildReference_iter(hop);
                 }
                 if (multiCse.id % 100000 == 0) {
                     LOG.info("estimate " + multiCse + " " + costTriple.getLeft());
                 }
             }
+            MySolution best_solution = constantUtilByTag.liftLoopConstant(best_hop);
+            best_solution.multiCse = best_multicse;
+            best_solution.cost = min_cost;
             long end_force_estimate = System.nanoTime();
             LOG.info("force estimante time = " + ((end_force_estimate - start_force_estimate) / 1e9) + "s");
             LOG.info("force best solution:"+best_solution);
             return best_solution;
         } else {
-            LOG.info("force best solution:"+bestsolution);
-            return bestsolution;
+            MySolution best_solution = constantUtilByTag.liftLoopConstant(all_best_hop);
+            best_solution.multiCse = all_best_multicse;
+            best_solution.cost = all_min_cost;
+            LOG.info("force best solution:"+best_solution);
+            return best_solution;
         }
 
     }
@@ -282,26 +292,18 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         double minCost = Double.MAX_VALUE;
         for (int i = 0; i < multiCses.size(); i++) {
             MultiCse multiCse = multiCses.get(i);
-            boolean has23 = false,has45=false;
-            for (SingleCse cse: multiCse.cses) {
-                for (Range range: cse.ranges) {
-                    if (range.left==2&&range.right==3) has23 = true;
-                    if (range.left==4&&range.right==5) has45 = true;
-                }
+            Hop hop = coordinate.createHop(multiCse, template, blockRanges);
+            Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop,multiCse);
+            if (i % 1000 == 0) {
+                LOG.info("i=" + i + ", costdetail=" + costTriple.getLeft());
             }
-            if (has23&&has45) {
-                LOG.info("has23&&has45");
-                LOG.info(multiCse);
+            if (result == null || minCost > costTriple.getLeft().getSummary()) {
+                releaseHopChildReference_iter(result);
+                result = hop;
+                minCost = costTriple.getLeft().getSummary();
+            } else {
+                releaseHopChildReference_iter(hop);
             }
-//            Hop hop = coordinate.createHop(multiCse, template, blockRanges);
-//            Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop,multiCse);
-//            if (i % 1000 == 0) {
-//                LOG.info("i=" + i + ", costdetail=" + costTriple.getLeft());
-//            }
-//            if (result == null || minCost > costTriple.getLeft().getSummary()) {
-//                result = hop;
-//                minCost = costTriple.getLeft().getSummary();
-//            }
         }
         long end = System.nanoTime();
         LOG.info("brute force cost time = " + ((end - begin) / 1e9) + "s");
@@ -477,7 +479,11 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             queue.add(new MultiCse(singleCses.get(j), j, idSequence.getNextID()));
         }
         CountDownLatch latch = new CountDownLatch(threadNum);
-        bestsolution = new MySolution(template);
+
+        all_best_hop = deepCopyHopsDag(template);
+        all_best_multicse = new MultiCse();
+        all_min_cost = Double.MAX_VALUE;
+
         ExecutorService fixedThreadPool = Executors.newCachedThreadPool();
         for (int i = 0; i < threadNum; i++) {
             Coordinate ci = coordinate.clone();
@@ -496,7 +502,19 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return  generated_multicses;
     }
 
-    MySolution bestsolution ;
+    void releaseHopChildReference_iter(Hop hop) {
+        if (Judge.isLeafMatrix(hop)) return;
+        if (HopRewriteUtils.isTransposeOperation(hop) &&
+                Judge.isLeafMatrix(hop.getInput().get(0))) return;
+        for (Hop child : hop.getInput()) {
+            releaseHopChildReference_iter(child);
+        }
+        HopRewriteUtils.removeAllChildReferences(hop);
+    }
+
+    Hop all_best_hop;
+    MultiCse all_best_multicse;
+    double all_min_cost = Double.MAX_VALUE;
 
     class GenMultiCseRunnable implements Runnable {
 
@@ -537,6 +555,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         @Override
         public void run() {
             LOG.info("GenMultiCseRunnable start");
+            Hop best_hop=null;
+            MultiCse best_multicse=null;
+            double min_cost = Double.MAX_VALUE;
             try {
                 while (!Thread.currentThread().isInterrupted()) {
                     MultiCse frontMC = null;
@@ -559,14 +580,14 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                         if (pipeline) {
                             Hop hop = threadCoordinate.createHop_copy_sc(frontMC, template, blockRanges);
                             Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop,frontMC);
-                            MySolution solution = constantUtilByTag.liftLoopConstant(hop);
-                            solution.multiCse = frontMC;
                             double cost = costTriple.getLeft().getSummary();
-                            solution.cost = cost;
-                            synchronized (bestsolution) {
-                                if (bestsolution == null || bestsolution.cost > cost) {
-                                    bestsolution = solution;
-                                }
+                            if (min_cost > cost) {
+                                if (best_hop!=null) releaseHopChildReference_iter(best_hop);
+                                best_hop = hop;
+                                best_multicse = frontMC;
+                                min_cost = cost;
+                            } else {
+                                releaseHopChildReference_iter(hop);
                             }
                             if (frontMC.id % 1000 == 0) {
                                 LOG.info("estimate " + frontMC + " " + costTriple.getLeft());
@@ -597,6 +618,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             } finally {
                 LOG.info("GenMultiCseRunnable stop");
                 latch.countDown();
+            }
+            if (all_min_cost>min_cost) {
+                all_best_hop = best_hop;
+                all_best_multicse = best_multicse;
             }
         }
     }
