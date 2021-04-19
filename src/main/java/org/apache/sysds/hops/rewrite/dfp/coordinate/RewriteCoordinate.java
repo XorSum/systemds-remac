@@ -61,9 +61,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     // private static long epoch = 100;
 
     private static boolean useManualPolicy = false;
-    public static boolean useDynamicProgramPolicy = true;
+    public static boolean useDynamicProgramPolicy = false;
     private static boolean useBruceForcePolicy = false;
-    private static boolean useBruceForcePolicyMultiThreads = false;
+    private static boolean useBruceForcePolicyMultiThreads = true;
     private static boolean BruteForceMultiThreadsPipeline = false;
 
     // </configuration>
@@ -212,7 +212,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
         CostGraph costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
         CostModelCommon.MMShowCostFlag = true;
-        Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(result);
+        Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(result,multiCse);
         LOG.info("all cost detail=" + costTriple.getLeft());
         LOG.info("constant cost detail=" + costTriple.getMiddle());
         LOG.info(CostGraph.explainOpNode(costTriple.getRight(), 0));
@@ -240,7 +240,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 MultiCse multiCse = multiCses.poll();
 //        for (MultiCse multiCse : multiCses) {
                 Hop hop = coordinate.createHop(multiCse, template, blockRanges);
-                Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop);
+                Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop,multiCse);
                 MySolution solution = constantUtilByTag.liftLoopConstant(hop);
                 solution.multiCse = multiCse;
                 double cost = costTriple.getLeft().getSummary();
@@ -248,7 +248,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 if (best_solution == null || best_solution.cost > cost) {
                     best_solution = solution;
                 }
-                if (multiCse.id % 1000 == 0) {
+                if (multiCse.id % 100000 == 0) {
                     LOG.info("estimate " + multiCse + " " + costTriple.getLeft());
                 }
             }
@@ -276,15 +276,26 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         double minCost = Double.MAX_VALUE;
         for (int i = 0; i < multiCses.size(); i++) {
             MultiCse multiCse = multiCses.get(i);
-            Hop hop = coordinate.createHop(multiCse, template, blockRanges);
-            Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop);
-            if (i % 1000 == 0) {
-                LOG.info("i=" + i + ", costdetail=" + costTriple.getLeft());
+            boolean has23 = false,has45=false;
+            for (SingleCse cse: multiCse.cses) {
+                for (Range range: cse.ranges) {
+                    if (range.left==2&&range.right==3) has23 = true;
+                    if (range.left==4&&range.right==5) has45 = true;
+                }
             }
-            if (result == null || minCost > costTriple.getLeft().getSummary()) {
-                result = hop;
-                minCost = costTriple.getLeft().getSummary();
+            if (has23&&has45) {
+                LOG.info("has23&&has45");
+                LOG.info(multiCse);
             }
+//            Hop hop = coordinate.createHop(multiCse, template, blockRanges);
+//            Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop,multiCse);
+//            if (i % 1000 == 0) {
+//                LOG.info("i=" + i + ", costdetail=" + costTriple.getLeft());
+//            }
+//            if (result == null || minCost > costTriple.getLeft().getSummary()) {
+//                result = hop;
+//                minCost = costTriple.getLeft().getSummary();
+//            }
         }
         long end = System.nanoTime();
         LOG.info("brute force cost time = " + ((end - begin) / 1e9) + "s");
@@ -412,7 +423,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             result.add(c);
         }
         for (int i = 0; i < result.size(); i++) {
-            if (i % 1000 == 0) {
+            if (i % 100000 == 0) {
                 LOG.info("i: " + i + ", multicse number: " + result.size());
             }
             if (maxMultiCseNumber >= 0 && result.size() >= maxMultiCseNumber) break;
@@ -425,7 +436,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 boolean ok = true;
                 for (int k = 0; ok && k < frontMC.cses.size(); k++) {
                     SingleCse scB = frontMC.cses.get(k);
-                    if (scB.hash == scA.hash || scB.conflict(scA) || !scB.contain(scA)) ok = false;
+                    if (scB.hash == scA.hash || (scB.intersect(scA) && (scB.conflict(scA) || !scB.contain(scA)))) ok = false;
                 }
                 if (ok) {
                     MultiCse newMC = new MultiCse();
@@ -535,13 +546,14 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     if (frontMC == null) {
                         break;
                     } else {
-                        if (frontMC.id % 100 == 0) {
-                            LOG.info(result.size() + " " + frontMC);
+                        if (frontMC.id % 10000 == 0) {
+//                            LOG.info(result.size() + " " + frontMC);
+                            LOG.info(frontMC);
                         }
                         generated_multicses.add(frontMC);
                         if (pipeline) {
                             Hop hop = threadCoordinate.createHop_copy_sc(frontMC, template, blockRanges);
-                            Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop);
+                            Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop,frontMC);
                             MySolution solution = constantUtilByTag.liftLoopConstant(hop);
                             solution.multiCse = frontMC;
                             double cost = costTriple.getLeft().getSummary();
@@ -560,7 +572,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                             boolean ok = true;
                             for (int k = 0; ok && k < frontMC.cses.size(); k++) {
                                 SingleCse scB = frontMC.cses.get(k);
-                                if (scB.hash == scA.hash || scB.conflict(scA) || !scB.contain(scA)) ok = false;
+//                                if (scB.hash == scA.hash || scB.conflict(scA) || !scB.contain(scA)) ok = false;
+                                if (scB.hash == scA.hash
+                                        || (scB.intersect(scA) && (scB.conflict(scA) || !scB.contain(scA)))) ok = false;
                             }
                             if (ok) {
                                 MultiCse newMC = new MultiCse();

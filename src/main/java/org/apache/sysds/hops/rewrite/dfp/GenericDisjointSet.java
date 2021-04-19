@@ -43,6 +43,7 @@ public class GenericDisjointSet<E> {
     }
 
     public boolean merge(E x, E y) {
+        // set x as the parent of y
         E fx = find(x);
         E fy = find(y);
         if (!fx.equals(fy)) {

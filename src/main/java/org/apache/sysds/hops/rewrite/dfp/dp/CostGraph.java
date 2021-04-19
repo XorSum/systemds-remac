@@ -12,6 +12,7 @@ import org.apache.sysds.hops.NaryOp;
 import org.apache.sysds.hops.TernaryOp;
 import org.apache.sysds.hops.estim.MMNode;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
+import org.apache.sysds.hops.rewrite.dfp.coordinate.MultiCse;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.Range;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.SingleCse;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.CostModelCommon;
@@ -98,7 +99,7 @@ public class CostGraph {
 
         for (SinglePlan p : placePlans) {
             OperatorNode node = createOperatorGraph(p.hop, false);
-            analyzeOperatorRange(node, null, new MutableInt(0));
+            analyzeOperatorRange(node, emptyCse, new MutableInt(0));
             p.node = node;
         }
 
@@ -824,26 +825,121 @@ public class CostGraph {
     }
 
 
-    public Triple<NodeCost, NodeCost, OperatorNode> estimateHopCost(Hop hop) {
+    public Triple<NodeCost, NodeCost, OperatorNode> estimateHopCost(Hop hop, MultiCse multiCse) {
         OperatorNode node = createOperatorGraph(hop, false);
         if (node == null) {
             return Triple.of(NodeCost.ZERO(), NodeCost.ZERO(), null);
         }
-//        System.out.println(node);
-        MutableInt mutableInt = new MutableInt(0);
-        try {
-            analyzeOperatorRange(node, new SingleCse(), mutableInt);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+
+        analyzeOperatorRange_a(node, multiCse, new MutableInt(0));
+
         NodeCost constantCost = NodeCost.ZERO();
-        NodeCost cost = analyzeHopCost(node, new HashSet<>(), constantCost);
-//        System.out.println("all cost = "+cost);
-        return Triple.of(cost, constantCost, node);
+        NodeCost allCost = NodeCost.ZERO();
+        CostModelCommon.MMShowCostFlag = true;
+        analyzeHopCost_a( allCost , constantCost,node );
+
+        return Triple.of(allCost, constantCost, node);
     }
 
 
-    private NodeCost analyzeHopCost(OperatorNode node, HashSet<Hop> visited, NodeCost constantCost) {
+    void analyzeOperatorRange_a(OperatorNode root, MultiCse multiCse, MutableInt opIndex) {
+        HashMap<SingleCse, HashSet<Pair<DRange, Range>> > cseNodesMap = new HashMap<>();
+        analyzeOperatorRangeInner_a(root, multiCse, opIndex, cseNodesMap);
+
+//        boolean has23 = false,has45=false;
+//        for (SingleCse cse: multiCse.cses) {
+//            for (Range range: cse.ranges) {
+//                if (range.left==2&&range.right==3) has23 = true;
+//                if (range.left==4&&range.right==5) has45 = true;
+//            }
+//        }
+//        if (has23&&has45) {
+//            LOG.info("has23&&has45");
+//            LOG.info(multiCse);
+//        }
+//
+//        for (Pair<DRange, Range> p : cseNodes) {
+//            DRange key = p.getLeft();
+//            if (!dRange2RangeHashMap.containsKey(key)) {
+//                dRange2RangeHashMap.put(key, p.getRight());
+//            }
+//        }
+//        for (HashSet<Pair<DRange, Range>> cseNodes: cseNodesMap.values()) {
+//            for (Pair<DRange, Range> p1 : cseNodes) {
+//                nodeCostEstimator.rangepair2rangeclass.put(p1.getLeft().getRange(), p1.getRight());
+//                for (Pair<DRange, Range> p2 : cseNodes) {
+//                    nodeCostEstimator.dRangeDisjointSet.merge(p1.getLeft(), p2.getLeft());
+//                    nodeCostEstimator.rangeDisjointSet.merge(p1.getLeft().getRange(), p2.getLeft().getRange());
+//                }
+//            }
+//        }
+    }
+
+
+    void analyzeOperatorRangeInner_a(OperatorNode root,
+                                   MultiCse multiCse,
+                                   MutableInt opIndex,
+                                   HashMap<SingleCse,HashSet<Pair<DRange, Range>>> cseNodesMap) {
+        ArrayList<Integer> index = new ArrayList<>();
+        int begin = opIndex.getValue();
+        if (root.inputs.size() > 0) {
+            for (int i = 0; i < root.inputs.size(); i++) {
+                index.add(opIndex.getValue());
+                analyzeOperatorRangeInner_a(root.inputs.get(i), multiCse, opIndex, cseNodesMap);
+            }
+        } else {
+            opIndex.increment();
+        }
+        int end = opIndex.getValue() - 1;
+        index.add(end);
+        if (root.dRange == null) {
+            root.dRange = new DRange(index);
+            for  (SingleCse cse : multiCse.cses) {
+                HashSet<Pair<DRange, Range>> cseNodes = cseNodesMap.getOrDefault(cse,new HashSet<>());
+                for (Range range : cse.ranges) {
+                    if ((range.left == begin && range.right == end) ||
+                            (range.left == end && range.right == begin)) {
+                        root.dependencies.add(cse);
+                        root.dRange.cseRangeTransposeType = range.transpose;
+                        cseNodes.add(Pair.of(root.dRange, range));
+                        break;
+                    }
+                }
+                cseNodesMap.put(cse, cseNodes);
+            }
+        }
+    }
+
+
+
+    private void analyzeHopCost_a(NodeCost allCost, NodeCost constantCost, OperatorNode node) {
+        if (node.inputs.size() == 0) {
+            node.thisCostDetails = NodeCost.ZERO();
+            return;
+        }
+        NodeCost thisCostDetail = this.nodeCostEstimator.getNodeCost(node);
+        for (int i = 0; i < node.inputs.size(); i++) {
+            analyzeHopCost_a(allCost,constantCost,node.inputs.get(i));
+        }
+        boolean constant = false;
+        int csesize = 1;
+        for (SingleCse singleCse: node.dependencies) {
+            csesize = singleCse.ranges.size();
+            if (singleCse.isConstant) constant = true;
+        }
+        if (csesize > 0) {
+            thisCostDetail.divide( csesize);
+        }
+        if (constant) {
+            thisCostDetail.divide(iterationNumber);
+            constantCost.plus(thisCostDetail);
+        }
+        allCost.plus(thisCostDetail);
+        node.thisCostDetails = thisCostDetail;
+    }
+
+
+    private NodeCost analyzeHopCost_a(OperatorNode node, HashSet<Hop> visited, NodeCost constantCost) {
 //        System.out.println(node);
         boolean hasCons = false;
         for (Hop hop : node.hops) {
@@ -866,7 +962,7 @@ public class CostGraph {
         node.thisCost = thisCostDetail.getSummary();
 //        LOG.info(node);
         for (int i = 0; i < node.inputs.size(); i++) {
-            NodeCost tmp = analyzeHopCost(node.inputs.get(i), visited, constantCost);
+            NodeCost tmp = analyzeHopCost_a(node.inputs.get(i), visited, constantCost);
             ans = NodeCost.add(ans, tmp);
         }
         ans = NodeCost.add(ans, thisCostDetail);
