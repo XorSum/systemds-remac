@@ -508,7 +508,7 @@ public class CostGraph {
     }
 
     void classifyOperatorNodeParallel(CseStateMaintainer MAINTAINER, ArrayList<OperatorNode> allResults, ACNode acNode) {
-
+        long start = System.nanoTime();
         acNode.certainAC = allResults
                 .parallelStream()
                 .filter(node -> !MAINTAINER.hasUncertain(node.dependencies))
@@ -535,11 +535,14 @@ public class CostGraph {
                 .forEach(node -> {
                         acNode.addUncertainAC(node);
                 });
-
+        long end = System.nanoTime();
+        classifytime += end - start;
     }
-
+   public static  long classifytime = 0;
 
     public static boolean parallelDynamicProgramming = true;
+    public static int all_old_combine_num = 0;
+    public static int all_new_combine_num = 0;
 
     ArrayList<OperatorNode> selectBest(CseStateMaintainer MAINTAINER) {
         long start = System.nanoTime();
@@ -579,6 +582,14 @@ public class CostGraph {
                         groupOperatorNodes(lops,rops,lRange,rRange,boundery);
 
                 LOG.info(" groupby size: "+groupedOps.size());
+                int old_combine_number = lops.size()* rops.size()*mids.size();
+                int new_combine_number = groupedOps
+                        .stream()
+                        .mapToInt(pair->pair.getLeft().size()*pair.getRight().size())
+                        .sum() * mids.size();
+                LOG.info("combine num: "+old_combine_number+" -> "+new_combine_number);
+                all_old_combine_num += old_combine_number;
+                all_new_combine_num += new_combine_number;
 
                 List<OperatorNode> tmp = groupedOps
                         .parallelStream()
@@ -685,11 +696,14 @@ public class CostGraph {
         return ans;
     }
 
+    public static   long grouptime = 0;
+
     Collection<Pair<ArrayList<OperatorNode>, ArrayList<OperatorNode>>> groupOperatorNodes(ArrayList<OperatorNode> lops,
                                                                                           ArrayList<OperatorNode> rops,
                                                                                           Pair<Integer, Integer> lRange,
                                                                                           Pair<Integer, Integer> rRange,
                                                                                           Pair<Integer, Integer> boundery) {
+        long start = System.nanoTime();
         HashMap<HashSet<SingleCse>, Pair<ArrayList<OperatorNode>, ArrayList<OperatorNode>>> joinTable = new HashMap<>();
         for (OperatorNode lop : lops) {
             HashSet<SingleCse> key = liftKey(lop, rRange, boundery);
@@ -701,6 +715,9 @@ public class CostGraph {
             joinTable.putIfAbsent(key, Pair.of(new ArrayList<>(), new ArrayList<>()));
             joinTable.get(key).getRight().add(rop);
         }
+        long end = System.nanoTime();
+        grouptime += end - start;
+
         return joinTable.values();
     }
 
