@@ -45,7 +45,7 @@ public class NodeCostEstimator {
     GenericDisjointSet<DRange> dRangeDisjointSet = new GenericDisjointSet<>();
     GenericDisjointSet<Pair<Integer, Integer>> rangeDisjointSet = new GenericDisjointSet<>();
 
-    boolean useCommonCostCache = false;
+    boolean useCommonCostCache = true;
 
     public NodeCostEstimator(SparkExecutionContext sec) {
         this.sec = sec;
