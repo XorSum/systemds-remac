@@ -161,6 +161,18 @@ public class DMLOptions {
 				}
 			}
 		}
+		if (line.hasOption("optimizer")) {
+			String optimization = line.getOptionValue("optimizer");
+			if ("manual".equals(optimization)) {
+				RewriteCoordinate.useManualPolicy = true;
+			} else if ("force".equals(optimization)) {
+				RewriteCoordinate.useBruceForcePolicyMultiThreads = true;
+			} else /*if ("dp".equals(optimization))*/ {
+				RewriteCoordinate.useDynamicProgramPolicy = true;
+			}
+		} else {
+			RewriteCoordinate.useDynamicProgramPolicy = true;
+		}
 		if (line.hasOption("single_dp")) {
 			CostGraph.parallelDynamicProgramming = false;
 		}
@@ -325,6 +337,9 @@ public class DMLOptions {
 				.create("cpmm_intern_sparsity");
 		Option singleDp = OptionBuilder
 				.create("single_dp");
+		Option optimizer = OptionBuilder
+				.hasOptionalArg()
+				.create("optimizer");
 
 		options.addOption(configOpt);
 		options.addOption(cleanOpt);
@@ -343,6 +358,7 @@ public class DMLOptions {
 		options.addOption(checkMnc);
 		options.addOption(cpmmSparsity);
 		options.addOption(singleDp);
+		options.addOption(optimizer);
 
 		// Either a clean(-clean), a file(-f), a script(-s) or help(-help) needs to be specified
 		OptionGroup fileOrScriptOpt = new OptionGroup()

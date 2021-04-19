@@ -60,11 +60,11 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
     // private static long epoch = 100;
 
-    private static boolean useManualPolicy = false;
+    public static boolean useManualPolicy = false;
     public static boolean useDynamicProgramPolicy = false;
-    private static boolean useBruceForcePolicy = false;
-    private static boolean useBruceForcePolicyMultiThreads = true;
-    private static boolean BruteForceMultiThreadsPipeline = true;
+    public static boolean useBruceForcePolicy = false;
+    public static boolean useBruceForcePolicyMultiThreads = false;
+    public static boolean BruteForceMultiThreadsPipeline = true;
 
     // </configuration>
 
