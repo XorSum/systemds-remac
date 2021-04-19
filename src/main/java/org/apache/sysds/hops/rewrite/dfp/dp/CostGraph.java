@@ -853,14 +853,14 @@ public class CostGraph {
         NodeCost constantCost = NodeCost.ZERO();
         NodeCost allCost = NodeCost.ZERO();
         CostModelCommon.MMShowCostFlag = true;
-        analyzeHopCost_a( allCost , constantCost,node );
+        analyzeHopCost_a(allCost, constantCost, node);
 
         return Triple.of(allCost, constantCost, node);
     }
 
 
     void analyzeOperatorRange_a(OperatorNode root, MultiCse multiCse, MutableInt opIndex) {
-        HashMap<SingleCse, HashSet<Pair<DRange, Range>> > cseNodesMap = new HashMap<>();
+        HashMap<SingleCse, HashSet<Pair<DRange, Range>>> cseNodesMap = new HashMap<>();
         analyzeOperatorRangeInner_a(root, multiCse, opIndex, cseNodesMap);
 
 //        boolean has23 = false,has45=false;
@@ -881,32 +881,32 @@ public class CostGraph {
 //                dRange2RangeHashMap.put(key, p.getRight());
 //            }
 //        }
-        synchronized (nodeCostEstimator) {
-            for (HashSet<Pair<DRange, Range>> cseNodes : cseNodesMap.values()) {
-                for (Pair<DRange, Range> p1 : cseNodes) {
-                    nodeCostEstimator.rangepair2rangeclass.put(p1.getLeft().getRange(), p1.getRight());
-                    for (Pair<DRange, Range> p2 : cseNodes) {
-                        if (nodeCostEstimator.drange2multiplycostCache.containsKey(p1.getLeft())) {
-                            nodeCostEstimator.dRangeDisjointSet.merge(p1.getLeft(), p2.getLeft());
-                        } else {
-                            nodeCostEstimator.dRangeDisjointSet.merge(p2.getLeft(), p1.getLeft());
-                        }
-                        if (nodeCostEstimator.range2mmnodeCache.containsKey(p1.getLeft().getRange())) {
-                            nodeCostEstimator.rangeDisjointSet.merge(p1.getLeft().getRange(), p2.getLeft().getRange());
-                        } else {
-                            nodeCostEstimator.rangeDisjointSet.merge(p2.getLeft().getRange(), p1.getLeft().getRange());
-                        }
-                    }
-                }
-            }
-        }
+//        synchronized (nodeCostEstimator) {
+//            for (HashSet<Pair<DRange, Range>> cseNodes : cseNodesMap.values()) {
+//                for (Pair<DRange, Range> p1 : cseNodes) {
+//                    nodeCostEstimator.rangepair2rangeclass.put(p1.getLeft().getRange(), p1.getRight());
+//                    for (Pair<DRange, Range> p2 : cseNodes) {
+//                        if (nodeCostEstimator.drange2multiplycostCache.containsKey(p1.getLeft())) {
+//                            nodeCostEstimator.dRangeDisjointSet.merge(p1.getLeft(), p2.getLeft());
+//                        } else {
+//                            nodeCostEstimator.dRangeDisjointSet.merge(p2.getLeft(), p1.getLeft());
+//                        }
+//                        if (nodeCostEstimator.range2mmnodeCache.containsKey(p1.getLeft().getRange())) {
+//                            nodeCostEstimator.rangeDisjointSet.merge(p1.getLeft().getRange(), p2.getLeft().getRange());
+//                        } else {
+//                            nodeCostEstimator.rangeDisjointSet.merge(p2.getLeft().getRange(), p1.getLeft().getRange());
+//                        }
+//                    }
+//                }
+//            }
+//        }
     }
 
 
     void analyzeOperatorRangeInner_a(OperatorNode root,
-                                   MultiCse multiCse,
-                                   MutableInt opIndex,
-                                   HashMap<SingleCse,HashSet<Pair<DRange, Range>>> cseNodesMap) {
+                                     MultiCse multiCse,
+                                     MutableInt opIndex,
+                                     HashMap<SingleCse, HashSet<Pair<DRange, Range>>> cseNodesMap) {
         ArrayList<Integer> index = new ArrayList<>();
         int begin = opIndex.getValue();
         if (root.inputs.size() > 0) {
@@ -921,8 +921,8 @@ public class CostGraph {
         index.add(end);
         if (root.dRange == null) {
             root.dRange = new DRange(index);
-            for  (SingleCse cse : multiCse.cses) {
-                HashSet<Pair<DRange, Range>> cseNodes = cseNodesMap.getOrDefault(cse,new HashSet<>());
+            for (SingleCse cse : multiCse.cses) {
+                HashSet<Pair<DRange, Range>> cseNodes = cseNodesMap.getOrDefault(cse, new HashSet<>());
                 for (Range range : cse.ranges) {
                     if ((range.left == begin && range.right == end) ||
                             (range.left == end && range.right == begin)) {
@@ -945,16 +945,16 @@ public class CostGraph {
         }
         NodeCost thisCostDetail = this.nodeCostEstimator.getNodeCost(node);
         for (int i = 0; i < node.inputs.size(); i++) {
-            analyzeHopCost_a(allCost,constantCost,node.inputs.get(i));
+            analyzeHopCost_a(allCost, constantCost, node.inputs.get(i));
         }
         boolean constant = false;
         int csesize = 1;
-        for (SingleCse singleCse: node.dependencies) {
+        for (SingleCse singleCse : node.dependencies) {
             csesize = singleCse.ranges.size();
             if (singleCse.isConstant) constant = true;
         }
         if (csesize > 0) {
-            thisCostDetail.divide( csesize);
+            thisCostDetail.divide(csesize);
         }
         if (constant) {
             thisCostDetail.divide(iterationNumber);
@@ -999,7 +999,7 @@ public class CostGraph {
 //        System.out.println("x");
         NodeCost thisCostDetail = this.nodeCostEstimator.getNodeCost(node);
         if (hasCons) {
-            thisCostDetail.divide( iterationNumber);
+            thisCostDetail.divide(iterationNumber);
         }
         node.thisCostDetails = thisCostDetail;
         node.thisCost = thisCostDetail.getSummary();

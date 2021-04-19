@@ -45,7 +45,7 @@ public class NodeCostEstimator {
     GenericDisjointSet<DRange> dRangeDisjointSet = new GenericDisjointSet<>();
     GenericDisjointSet<Pair<Integer, Integer>> rangeDisjointSet = new GenericDisjointSet<>();
 
-    boolean useCommonCostCache = true;
+    boolean useCommonCostCache = false;
 
     public NodeCostEstimator(SparkExecutionContext sec) {
         this.sec = sec;
@@ -86,9 +86,10 @@ public class NodeCostEstimator {
                 return tmp;
             }
         }
-        if (range2mmnodeCache.containsKey(range)) {
-            opnode.mmNode = range2mmnodeCache.get(range);
-            return opnode.mmNode;
+        MMNode tmpmmnode = range2mmnodeCache.getOrDefault(range,null);
+        if (tmpmmnode!=null) {
+            opnode.mmNode = tmpmmnode;
+            return  tmpmmnode;
         }
 
         // 如果缓存中没有，就去计算
@@ -107,10 +108,8 @@ public class NodeCostEstimator {
                 range2mmnodeCacheTrans.put(rootRange,ans);
             }
         }
-        if (!range2mmnodeCache.containsKey(opnode.dRange.getRange())) {
-            range2mmnodeCache.put(opnode.dRange.getRange(), ans);
-            range2mmnodeCacheTrans.put(opnode.dRange.getRange(),getTransposeMMNode(ans));
-        }
+        range2mmnodeCache.putIfAbsent(opnode.dRange.getRange(), ans);
+        range2mmnodeCacheTrans.putIfAbsent(opnode.dRange.getRange(),getTransposeMMNode(ans));
         opnode.mmNode = ans;
         return ans;
     }
@@ -125,8 +124,7 @@ public class NodeCostEstimator {
         return trans;
     }
 
-    public MMNode addOpnode2Mmnode(OperatorNode opnode) {
-
+    public synchronized MMNode addOpnode2Mmnode(OperatorNode opnode) {
 //        LOG.info("start add opnode to mmnode");
         MMNode ans = null;
         Hop hop = opnode.hops.get(0);
@@ -270,16 +268,18 @@ public class NodeCostEstimator {
 //            System.out.println("h");
 //        }
         try {
-            if (useMncEstimator) {
-                dc = mncEstimator.estim(mmNode, false);
-            } else {
-                dc = metadataEstimator.estim(mmNode);
-            }
-            if (mmNode.getDataCharacteristics().getBlocksize() < 0) {
-                mmNode.getDataCharacteristics().setBlocksize(defaultBlockSize);
-            }
-            if (dc.getBlocksize() < 0) {
-                dc.setBlocksize(defaultBlockSize);
+            synchronized (opNode) {
+                if (useMncEstimator) {
+                    dc = mncEstimator.estim(mmNode, false);
+                } else {
+                    dc = metadataEstimator.estim(mmNode);
+                }
+                if (mmNode.getDataCharacteristics().getBlocksize() < 0) {
+                    mmNode.getDataCharacteristics().setBlocksize(defaultBlockSize);
+                }
+                if (dc.getBlocksize() < 0) {
+                    dc.setBlocksize(defaultBlockSize);
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -295,7 +295,7 @@ public class NodeCostEstimator {
 //        return NodeCost.ZERO();
 //    }
 
-    public synchronized NodeCost getNodeCost(OperatorNode opnode) {
+    public NodeCost getNodeCost(OperatorNode opnode) {
 //        LOG.info("start get node cost");
         long start = System.nanoTime();
         NodeCost ans;
@@ -365,64 +365,18 @@ public class NodeCostEstimator {
 
         if (useCommonCostCache && dRangeDisjointSet.exist(node.dRange)) {
             DRange rootDrange = dRangeDisjointSet.find(node.dRange);
-            if (drange2multiplycostCache.containsKey(rootDrange)) {
-                NodeCost nodeCost = drange2multiplycostCache.get(rootDrange);
-                return nodeCost.clone();
-            }
+            NodeCost nodeCost = drange2multiplycostCache.getOrDefault(rootDrange,null);
+            if (nodeCost!=null) return nodeCost.clone();
         }
-        if (drange2multiplycostCache.containsKey(node.dRange)) {
-            NodeCost nodeCost = drange2multiplycostCache.get(node.dRange);
-            return nodeCost.clone();
-        }
+        NodeCost nodeCost = drange2multiplycostCache.getOrDefault(node.dRange,null);
+        if (nodeCost!=null) return nodeCost.clone();
 
-        // 计算
-        estimate_matrix_multiply_counter++;
-        LOG.info("estimate matrix multiply "+node.dRange);
-
-        DataCharacteristics dc1 = getDC(node.inputs.get(0));
-        DataCharacteristics dc2 = getDC(node.inputs.get(1));
-        DataCharacteristics dc3 = getDC(node);
-        NodeCost ans = null;
-        if (hop.optFindExecType() == LopProperties.ExecType.SPARK) {
-            hop.constructLops();
-            AggBinaryOp.MMultMethod method = hop.getMMultMethod();
-//            if (method!= AggBinaryOp.MMultMethod.MAPMM_CHAIN)
-//                method = AggBinaryOp.MMultMethod.CPMM;
-            node.method = method;
-            switch (method) {
-                case MAPMM_R:
-                case MAPMM_L:
-                    ans = eMapMM(node, hop, method, dc1, dc2, dc3);
-                    break;
-                case RMM:
-                    ans = eRMM(node, hop, dc1, dc2, dc3);
-                    break;
-                case MAPMM_CHAIN:
-                    node.isXtXv = true;
-                    ans = eMapMMChain(node, hop);
-                    break;
-                case ZIPMM:
-                    ans = eZipMM(node, hop, dc1, dc2, dc3);
-                    break;
-                case TSMM:
-                    ans = eTSMM(node, hop, dc1, dc2, dc3);
-                    break;
-                case CPMM:
-                default:
-                    ans = eCPMM(node, hop, dc1, dc2, dc3);
-            }
-        } else { // LopProperties.ExecType.CP
-            node.method = AggBinaryOp.MMultMethod.MM;
-            double computeCost = CpuSpeed * 3 * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc2.getSparsity();
-            ans = new NodeCost(0, 0, computeCost, 0);
-        }
+        NodeCost ans = eMatrixMultiplyCost(node,hop);
 
         // 更新缓存
         if (useCommonCostCache && dRangeDisjointSet.exist(node.dRange) ) {
             DRange rootDrange = dRangeDisjointSet.find(node.dRange);
-            if (!drange2multiplycostCache.containsKey(rootDrange)) {
-                drange2multiplycostCache.put(rootDrange, ans.clone());
-            }
+            drange2multiplycostCache.putIfAbsent(rootDrange,ans.clone());
 //            for (DRange neibor: dRangeDisjointSet.elements(node.dRange)) {
 //                if (drange2multiplycostCache.containsKey(neibor)) {
 //                    NodeCost neiborcost = drange2multiplycostCache.get(neibor);
@@ -434,12 +388,54 @@ public class NodeCostEstimator {
 //                }
 //            }
         }
-        if (!drange2multiplycostCache.containsKey(node.dRange)) {
-            drange2multiplycostCache.put(node.dRange, ans.clone());
-        }
+        drange2multiplycostCache.putIfAbsent(node.dRange,ans.clone());
         //        LOG.info("end estimate matrix multiply");
         return ans;
     }
+
+   synchronized NodeCost eMatrixMultiplyCost(OperatorNode node, AggBinaryOp hop) {
+       // 计算
+       estimate_matrix_multiply_counter++;
+       LOG.info("estimate matrix multiply "+node.dRange);
+       DataCharacteristics dc1 = getDC(node.inputs.get(0));
+       DataCharacteristics dc2 = getDC(node.inputs.get(1));
+       DataCharacteristics dc3 = getDC(node);
+       NodeCost ans = null;
+       if (hop.optFindExecType() == LopProperties.ExecType.SPARK) {
+           hop.constructLops();
+           AggBinaryOp.MMultMethod method = hop.getMMultMethod();
+//            if (method!= AggBinaryOp.MMultMethod.MAPMM_CHAIN)
+//                method = AggBinaryOp.MMultMethod.CPMM;
+           node.method = method;
+           switch (method) {
+               case MAPMM_R:
+               case MAPMM_L:
+                   ans = eMapMM(node, hop, method, dc1, dc2, dc3);
+                   break;
+               case RMM:
+                   ans = eRMM(node, hop, dc1, dc2, dc3);
+                   break;
+               case MAPMM_CHAIN:
+                   node.isXtXv = true;
+                   ans = eMapMMChain(node, hop);
+                   break;
+               case ZIPMM:
+                   ans = eZipMM(node, hop, dc1, dc2, dc3);
+                   break;
+               case TSMM:
+                   ans = eTSMM(node, hop, dc1, dc2, dc3);
+                   break;
+               case CPMM:
+               default:
+                   ans = eCPMM(node, hop, dc1, dc2, dc3);
+           }
+       } else { // LopProperties.ExecType.CP
+           node.method = AggBinaryOp.MMultMethod.MM;
+           double computeCost = CpuSpeed * 3 * dc1.getRows() * dc1.getCols() * dc2.getCols() * dc1.getSparsity() * dc2.getSparsity();
+           ans = new NodeCost(0, 0, computeCost, 0);
+       }
+        return ans;
+   }
 
 
     public static void main(String[] args) {
