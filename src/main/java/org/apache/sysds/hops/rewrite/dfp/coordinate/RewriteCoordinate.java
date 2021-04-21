@@ -572,10 +572,6 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     if (frontMC == null) {
                         break;
                     } else {
-                        if (frontMC.id % 10000 == 0) {
-//                            LOG.info(result.size() + " " + frontMC);
-                            LOG.info(frontMC);
-                        }
                         generated_multicses.add(frontMC);
                         if (pipeline) {
                             Hop hop = threadCoordinate.createHop_copy_sc(frontMC, template, blockRanges);
@@ -591,15 +587,11 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                             }
                             if (frontMC.id % 100000 == 0) {
                                 LOG.info("estimate " + frontMC + " " + costTriple.getLeft());
-//                                for (DRange dRange : costGraph. nodeCostEstimator.dRangeDisjointSet.elements.keySet()) {
-//                                    HashSet<DRange> values = costGraph.nodeCostEstimator.dRangeDisjointSet.elements.get(dRange);
-//                                    LOG.info(dRange + " " + values.size());
-//                                }
-//                                for (Pair<Integer, Integer> range : costGraph.nodeCostEstimator.rangeDisjointSet.elements.keySet()) {
-//                                    HashSet<Pair<Integer, Integer>> values = costGraph.nodeCostEstimator.rangeDisjointSet.elements.get(range);
-//                                    LOG.info(range + " " + values.size());
-//                                }
+                                costGraph.nodeCostEstimator.printCacheStats();
                             }
+                        } else if (frontMC.id % 10000 == 0) {
+//                            LOG.info(result.size() + " " + frontMC);
+                            LOG.info(frontMC);
                         }
                         for (int index = frontMC.last_index + 1; index < singleCse.size(); index++) {
                             SingleCse scA = singleCse.get(index);

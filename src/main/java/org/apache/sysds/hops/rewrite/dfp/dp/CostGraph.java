@@ -854,44 +854,30 @@ public class CostGraph {
     void analyzeOperatorRange_a(OperatorNode root, MultiCse multiCse, MutableInt opIndex) {
         HashMap<SingleCse, HashSet<Pair<DRange, Range>>> cseNodesMap = new HashMap<>();
         analyzeOperatorRangeInner_a(root, multiCse, opIndex, cseNodesMap);
-
-//        boolean has23 = false,has45=false;
-//        for (SingleCse cse: multiCse.cses) {
-//            for (Range range: cse.ranges) {
-//                if (range.left==2&&range.right==3) has23 = true;
-//                if (range.left==4&&range.right==5) has45 = true;
-//            }
-//        }
-//        if (has23&&has45) {
-//            LOG.info("has23&&has45");
-//            LOG.info(multiCse);
-//        }
-//
-//        for (Pair<DRange, Range> p : cseNodes) {
-//            DRange key = p.getLeft();
-//            if (!dRange2RangeHashMap.containsKey(key)) {
-//                dRange2RangeHashMap.put(key, p.getRight());
-//            }
-//        }
-        nodeCostEstimator.w.lock();
         for (HashSet<Pair<DRange, Range>> cseNodes : cseNodesMap.values()) {
             for (Pair<DRange, Range> p1 : cseNodes) {
-                nodeCostEstimator.rangepair2rangeclass.put(p1.getLeft().getRange(), p1.getRight());
+                nodeCostEstimator.rangepair2rangeclass.putIfAbsent(p1.getLeft().getRange(), p1.getRight());
                 for (Pair<DRange, Range> p2 : cseNodes) {
-                    if (nodeCostEstimator.drange2multiplycostCache.containsKey(p1.getLeft())) {
-                        nodeCostEstimator.dRangeDisjointSet.merge(p1.getLeft(), p2.getLeft());
-                    } else {
-                        nodeCostEstimator.dRangeDisjointSet.merge(p2.getLeft(), p1.getLeft());
+                    NodeCost cost = nodeCostEstimator.drange2multiplycostCache.getOrDefault(p2.getLeft(), null);
+                    if (cost != null) {
+                        nodeCostEstimator.drange2multiplycostCache.putIfAbsent(p1.getLeft(), cost);
                     }
-                    if (nodeCostEstimator.range2mmnodeCache.containsKey(p1.getLeft().getRange())) {
-                        nodeCostEstimator.rangeDisjointSet.merge(p1.getLeft().getRange(), p2.getLeft().getRange());
-                    } else {
-                        nodeCostEstimator.rangeDisjointSet.merge(p2.getLeft().getRange(), p1.getLeft().getRange());
+                    nodeCostEstimator.dRangeDisjointSet.merge(p1.getLeft(), p2.getLeft());
+                    MMNode mmNodeT = nodeCostEstimator.range2mmnodeCacheTrans.getOrDefault(p2.getLeft().getRange(), null);
+                    if (mmNodeT != null) {
+                        MMNode mmNode = nodeCostEstimator.range2mmnodeCache.getOrDefault(p2.getLeft().getRange(), null);
+                        if (nodeCostEstimator.rangepair2rangeclass.get(p2.getLeft().getRange()) == p1.getRight()) {
+                            nodeCostEstimator.range2mmnodeCache.putIfAbsent(p1.getLeft().getRange(), mmNode);
+                            nodeCostEstimator.range2mmnodeCacheTrans.putIfAbsent(p1.getLeft().getRange(), mmNodeT);
+                        } else {
+                            nodeCostEstimator.range2mmnodeCache.putIfAbsent(p1.getLeft().getRange(), mmNodeT);
+                            nodeCostEstimator.range2mmnodeCacheTrans.putIfAbsent(p1.getLeft().getRange(), mmNode);
+                        }
                     }
+                    nodeCostEstimator.rangeDisjointSet.merge(p1.getLeft().getRange(), p2.getLeft().getRange());
                 }
             }
         }
-        nodeCostEstimator.w.unlock();
     }
 
 
