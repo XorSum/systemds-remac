@@ -75,7 +75,7 @@ public class ManualSolution {
     SingleCse createSingleCseBfgsHy() {
         SingleCse sHy = new SingleCse();
         sHy.name = coordinate.getRangeName(5, 9);
-        sHy.ranges.add(Range.of(5, 9, true));
+        sHy.ranges.add(Range.of(6, 10, false));
         sHy.ranges.add(Range.of(15, 19, true));
         sHy.ranges.add(Range.of(21, 25, true));
         sHy.ranges.add(Range.of(32, 36, true));
@@ -88,7 +88,7 @@ public class ManualSolution {
     SingleCse createSingleCseBfgsY() {
         SingleCse sY = new SingleCse();
         sY.name = coordinate.getRangeName(5, 8);
-        sY.ranges.add(Range.of(5, 8, true));
+        sY.ranges.add(Range.of(7, 10, false));
         sY.ranges.add(Range.of(15, 18, true));
         sY.ranges.add(Range.of(21, 24, true));
         sY.ranges.add(Range.of(26, 29, false));
@@ -104,7 +104,7 @@ public class ManualSolution {
         sd.name = coordinate.getRangeName(1, 2);
         sd.ranges.add(Range.of(1, 2, false));
         sd.ranges.add(Range.of(3, 4, true));
-        sd.ranges.add(Range.of(5, 6, true));
+        sd.ranges.add(Range.of(9, 10, false));
         sd.ranges.add(Range.of(11, 12, false));
         sd.ranges.add(Range.of(13, 14, true));
         sd.ranges.add(Range.of(15, 16, true));
