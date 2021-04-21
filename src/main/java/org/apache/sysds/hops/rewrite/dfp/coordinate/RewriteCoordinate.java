@@ -84,9 +84,6 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 return originalSolution;
             }
             costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
-            Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost_b(root);
-            originalSolution.cost = costTriple.getLeft().getSummary();
-            originalSolution.costDetail = costTriple.getLeft();
 
             Hop template = triple.getLeft();
             ArrayList<Range> blockRanges = triple.getMiddle();
@@ -111,10 +108,22 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             }
             long end3 = System.nanoTime();
             allGenerateCombinationsTime += end3 - start3;
-            if (mySolution != null && (mySolution.cost < originalSolution.cost || useManualPolicy)) {
-                LOG.info("return rewrited solution");
-                System.out.println("return rewrited solution");
-                return mySolution;
+            if (mySolution != null) {
+                if (useManualPolicy) {
+                    LOG.info("return rewrited solution");
+                    System.out.println("return rewrited solution");
+                    return mySolution;
+                } else {
+
+                    Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost_b(root);
+                    originalSolution.cost = costTriple.getLeft().getSummary();
+                    originalSolution.costDetail = costTriple.getLeft();
+                    if (mySolution.cost < originalSolution.cost) {
+                        LOG.info("return rewrited solution");
+                        System.out.println("return rewrited solution");
+                        return mySolution;
+                    }
+                }
             } else {
                 LOG.info("return original solution");
                 System.out.println("return original solution");
@@ -216,6 +225,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 //        CostGraph costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
         CostModelCommon.MMShowCostFlag = true;
         Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(result,multiCse);
+        costGraph.nodeCostEstimator.printCacheStats();
         LOG.info("all cost detail=" + costTriple.getLeft());
         LOG.info("constant cost detail=" + costTriple.getMiddle());
         LOG.info(CostGraph.explainOpNode(costTriple.getRight(), 0));

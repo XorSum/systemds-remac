@@ -863,6 +863,7 @@ public class CostGraph {
                         nodeCostEstimator.drange2multiplycostCache.putIfAbsent(p1.getLeft(), cost);
                     }
                     nodeCostEstimator.dRangeDisjointSet.merge(p1.getLeft(), p2.getLeft());
+//                    LOG.info("merge " + p1.getLeft() + p2.getLeft());
                     MMNode mmNodeT = nodeCostEstimator.range2mmnodeCacheTrans.getOrDefault(p2.getLeft().getRange(), null);
                     if (mmNodeT != null) {
                         MMNode mmNode = nodeCostEstimator.range2mmnodeCache.getOrDefault(p2.getLeft().getRange(), null);
@@ -875,6 +876,7 @@ public class CostGraph {
                         }
                     }
                     nodeCostEstimator.rangeDisjointSet.merge(p1.getLeft().getRange(), p2.getLeft().getRange());
+//                    LOG.info("merge " + p1.getLeft().getRange() + p2.getLeft().getRange());
                 }
             }
         }
