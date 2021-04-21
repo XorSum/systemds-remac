@@ -3,64 +3,80 @@ package org.apache.sysds.hops.rewrite.dfp;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class GenericDisjointSet<E> {
-    private HashMap<E, E> parent = new HashMap<>();
-    private HashMap<E, HashSet<E>> elements = new HashMap<>();
+    public ConcurrentHashMap<E, E> parent = new ConcurrentHashMap<>();
+    public ConcurrentHashMap<E, HashSet<E>> elements = new ConcurrentHashMap<>();
 
-    public synchronized boolean exist(E e) {
-        return elements.containsKey(e);
+    public ReentrantReadWriteLock rwl;
+    public Lock r;
+    public Lock w;
+
+    public GenericDisjointSet() {
+        rwl = new ReentrantReadWriteLock();
+        r = rwl.readLock();
+        w = rwl.writeLock();
     }
 
-    private synchronized void initElement(E e) {
-        if (!exist(e)) {
-            HashSet<E> set = new HashSet<>();
-            set.add(e);
-            elements.put(e, set);
-            parent.put(e, e);
+    public boolean exist(E e) {
+        r.lock();
+        try {
+            return elements.containsKey(e);
+        } finally {
+            r.unlock();
         }
     }
 
-    public synchronized E find(E e) {
-        initElement(e);
-        E e2 = parent.get(e);
-        if (e2.equals(e)) {
-            return e2;
-        } else {
-            E e3 = find(e2);
-            parent.put(e,e3);
-            return e3;
+    public E find(E e) {
+        r.lock();
+        try {
+            return parent.getOrDefault(e, e);
+        } finally {
+            r.unlock();
         }
-    }
-
-    public synchronized Set<E> keys() {
-        return parent.keySet();
-    }
-
-    public synchronized HashSet<E> elements(E x) {
-        initElement(x);
-        return elements.get(find(x));
     }
 
     public synchronized boolean merge(E x, E y) {
         // set x as the parent of y
         E fx = find(x);
         E fy = find(y);
+
         if (!fx.equals(fy)) {
-            parent.put(fy, fx);
-            HashSet<E> set = elements.get(fy);
-            elements.get(fx).addAll(set);
-            set.clear();
+            w.lock();
+            fx = find(x);
+            fy = find(y);
+            if (!fx.equals(fy)) {
+
+                elements.computeIfAbsent(fx, k -> {
+                    HashSet<E> set1 = new HashSet<>();
+                    set1.add(k);
+                    return set1;
+                });
+                elements.computeIfAbsent(fy, k -> {
+                    HashSet<E> set1 = new HashSet<>();
+                    set1.add(k);
+                    return set1;
+                });
+                HashSet<E> sety = elements.get(fy);
+                HashSet<E> setx = elements.get(fx);
+                setx.addAll(sety);
+                sety.clear();
+
+                for (E child : setx) {
+                    parent.put(child, x);
+                }
+                parent.put(y,x);
+            }
+
+            w.unlock();
             return true;
         } else {
             return false;
         }
-    }
 
-    public synchronized boolean isSame(E x, E y) {
-        E fx = find(x);
-        E fy = find(y);
-        return fx.equals(fy);
     }
 
 }

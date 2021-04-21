@@ -12,10 +12,7 @@ import org.apache.sysds.hops.rewrite.dfp.MySolution;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.CostModelCommon;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
-import org.apache.sysds.hops.rewrite.dfp.dp.CostGraph;
-import org.apache.sysds.hops.rewrite.dfp.dp.NodeCost;
-import org.apache.sysds.hops.rewrite.dfp.dp.OperatorNode;
-import org.apache.sysds.hops.rewrite.dfp.dp.SinglePlan;
+import org.apache.sysds.hops.rewrite.dfp.dp.*;
 import org.apache.sysds.hops.rewrite.dfp.utils.*;
 import org.apache.sysds.parser.*;
 import org.apache.sysds.runtime.controlprogram.Program;
@@ -592,8 +589,16 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                             } else {
                                 releaseHopChildReference_iter(hop);
                             }
-                            if (frontMC.id % 1000 == 0) {
+                            if (frontMC.id % 100000 == 0) {
                                 LOG.info("estimate " + frontMC + " " + costTriple.getLeft());
+//                                for (DRange dRange : costGraph. nodeCostEstimator.dRangeDisjointSet.elements.keySet()) {
+//                                    HashSet<DRange> values = costGraph.nodeCostEstimator.dRangeDisjointSet.elements.get(dRange);
+//                                    LOG.info(dRange + " " + values.size());
+//                                }
+//                                for (Pair<Integer, Integer> range : costGraph.nodeCostEstimator.rangeDisjointSet.elements.keySet()) {
+//                                    HashSet<Pair<Integer, Integer>> values = costGraph.nodeCostEstimator.rangeDisjointSet.elements.get(range);
+//                                    LOG.info(range + " " + values.size());
+//                                }
                             }
                         }
                         for (int index = frontMC.last_index + 1; index < singleCse.size(); index++) {

@@ -122,14 +122,6 @@ public class CostGraph {
 //            LOG.info(e.getKey()+" "+e.getValue().size());
 //        }
 
-        for (DRange dRange: nodeCostEstimator.dRangeDisjointSet.keys()) {
-            HashSet<DRange> values = nodeCostEstimator.dRangeDisjointSet.elements(dRange);
-            LOG.info(dRange+" "+values.size());
-        }
-        for (Pair<Integer, Integer> range: nodeCostEstimator.rangeDisjointSet.keys()) {
-           HashSet<Pair<Integer, Integer>> values = nodeCostEstimator.rangeDisjointSet.elements(range);
-            LOG.info(range+" "+values.size());
-        }
 
         analyzeOperatorCostTemplate(emptyNode);
 
@@ -881,25 +873,25 @@ public class CostGraph {
 //                dRange2RangeHashMap.put(key, p.getRight());
 //            }
 //        }
-//        synchronized (nodeCostEstimator) {
-//            for (HashSet<Pair<DRange, Range>> cseNodes : cseNodesMap.values()) {
-//                for (Pair<DRange, Range> p1 : cseNodes) {
-//                    nodeCostEstimator.rangepair2rangeclass.put(p1.getLeft().getRange(), p1.getRight());
-//                    for (Pair<DRange, Range> p2 : cseNodes) {
-//                        if (nodeCostEstimator.drange2multiplycostCache.containsKey(p1.getLeft())) {
-//                            nodeCostEstimator.dRangeDisjointSet.merge(p1.getLeft(), p2.getLeft());
-//                        } else {
-//                            nodeCostEstimator.dRangeDisjointSet.merge(p2.getLeft(), p1.getLeft());
-//                        }
-//                        if (nodeCostEstimator.range2mmnodeCache.containsKey(p1.getLeft().getRange())) {
-//                            nodeCostEstimator.rangeDisjointSet.merge(p1.getLeft().getRange(), p2.getLeft().getRange());
-//                        } else {
-//                            nodeCostEstimator.rangeDisjointSet.merge(p2.getLeft().getRange(), p1.getLeft().getRange());
-//                        }
-//                    }
-//                }
-//            }
-//        }
+        nodeCostEstimator.w.lock();
+        for (HashSet<Pair<DRange, Range>> cseNodes : cseNodesMap.values()) {
+            for (Pair<DRange, Range> p1 : cseNodes) {
+                nodeCostEstimator.rangepair2rangeclass.put(p1.getLeft().getRange(), p1.getRight());
+                for (Pair<DRange, Range> p2 : cseNodes) {
+                    if (nodeCostEstimator.drange2multiplycostCache.containsKey(p1.getLeft())) {
+                        nodeCostEstimator.dRangeDisjointSet.merge(p1.getLeft(), p2.getLeft());
+                    } else {
+                        nodeCostEstimator.dRangeDisjointSet.merge(p2.getLeft(), p1.getLeft());
+                    }
+                    if (nodeCostEstimator.range2mmnodeCache.containsKey(p1.getLeft().getRange())) {
+                        nodeCostEstimator.rangeDisjointSet.merge(p1.getLeft().getRange(), p2.getLeft().getRange());
+                    } else {
+                        nodeCostEstimator.rangeDisjointSet.merge(p2.getLeft().getRange(), p1.getLeft().getRange());
+                    }
+                }
+            }
+        }
+        nodeCostEstimator.w.unlock();
     }
 
 
