@@ -74,7 +74,7 @@ public class ManualSolution {
 
     SingleCse createSingleCseBfgsHy() {
         SingleCse sHy = new SingleCse();
-        sHy.name = coordinate.getRangeName(5, 9);
+        sHy.name = coordinate.getRangeName(6, 10);
         sHy.ranges.add(Range.of(6, 10, false));
         sHy.ranges.add(Range.of(15, 19, true));
         sHy.ranges.add(Range.of(21, 25, true));
@@ -87,7 +87,7 @@ public class ManualSolution {
 
     SingleCse createSingleCseBfgsY() {
         SingleCse sY = new SingleCse();
-        sY.name = coordinate.getRangeName(5, 8);
+        sY.name = coordinate.getRangeName(7, 10);
         sY.ranges.add(Range.of(7, 10, false));
         sY.ranges.add(Range.of(15, 18, true));
         sY.ranges.add(Range.of(21, 24, true));
@@ -96,6 +96,20 @@ public class ManualSolution {
         sY.ranges.add(Range.of(37, 40, true));
         sY.ranges.add(Range.of(44, 47, false));
         sY.ranges.add(Range.of(50, 53, true));
+        return sY;
+    }
+
+    SingleCse createSingleCseBfgsAd() {
+        SingleCse sY = new SingleCse();
+        sY.name = coordinate.getRangeName(8, 10);
+        sY.ranges.add(Range.of(8, 10, false));
+        sY.ranges.add(Range.of(15, 17, true));
+        sY.ranges.add(Range.of(21, 23, true));
+        sY.ranges.add(Range.of(27, 29, false));
+        sY.ranges.add(Range.of(32, 34, true));
+        sY.ranges.add(Range.of(37, 39, true));
+        sY.ranges.add(Range.of(45, 47, false));
+        sY.ranges.add(Range.of(50, 52, true));
         return sY;
     }
 
@@ -159,6 +173,17 @@ public class ManualSolution {
         sY.ranges.add(Range.of(11, 14, true));
         sY.ranges.add(Range.of(16, 19, false));
         sY.ranges.add(Range.of(24, 27, true));
+        return sY;
+    }
+
+    SingleCse createSingleCseDfpAd() {
+        SingleCse sY = new SingleCse(); // ahg
+        sY.name = coordinate.getRangeName(3, 5);
+        sY.ranges.add(Range.of(3, 5, false));
+        sY.ranges.add(Range.of(6, 8, true));
+        sY.ranges.add(Range.of(11, 13, true));
+        sY.ranges.add(Range.of(17, 19, false));
+        sY.ranges.add(Range.of(24, 26, true));
         return sY;
     }
 
@@ -248,6 +273,7 @@ public class ManualSolution {
         MultiCse multiCse = new MultiCse();
         multiCse.cses.add(createSingleCseDfpHy());
         multiCse.cses.add(createSingleCseDfpY());
+        multiCse.cses.add(createSingleCseDfpAd());
         multiCse.cses.add(createSingleCseDfpD());
         return multiCse;
     }
@@ -296,6 +322,7 @@ public class ManualSolution {
         MultiCse multiCse = new MultiCse();
         multiCse.cses.add(createSingleCseBfgsHy());
         multiCse.cses.add(createSingleCseBfgsY());
+        multiCse.cses.add(createSingleCseBfgsAd());
         multiCse.cses.add(createSingleCseBfgsD());
         multiCse.cses.add(createSingleCseBfgsDtd2());
         multiCse.cses.add(createSingleCseBfgsDtatad());
