@@ -224,7 +224,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
 //        CostGraph costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
         CostModelCommon.MMShowCostFlag = true;
-        Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(result,multiCse);
+//        Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(result,multiCse);
+        Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost_b(result);
         costGraph.nodeCostEstimator.printCacheStats();
         LOG.info("all cost detail=" + costTriple.getLeft());
         LOG.info("constant cost detail=" + costTriple.getMiddle());
