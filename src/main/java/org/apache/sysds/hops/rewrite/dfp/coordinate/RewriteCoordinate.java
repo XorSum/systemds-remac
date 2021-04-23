@@ -77,17 +77,19 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             LOG.debug("start coordinate " + MyExplain.myExplain(root));
             LOG.debug("root: \n" + Explain.explain(root));
 
-            Triple<Hop, ArrayList<Range>, ArrayList<SingleCse>> triple = coordinate.generateOptions(root);
+            Pair<Pair<Hop,ArrayList<Range>>,Pair<ArrayList<SingleCse>,ArrayList<ArrayList<Range>>>> tuple4 = coordinate.generateOptions(root);
 
-            if (triple == null) {
+            if (tuple4 == null) {
                 LOG.debug("small leaves size, return original solution");
                 return originalSolution;
             }
             costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
 
-            Hop template = triple.getLeft();
-            ArrayList<Range> blockRanges = triple.getMiddle();
-            ArrayList<SingleCse> singleCses = triple.getRight();
+            Hop template = tuple4.getLeft().getLeft();
+            ArrayList<Range> blockRanges = tuple4.getLeft().getRight();
+            ArrayList<SingleCse> singleCses = tuple4.getRight().getLeft();
+            ArrayList<ArrayList<Range>> commonRanges = tuple4.getRight().getRight();
+            costGraph.nodeCostEstimator.initRangeDisjointset(commonRanges);
 
             long start3 = System.nanoTime();
             MySolution mySolution = null;

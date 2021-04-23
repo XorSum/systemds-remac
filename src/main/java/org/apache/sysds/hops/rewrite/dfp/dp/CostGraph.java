@@ -297,20 +297,6 @@ public class CostGraph {
     void analyzeOperatorRange(OperatorNode root, SingleCse cse, MutableInt opIndex) {
         HashSet<Pair<DRange, Range>> cseNodes = new HashSet<>();
         analyzeOperatorRangeInner(root, cse, opIndex, cseNodes);
-        assert cse.ranges.size() == cseNodes.size();
-//        for (Pair<DRange, Range> p : cseNodes) {
-//            DRange key = p.getLeft();
-//            if (!dRange2RangeHashMap.containsKey(key)) {
-//                dRange2RangeHashMap.put(key, p.getRight());
-//            }
-//        }
-        for (Pair<DRange, Range> p1 : cseNodes) {
-            nodeCostEstimator.rangepair2rangeclass.put(p1.getLeft().getRange(),p1.getRight());
-            for (Pair<DRange, Range> p2 : cseNodes) {
-                nodeCostEstimator.dRangeDisjointSet.merge(p1.getLeft(),p2.getLeft());
-                nodeCostEstimator.rangeDisjointSet.merge(p1.getLeft().getRange(),p2.getLeft().getRange());
-            }
-        }
     }
 
 
@@ -340,7 +326,7 @@ public class CostGraph {
                             (range.left == end && range.right == begin)) {
                         root.dependencies.add(cse);
                         root.dRange.cseRangeTransposeType = range.transpose;
-                        cseNodes.add(Pair.of(root.dRange, range));
+//                        cseNodes.add(Pair.of(root.dRange, range));
                         break;
                     }
                 }
@@ -854,32 +840,6 @@ public class CostGraph {
     void analyzeOperatorRange_a(OperatorNode root, MultiCse multiCse, MutableInt opIndex) {
         HashMap<SingleCse, HashSet<Pair<DRange, Range>>> cseNodesMap = new HashMap<>();
         analyzeOperatorRangeInner_a(root, multiCse, opIndex, cseNodesMap);
-        for (HashSet<Pair<DRange, Range>> cseNodes : cseNodesMap.values()) {
-            for (Pair<DRange, Range> p1 : cseNodes) {
-                nodeCostEstimator.rangepair2rangeclass.putIfAbsent(p1.getLeft().getRange(), p1.getRight());
-                for (Pair<DRange, Range> p2 : cseNodes) {
-                    NodeCost cost = nodeCostEstimator.drange2multiplycostCache.getOrDefault(p2.getLeft(), null);
-                    if (cost != null) {
-                        nodeCostEstimator.drange2multiplycostCache.putIfAbsent(p1.getLeft(), cost);
-                    }
-                    nodeCostEstimator.dRangeDisjointSet.merge(p1.getLeft(), p2.getLeft());
-//                    LOG.info("merge " + p1.getLeft() + p2.getLeft());
-                    MMNode mmNodeT = nodeCostEstimator.range2mmnodeCacheTrans.getOrDefault(p2.getLeft().getRange(), null);
-                    if (mmNodeT != null) {
-                        MMNode mmNode = nodeCostEstimator.range2mmnodeCache.getOrDefault(p2.getLeft().getRange(), null);
-                        if (nodeCostEstimator.rangepair2rangeclass.get(p2.getLeft().getRange()) == p1.getRight()) {
-                            nodeCostEstimator.range2mmnodeCache.putIfAbsent(p1.getLeft().getRange(), mmNode);
-                            nodeCostEstimator.range2mmnodeCacheTrans.putIfAbsent(p1.getLeft().getRange(), mmNodeT);
-                        } else {
-                            nodeCostEstimator.range2mmnodeCache.putIfAbsent(p1.getLeft().getRange(), mmNodeT);
-                            nodeCostEstimator.range2mmnodeCacheTrans.putIfAbsent(p1.getLeft().getRange(), mmNode);
-                        }
-                    }
-                    nodeCostEstimator.rangeDisjointSet.merge(p1.getLeft().getRange(), p2.getLeft().getRange());
-//                    LOG.info("merge " + p1.getLeft().getRange() + p2.getLeft().getRange());
-                }
-            }
-        }
     }
 
 
@@ -902,17 +862,17 @@ public class CostGraph {
         if (root.dRange == null) {
             root.dRange = new DRange(index);
             for (SingleCse cse : multiCse.cses) {
-                HashSet<Pair<DRange, Range>> cseNodes = cseNodesMap.getOrDefault(cse, new HashSet<>());
+//                HashSet<Pair<DRange, Range>> cseNodes = cseNodesMap.getOrDefault(cse, new HashSet<>());
                 for (Range range : cse.ranges) {
                     if ((range.left == begin && range.right == end) ||
                             (range.left == end && range.right == begin)) {
                         root.dependencies.add(cse);
                         root.dRange.cseRangeTransposeType = range.transpose;
-                        cseNodes.add(Pair.of(root.dRange, range));
+//                        cseNodes.add(Pair.of(root.dRange, range));
                         break;
                     }
                 }
-                cseNodesMap.put(cse, cseNodes);
+//                cseNodesMap.put(cse, cseNodes);
             }
         }
     }

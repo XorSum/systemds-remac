@@ -1,6 +1,6 @@
 package org.apache.sysds.hops.rewrite.dfp.coordinate;
 
-import org.apache.commons.lang3.tuple.Triple;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.sysds.hops.Hop;
@@ -45,7 +45,7 @@ public class Coordinate {
     }
 
 
-    Triple<Hop, ArrayList<Range>, ArrayList<SingleCse>> generateOptions(Hop root) {
+    Pair<Pair<Hop,ArrayList<Range>>,Pair<ArrayList<SingleCse>,ArrayList<ArrayList<Range>>>> generateOptions(Hop root) {
 
         long start2 = System.nanoTime();
 
@@ -86,12 +86,20 @@ public class Coordinate {
 
         ArrayList<Range> blockRanges =new ArrayList<>();
         ArrayList<SingleCse> singleCses;
+        ArrayList<ArrayList<Range>> commonRanges = new ArrayList<>();
 
-        if (RewriteCoordinate.useDynamicProgramPolicy ) {
-            singleCses = genSingleCsePerceiveSameBlock(djs, blockRanges);
+        if (RewriteCoordinate.useDynamicProgramPolicy) {
+            singleCses = genSingleCsePerceiveSameBlock(djs, blockRanges, commonRanges);
         } else {
-             singleCses = genSingleCse(djs, blockRanges);
+            singleCses = genSingleCse(djs, blockRanges, commonRanges);
         }
+
+//        for (ArrayList<Range> ranges: commonRanges) {
+//            for (Range r: ranges) {
+//                System.out.print(r+" ");
+//            }
+//            System.out.print("\n");
+//        }
 
 //        ArrayList<Range> blockRanges1 = new ArrayList<>();
 //        ArrayList<SingleCse> singleCses1 = genSingleCseSameBlockAttention(djs, blockRanges1);
@@ -101,10 +109,7 @@ public class Coordinate {
 
         long end2 = System.nanoTime();
         RewriteCoordinate.allGenerateOptionsTime += end2 - start2;
-
-        return Triple.of(template, blockRanges, singleCses);
-//        return Triple.of(template, blockRanges1, singleCses1);
-
+        return Pair.of(Pair.of(template,blockRanges),Pair.of(singleCses,commonRanges));
     }
 
 
@@ -312,10 +317,11 @@ public class Coordinate {
         return variablesUpdated.containsVariable(hop.getName());
     }
 
-    private ArrayList<SingleCse> genSingleCse(DisjointSet djs, ArrayList<Range> blockRanges) {
+    private ArrayList<SingleCse> genSingleCse(DisjointSet djs, ArrayList<Range> blockRanges,ArrayList<ArrayList<Range>> commonRanges ) {
         HashMap<HashKey, ArrayList<Range>> hash2Ranges = new HashMap<>();
         // 划分 块
         genBlocks(djs, blockRanges, hash2Ranges);
+        commonRanges.addAll(hash2Ranges.values());
         hash2Ranges.forEach((x, y) -> {
             System.out.println(x + "->" + y);
         });
@@ -381,14 +387,17 @@ public class Coordinate {
         return result;
     }
 
-    private ArrayList<SingleCse> genSingleCsePerceiveSameBlock(DisjointSet djs, ArrayList<Range> blockRanges) {
+    private ArrayList<SingleCse> genSingleCsePerceiveSameBlock(DisjointSet djs, ArrayList<Range> blockRanges,ArrayList<ArrayList<Range>> commonRanges) {
         HashMap<HashKey, ArrayList<HashSet<Range>>> hash2Ranges = new HashMap<>();
         // 划分 块
         genBlocksPerceiveSameBlock(djs, blockRanges, hash2Ranges);
         hash2Ranges.forEach((x, y) -> {
+            ArrayList<Range> tmp = new ArrayList<>();
             for (HashSet<Range> hs : y) {
+                tmp.addAll(hs);
                 System.out.print(hs);
             }
+            commonRanges.add(tmp);
             System.out.println("");
         });
 
