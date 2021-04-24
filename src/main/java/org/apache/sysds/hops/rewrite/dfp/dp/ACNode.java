@@ -4,24 +4,30 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.SingleCse;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ACNode {
 
     public Pair<Integer, Integer> range = null;
-    // ArrayList<OperatorNode> operatorNodes = new ArrayList<>();
 
-    HashMap<DRange, HashMap<HashSet<SingleCse>, OperatorNode>> drange2operatornodes = new HashMap<>();
-    HashMap<DRange,OperatorNode> drange2emptynodes = new HashMap<>();
+    ConcurrentHashMap<DRange, ConcurrentHashMap<HashSet<SingleCse>, OperatorNode>> drange2operatornodes = new ConcurrentHashMap<>();
+    ConcurrentHashMap<DRange, OperatorNode> drange2emptynodes = new ConcurrentHashMap<>();
+
+    public OperatorNode minAC = null;
+    public OperatorNode certainAC = null;
+    public ConcurrentHashMap<HashSet<SingleCse>, OperatorNode> uncertainACs = new ConcurrentHashMap<>();
+
+
+    public ACNode(Pair<Integer, Integer> range) {
+        this.range = range;
+    }
 
     void addEmptyOperatorNode(OperatorNode node) {
-        if (!drange2emptynodes.containsKey(node.dRange)) {
-            drange2emptynodes.put(node.dRange,node);
-        } else {
-            OperatorNode tmp = drange2emptynodes.get(node.dRange);
-            if (tmp.thisCost> node.thisCost) {
-                drange2emptynodes.put(node.dRange, node);
-            }
-        }
+        drange2emptynodes.computeIfPresent(node.dRange, ((dRange, node1) -> {
+            if (node1.thisCost > node.thisCost) return node;
+            else return node1;
+        }));
+        drange2emptynodes.putIfAbsent(node.dRange, node);
     }
 
     Collection<OperatorNode> getEmptyOperatorNodes() {
@@ -30,29 +36,23 @@ public class ACNode {
 
     void addOperatorNode(OperatorNode node) {
         DRange p2 = node.dRange;
-        HashMap<HashSet<SingleCse>, OperatorNode> cses2node;
-        if (drange2operatornodes.containsKey(p2)) {
-            cses2node = drange2operatornodes.get(p2);
-        } else {
-            cses2node = new HashMap<>();
-        }
-        if (cses2node.containsKey(node.dependencies)) {
-            if (node.lessThan(cses2node.get(node.dependencies))) {
-//            if (cses2node.get(node.dependencies).thisCost > node.thisCost) {
-                cses2node.put(node.dependencies, node);
+        drange2operatornodes.putIfAbsent(p2, new ConcurrentHashMap<>());
+        ConcurrentHashMap<HashSet<SingleCse>, OperatorNode> cses2node = drange2operatornodes.get(p2);
+        cses2node.computeIfPresent(node.dependencies, (cses, node1) -> {
+            if (node.lessThan(node1)) {
+                return node;
+            } else {
+                return node1;
             }
-        } else {
-            cses2node.put(node.dependencies, node);
-        }
-        drange2operatornodes.put(p2, cses2node);
+        });
+        cses2node.putIfAbsent(node.dependencies, node);
     }
 
     ArrayList<OperatorNode> getOperatorNodes(CseStateMaintainer maintainer) {
         uncertainACs.entrySet().removeIf(entry -> maintainer.hasUselessCse(entry.getKey()));
         ArrayList<OperatorNode> ops = new ArrayList<>(uncertainACs.values());
         if (certainAC != null) ops.add(certainAC);
-        if (emptyOpnode!=null) ops.add(emptyOpnode);
-        for (HashMap<HashSet<SingleCse>, OperatorNode> x : drange2operatornodes.values()) {
+        for (Map<HashSet<SingleCse>, OperatorNode> x : drange2operatornodes.values()) {
             for (OperatorNode node : x.values()) {
                 if (node.accCost < Double.MAX_VALUE / 2) {
                     if (!maintainer.hasUselessCse(node.dependencies))
@@ -63,45 +63,13 @@ public class ACNode {
         return ops;
     }
 
-    public OperatorNode emptyOpnode = null;
-    public OperatorNode minAC = null;
-    public OperatorNode certainAC = null;
-    public HashMap<HashSet<SingleCse>, OperatorNode> certainACs = new HashMap<>();
-    // todo: certainACs
-
-//    ArrayList<OperatorNode> uncertainACs = new ArrayList<>();
-
-    public HashMap<HashSet<SingleCse>, OperatorNode> uncertainACs = new HashMap<>();
 
     void addUncertainAC(OperatorNode node) {
-        if (uncertainACs.containsKey(node.dependencies)) {
-            if (node.lessThan(uncertainACs.get(node.dependencies))) {
-                uncertainACs.put(node.dependencies, node);
-            }
-        } else {
-            uncertainACs.put(node.dependencies, node);
-        }
-//        boolean insert = true;
-//        for (OperatorNode node1: uncertainACs) {
-//            boolean x = true;
-//            for (SingleCse s:node.dependencies) {
-//                if (!node1.dependencies.contains(s)) {
-//                    x=false;break;
-//                }
-//            }
-//            for (SingleCse s:node1.dependencies) {
-//                if (!node.dependencies.contains(s)) {
-//                    x=false;break;
-//                }
-//            }
-//            if (x) {
-//                insert = false;break;
-//            }
-////            if (node.dependencies == node1.dependencies) {
-////                insert = false;break;
-////            }
-//        }
-//        if (insert) uncertainACs.add(node);
+        uncertainACs.computeIfPresent(node.dependencies, (cse, node1) -> {
+            if (node.lessThan(node1)) return node;
+            else return node1;
+        });
+        uncertainACs.putIfAbsent(node.dependencies, node);
     }
 
 

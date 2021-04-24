@@ -22,6 +22,7 @@ import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
 import org.apache.sysds.runtime.controlprogram.context.SparkExecutionContext;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 
@@ -41,6 +42,8 @@ public class CostGraph {
     public VariableSet variablesUpdated = null;
 
     public static long dynamicProgramTime = 0;
+
+    ConcurrentHashMap<Pair<Integer, Integer>, ACNode> range2acnode = new ConcurrentHashMap<>();
 
     public ArrayList<OperatorNode> testOperatorGraph(ArrayList<SinglePlan> singlePlans,
                                                      SingleCse emptyCse,
@@ -125,13 +128,24 @@ public class CostGraph {
 
         analyzeOperatorCostTemplate(emptyNode);
 
-        for (SinglePlan singlePlan: placePlans) {
-            analyzeOperatorCostTemplate(singlePlan.node);
-        }
+//  single thread
+//        for (SinglePlan singlePlan: placePlans) {
+//            analyzeOperatorCostTemplate(singlePlan.node);
+//        }
+//
+//        for (SinglePlan singlePlan: singlePlans) {
+//            analyzeOperatorCost(singlePlan.node);
+//        }
 
-        for (SinglePlan singlePlan: singlePlans) {
+//  multi threads
+        placePlans.parallelStream().forEach(singlePlan ->  {
+            analyzeOperatorCostTemplate(singlePlan.node);
+        });
+
+        singlePlans.parallelStream().forEach(singlePlan ->  {
             analyzeOperatorCost(singlePlan.node);
-        }
+        });
+
 
         range2acnode.forEach((range,acnode)->{
             LOG.info("range: "+range);
@@ -290,10 +304,6 @@ public class CostGraph {
     }
 
 
-
-//    HashMap<DRange, Range> dRange2RangeHashMap = new HashMap<>();
-
-
     void analyzeOperatorRange(OperatorNode root, SingleCse cse, MutableInt opIndex) {
         HashSet<Pair<DRange, Range>> cseNodes = new HashSet<>();
         analyzeOperatorRangeInner(root, cse, opIndex, cseNodes);
@@ -360,66 +370,22 @@ public class CostGraph {
             node.accCost = 0;
             node.accCostDetails = NodeCost.ZERO();
         }
-        NodeCost thisCostDetail = this.nodeCostEstimator.getNodeCost(node);
-        node.thisCost = thisCostDetail.getSummary();
-        node.thisCostDetails = thisCostDetail;
+        Pair<Integer,Integer> range = node.dRange.getRange();
+        range2acnode.putIfAbsent(range, new ACNode(range));
+        ACNode acNode = range2acnode.get(range);
+        synchronized (acNode) {
+            NodeCost thisCostDetail = this.nodeCostEstimator.getNodeCost(node);
+            node.thisCost = thisCostDetail.getSummary();
+            node.thisCostDetails = thisCostDetail;
+        }
         for (int i = 0; i < node.inputs.size(); i++) {
             analyzeOperatorCostTemplate(node.inputs.get(i));
         }
-        if (!range2acnode.containsKey(node.dRange.getRange())) {
-            ACNode acNode = new ACNode();
-            acNode.range = node.dRange.getRange();
-            acNode.emptyOpnode = node;
-            acNode.addEmptyOperatorNode(node);
-            acNode.addOperatorNode(node);
-            range2acnode.put(node.dRange.getRange(), acNode);
-        } else {
-            ACNode acNode = range2acnode.get(node.dRange.getRange());
-            acNode.addEmptyOperatorNode(node);
-            acNode.addOperatorNode(node);
-        }
+
+        acNode.addEmptyOperatorNode(node);
+        acNode.addOperatorNode(node);
+
     }
-
-//    void analyzeOperatorCost(OperatorNode node) {
-//        if (node.inputs.size() == 0) {
-//            node.accCost = 0;
-//            node.accCostDetails = NodeCost.ZERO();
-//        }
-//        NodeCost thisCostDetail = this.nodeCostEstimator.getNodeCost(node);
-//        for (int i = 0; i < node.inputs.size(); i++) {
-//            analyzeOperatorCost(node.inputs.get(i));
-//        }
-//        int csesize = 1;
-//        for (SingleCse singleCse : node.dependencies) {
-//            for (int i = 0; i < singleCse.ranges.size(); i++) {
-//                if (singleCse.ranges.get(i).left == node.dRange.getLeft()
-//                        && singleCse.ranges.get(i).right == node.dRange.getRight()) {
-//                    csesize = singleCse.ranges.size();
-//                    break;
-//                }
-//            }
-//        }
-//        if (csesize > 0) {
-////            thisCost = thisCost / csesize;
-//            thisCostDetail.multiply(1.0 / csesize);
-//            //   accCost = accCost / csesize;
-//        }
-//        if (node.isConstant) {
-//            thisCostDetail.multiply(1.0 / iterationNumber);
-//        }
-//        //  accCost += thisCost;
-//        //  node.accCost = accCost;
-//        node.thisCostDetails = thisCostDetail;
-//        node.thisCost = thisCostDetail.getSummary();
-//        // if (node.range.getLeft()==2&&node.range.getRight()==3)   System.out.println(thisCost);
-//        //  System.out.println(node);
-//        range2acnode.get(node.dRange.getRange()).addOperatorNode(node);
-////        if (node.range.getLeft()==2&&node.range.getRight()==3) {
-////            System.out.println("node(2,3): "+ node);
-////        }
-////        System.out.println("add node "+node.range+" "+node);
-//    }
-
 
     void analyzeOperatorCost(OperatorNode node) {
         if (node.inputs.size() == 0) {
@@ -429,60 +395,26 @@ public class CostGraph {
             analyzeOperatorCost(node.inputs.get(i));
         }
         if (!node.dependencies.isEmpty()) {
+            ACNode acNode = range2acnode.get(node.dRange.getRange());
             for (SingleCse singleCse : node.dependencies) {
                 int  csesize = singleCse.ranges.size();
-                Collection<OperatorNode> operators = range2acnode.get(node.dRange.getRange()).getEmptyOperatorNodes();
+                Collection<OperatorNode> operators = acNode.getEmptyOperatorNodes();
                 for (OperatorNode n : operators) {
                     OperatorNode node1 =  n.copy();
                     NodeCost thisCostDetail = n.thisCostDetails.clone();
                     if (csesize > 0) {
-                        thisCostDetail.divide( csesize);
+                        thisCostDetail.divide(csesize);
                     }
                     if (node.isConstant) {
-                        thisCostDetail.divide( iterationNumber);
+                        thisCostDetail.divide(iterationNumber);
                     }
                     node1.thisCostDetails = thisCostDetail;
                     node1.thisCost = thisCostDetail.getSummary();
                     node1.dependencies.add(singleCse);
-                    range2acnode.get(node1.dRange.getRange()).addOperatorNode(node1);
+                    acNode.addOperatorNode(node1);
                 }
             }
         }
-    }
-
-   HashMap<Pair<Integer, Integer>, ACNode> range2acnode = new HashMap<>();
-
-
-    void classifyOperatorNode(CseStateMaintainer MAINTAINER, ArrayList<OperatorNode> allResults, ACNode acNode) {
-        acNode.uncertainACs = new HashMap<>();
-        int removed1 = 0, removed2 = 0;
-        for (OperatorNode node : allResults) {
-            boolean hasUselessCse = MAINTAINER.hasUselessCse(node.dependencies);
-            boolean hasUncertainCse = MAINTAINER.hasUncertain(node.dependencies);
-            if (hasUselessCse) {
-                removed1++;
-                continue;
-            }
-            for (Iterator<SingleCse> cseIterator = node.dependencies.iterator(); cseIterator.hasNext(); ) {
-                SingleCse cse = cseIterator.next();
-                if (MAINTAINER.getCseState(cse) == CseStateMaintainer.CseState.certainlyUseful) {
-                    node.oldDependencies.add(cse);
-                    cseIterator.remove();
-                }
-            }
-            if (hasUncertainCse) {
-                acNode.addUncertainAC(node);
-            } else {
-                removed2++;
-                if (acNode.certainAC == null || node.lessThan(acNode.certainAC)) {
-                    acNode.certainAC = node;
-                }
-            }
-            if (acNode.minAC == null || node.lessThan(acNode.minAC)) {
-                acNode.minAC = node;
-            }
-        }
-//        System.out.println(acNode.range + " remove " + removed1 + " " + removed2);
     }
 
     void classifyOperatorNodeParallel(CseStateMaintainer MAINTAINER, ArrayList<OperatorNode> allResults, ACNode acNode) {
@@ -506,18 +438,16 @@ public class CostGraph {
                     return node2;
                 });
 
-        acNode.uncertainACs = new HashMap<>();
+        acNode.uncertainACs = new ConcurrentHashMap<>();
         allResults
                 .stream()
                 .filter(node -> MAINTAINER.hasUncertain(node.dependencies))
-                .forEach(node -> {
-                        acNode.addUncertainAC(node);
-                });
+                .forEach(node -> {acNode.addUncertainAC(node); });
         long end = System.nanoTime();
         classifytime += end - start;
     }
-   public static  long classifytime = 0;
 
+    public static long classifytime = 0;
     public static boolean parallelDynamicProgramming = true;
     public static int all_old_combine_num = 0;
     public static int all_new_combine_num = 0;
@@ -627,7 +557,7 @@ public class CostGraph {
                 }
             }
             if (!range2acnode.containsKey(boundery)) {
-                range2acnode.put(boundery, new ACNode());
+                range2acnode.put(boundery, new ACNode(boundery));
             } else {
                 LOG.info("boundery: " + boundery + " uncertainACs size: " + range2acnode.get(boundery).uncertainACs.size());
             }
