@@ -323,22 +323,22 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             ArrayList<Hop> hops = createNecessaryHops(singleCses, emptyHop, blockRanges);
 //            ArrayList<Hop> hops = createHops(template, blockRanges);
 
-//            // debug
-//            ArrayList<Hop> hops2 = createHops(template, blockRanges);
-//            TreeSet<String> set = new TreeSet<>();
-//            TreeSet<String> set2 = new TreeSet<>();
-//            TreeSet<String> dSet = new TreeSet<>();
-//            TreeSet<String> dSet2 = new TreeSet<>();
-//            for (Hop hop : hops) {
-//                set.addAll(Explain.explainBlocks(hop));
-//            }
-//            for (Hop hop : hops2) {
-//                set2.addAll(Explain.explainBlocks(hop));
-//            }
-//            dSet.addAll(set);
-//            dSet2.addAll(set2);
-//            dSet.removeAll(set2);
-//            dSet2.removeAll(set);
+            // debug
+            ArrayList<Hop> hops2 = createHops(template, blockRanges);
+            TreeSet<String> set = new TreeSet<>();
+            TreeSet<String> set2 = new TreeSet<>();
+            TreeSet<String> dSet = new TreeSet<>();
+            TreeSet<String> dSet2 = new TreeSet<>();
+            for (Hop hop : hops) {
+                set.addAll(Explain.explainBlocks(hop));
+            }
+            for (Hop hop : hops2) {
+                set2.addAll(Explain.explainBlocks(hop));
+            }
+            dSet.addAll(set);
+            dSet2.addAll(set2);
+            dSet.removeAll(set2);
+            dSet2.removeAll(set);
 
             ArrayList<SinglePlan> placePlans = new ArrayList<>();
             for (Hop h : hops) {
@@ -876,7 +876,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             for (int i = cseRange.left; i <= cseRange.right; i++) {
                 children.add(dataList.get(i - blockRange.left));
             }
-            RangeTree cseTree = createOptimalRangeTrees(children, false).get(0);
+            RangeTree cseTree = createOptimalRangeTrees(children).get(0);
 
             children = new ArrayList<>(blockRange.size() - cseRange.size() + 1);
             for (int i = blockRange.left; i <= blockRange.right; i++) {
@@ -887,7 +887,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     children.add(dataList.get(i - blockRange.left));
                 }
             }
-            ArrayList<RangeTree> blockTrees = createOptimalRangeTrees(children, true);
+            ArrayList<RangeTree> blockTrees = createOptimalRangeTrees(children);
 
             for (RangeTree tree : blockTrees) {
                 Hop hop = coordinate.rCreateHop(tree);
@@ -913,6 +913,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     copy = hop;
                 }
 
+                if (Explain.explainBlocks(copy).contains("1: (h A A h g) (g h)")) {
+                    int i = 0;
+                }
+
                 ret.add(copy);
             }
         }
@@ -920,27 +924,42 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return ret;
     }
 
-    private ArrayList<RangeTree> createOptimalRangeTrees(ArrayList<RangeTree> treesList, boolean mult) {
+    private ArrayList<RangeTree> createOptimalRangeTrees(ArrayList<RangeTree> treesList) {
         Queue<ArrayList<RangeTree>> queue = new LinkedList<>();
-        ArrayList<RangeTree> ret = new ArrayList<>();
+        ArrayList<RangeTree> raw = new ArrayList<>();
 
         queue.offer(treesList);
         while (!queue.isEmpty()) {
             ArrayList<RangeTree> trees = queue.poll();
-            ArrayList<ArrayList<RangeTree>> list = createOptimalRangeTreesList(trees, mult);
+            ArrayList<ArrayList<RangeTree>> list = createOptimalRangeTreesList(trees);
             for (ArrayList<RangeTree> l : list) {
                 if (l.size() == 1) {
-                    ret.add(l.get(0));
+                    raw.add(l.get(0));
                 } else {
                     queue.offer(l);
                 }
             }
         }
 
+        long[] costs = new long[raw.size()];
+        long minCost = Long.MAX_VALUE;
+        ArrayList<RangeTree> ret = new ArrayList<>();
+        for (int i = 0; i < raw.size(); i++) {
+            costs[i] = estimateCost(raw.get(i));
+        }
+        for (long cost : costs) {
+            minCost = Math.min(minCost, cost);
+        }
+        for (int i = 0; i < raw.size(); i++) {
+            if (costs[i] == minCost) {
+                ret.add(raw.get(i));
+            }
+        }
+
         return ret;
     }
 
-    private ArrayList<ArrayList<RangeTree>> createOptimalRangeTreesList(ArrayList<RangeTree> trees, boolean mult) {
+    private ArrayList<ArrayList<RangeTree>> createOptimalRangeTreesList(ArrayList<RangeTree> trees) {
         ArrayList<ArrayList<RangeTree>> ret = new ArrayList<>();
 
         if (trees.size() < 2) {
@@ -948,29 +967,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             return ret;
         }
 
-        Long[] costs = new Long[trees.size() - 1];
-        for (int i = 0; i < trees.size() - 1; i++) {
-            RangeTree a = trees.get(i);
-            RangeTree b = trees.get(i + 1);
-            long nRow = coordinate.leaves.get(a.left).hop.getCharacteristics().getRows();
-            long nMiddle = coordinate.leaves.get(a.right).hop.getCharacteristics().getCols();
-            long nCol = coordinate.leaves.get(b.right).hop.getCharacteristics().getCols();
-            costs[i] = nRow * nMiddle * nCol;
-        }
-
-        long min = Collections.min(Arrays.asList(costs));
-        ArrayList<Integer> idxList = new ArrayList<>();
-        for (int i = 0; i < costs.length; i++) {
-            if (costs[i] == min) {
-                idxList.add(i);
-                if (!mult) {
-                    break;
-                }
-            }
-        }
-
-        for (int idx : idxList) {
-            ArrayList<RangeTree> list = new ArrayList<>(costs.length);
+        for (int idx = 0; idx < trees.size() - 1; idx++) {
+            ArrayList<RangeTree> list = new ArrayList<>(trees.size() - 1);
             for (int i = 0; i < trees.size(); i++) {
                 RangeTree a = trees.get(i);
                 if (i == idx) {
@@ -988,6 +986,26 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             }
             ret.add(list);
         }
+
+        return ret;
+    }
+
+    private long estimateCost(RangeTree tree) {
+        if (tree.left == tree.right || tree.children.size() > 2) {
+            return 0;
+        }
+
+        long ret = 0;
+        for (RangeTree child : tree.children) {
+            ret += estimateCost(child);
+        }
+
+        RangeTree a = tree.children.get(0);
+        RangeTree b = tree.children.get(1);
+        long nRow = coordinate.leaves.get(a.left).hop.getCharacteristics().getRows();
+        long nMiddle = coordinate.leaves.get(a.right).hop.getCharacteristics().getCols();
+        long nCol = coordinate.leaves.get(b.right).hop.getCharacteristics().getCols();
+        ret += nRow * nMiddle * nCol;
 
         return ret;
     }
