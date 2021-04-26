@@ -226,13 +226,21 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
 //        CostGraph costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
         CostModelCommon.MMShowCostFlag = true;
-//        Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(result,multiCse);
-        Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost_b(result);
-        costGraph.nodeCostEstimator.printCacheStats();
-        LOG.info("all cost detail=" + costTriple.getLeft());
-        LOG.info("constant cost detail=" + costTriple.getMiddle());
-        LOG.info(CostGraph.explainOpNode(costTriple.getRight(), 0));
+        Triple<NodeCost, NodeCost, OperatorNode> costTriple1 = costGraph.estimateHopCost_b(result);
+        LOG.info("all cost detail1=" + costTriple1.getLeft());
+        LOG.info("constant cost detail1=" + costTriple1.getMiddle());
 
+        Triple<NodeCost, NodeCost, OperatorNode> costTriple2 = costGraph.estimateHopCost(result,multiCse);
+        LOG.info("all cost detail2=" + costTriple2.getLeft());
+        LOG.info("constant cost detail2=" + costTriple2.getMiddle());
+
+        LOG.info("----------------------------------");
+        LOG.info(CostGraph.explainOpNode(costTriple1.getRight(), 0));
+        LOG.info("----------------------------------");
+        LOG.info(CostGraph.explainOpNode(costTriple2.getRight(), 0));
+        LOG.info("----------------------------------");
+
+        costGraph.nodeCostEstimator.printCacheStats();
         MySolution solution;
         if (liftConstant) solution = constantUtilByTag.liftLoopConstant(result);
         else solution = new MySolution(result);
@@ -241,7 +249,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             h.resetVisitStatusForced(new HashSet<>());
         }
         solution.body.resetVisitStatusForced(new HashSet<>());
-        solution.cost = costTriple.getLeft().getSummary();
+        solution.cost = costTriple1.getLeft().getSummary();
         LOG.info("manual solution:\n" + solution);
         return solution;
     }

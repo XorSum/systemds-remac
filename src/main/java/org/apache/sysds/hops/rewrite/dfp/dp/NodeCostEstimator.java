@@ -383,7 +383,7 @@ public class NodeCostEstimator {
                 }
             }
         }
-        ans.collectCost += eCollectCost(opnode);
+        ans.collectCost += eCollectCost(opnode);  //collect
         if (ans.getSummary() >= Double.MAX_VALUE / 2 || ans.getSummary() < 0) {
             LOG.error("cost infinate " + opnode);
             System.exit(-1);
@@ -635,7 +635,7 @@ public class NodeCostEstimator {
             LOG.info("end>>>  eMapMM");
         }
 //        return computeCost + shuffleCost + broadcastCost + collectCost;
-        return new NodeCost(shuffleCost, broadcastCost, computeCost, foldCost);
+        return new NodeCost(shuffleCost, broadcastCost, computeCost, foldCost); //collect
     }
 
 
@@ -681,7 +681,7 @@ public class NodeCostEstimator {
             LOG.info("end>>>  eCPMM");
         }
 //        return shuffleCost1 + shuffleCost2 + computeCost;
-        return new NodeCost(shuffleCost2, 0, computeCost, foldCost, joinCost1);
+        return new NodeCost(shuffleCost2, 0, computeCost, foldCost, joinCost1);  //collect
     }
 
     NodeCost eTSMM(OperatorNode node, AggBinaryOp hop,
@@ -698,7 +698,7 @@ public class NodeCostEstimator {
         LOG.info("matrix_size: " + matrix_size);
         LOG.info("foldCost: " + foldCost);
         LOG.info("end>>>  eTSMM");
-        return new NodeCost(0, 0, computeCost, foldCost);
+        return new NodeCost(0, 0, computeCost, foldCost);  //collect
     }
 
     NodeCost eRMM(OperatorNode node, AggBinaryOp hop,
@@ -769,7 +769,7 @@ public class NodeCostEstimator {
         LOG.info("foldCost: " + foldCost);
         //        return computeCost + foldCost + broadcastCost;
         LOG.info("end>>>  eMapMMChain");
-        return new NodeCost(0, broadcastCost, computeCost, foldCost);
+        return new NodeCost(0, broadcastCost, computeCost, foldCost);  //collect
     }
 
     NodeCost eZipMM(OperatorNode node, AggBinaryOp hop,
@@ -789,7 +789,7 @@ public class NodeCostEstimator {
         LOG.info("foldCost: " + foldCost);
         LOG.info("end>>>  eZipMM");
 //        return computeCost + foldCost;
-        return new NodeCost(0, 0, computeCost, foldCost, joinCost);
+        return new NodeCost(0, 0, computeCost, foldCost, joinCost);  //collect
     }
 
     NodeCost eBinaryMatrixScalar(OperatorNode operatorNode, Hop hop) {
