@@ -12,10 +12,7 @@ import org.apache.sysds.hops.rewrite.dfp.MySolution;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.CostModelCommon;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.DistributedScratch;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
-import org.apache.sysds.hops.rewrite.dfp.dp.CostGraph;
-import org.apache.sysds.hops.rewrite.dfp.dp.NodeCost;
-import org.apache.sysds.hops.rewrite.dfp.dp.OperatorNode;
-import org.apache.sysds.hops.rewrite.dfp.dp.SinglePlan;
+import org.apache.sysds.hops.rewrite.dfp.dp.*;
 import org.apache.sysds.hops.rewrite.dfp.utils.*;
 import org.apache.sysds.parser.*;
 import org.apache.sysds.runtime.controlprogram.Program;
@@ -80,20 +77,19 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             LOG.debug("start coordinate " + MyExplain.myExplain(root));
             LOG.debug("root: \n" + Explain.explain(root));
 
-            Triple<Hop, ArrayList<Range>, ArrayList<SingleCse>> triple = coordinate.generateOptions(root);
+            Pair<Pair<Hop,ArrayList<Range>>,Pair<ArrayList<SingleCse>,ArrayList<ArrayList<Range>>>> tuple4 = coordinate.generateOptions(root);
 
-            if (triple == null) {
+            if (tuple4 == null) {
                 LOG.debug("small leaves size, return original solution");
                 return originalSolution;
             }
             costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
-            Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost_b(root);
-            originalSolution.cost = costTriple.getLeft().getSummary();
-            originalSolution.costDetail = costTriple.getLeft();
 
-            Hop template = triple.getLeft();
-            ArrayList<Range> blockRanges = triple.getMiddle();
-            ArrayList<SingleCse> singleCses = triple.getRight();
+            Hop template = tuple4.getLeft().getLeft();
+            ArrayList<Range> blockRanges = tuple4.getLeft().getRight();
+            ArrayList<SingleCse> singleCses = tuple4.getRight().getLeft();
+            ArrayList<ArrayList<Range>> commonRanges = tuple4.getRight().getRight();
+            costGraph.nodeCostEstimator.initRangeDisjointset(commonRanges);
 
             long start3 = System.nanoTime();
             MySolution mySolution = null;
@@ -114,10 +110,22 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             }
             long end3 = System.nanoTime();
             allGenerateCombinationsTime += end3 - start3;
-            if (mySolution != null && (mySolution.cost < originalSolution.cost || useManualPolicy)) {
-                LOG.info("return rewrited solution");
-                System.out.println("return rewrited solution");
-                return mySolution;
+            if (mySolution != null) {
+                if (useManualPolicy) {
+                    LOG.info("return rewrited solution");
+                    System.out.println("return rewrited solution");
+                    return mySolution;
+                } else {
+
+                    Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost_b(root);
+                    originalSolution.cost = costTriple.getLeft().getSummary();
+                    originalSolution.costDetail = costTriple.getLeft();
+                    if (mySolution.cost < originalSolution.cost) {
+                        LOG.info("return rewrited solution");
+                        System.out.println("return rewrited solution");
+                        return mySolution;
+                    }
+                }
             } else {
                 LOG.info("return original solution");
                 System.out.println("return original solution");
@@ -218,7 +226,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
 //        CostGraph costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
         CostModelCommon.MMShowCostFlag = true;
-        Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(result,multiCse);
+//        Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(result,multiCse);
+        Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost_b(result);
+        costGraph.nodeCostEstimator.printCacheStats();
         LOG.info("all cost detail=" + costTriple.getLeft());
         LOG.info("constant cost detail=" + costTriple.getMiddle());
         LOG.info(CostGraph.explainOpNode(costTriple.getRight(), 0));
@@ -575,10 +585,6 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     if (frontMC == null) {
                         break;
                     } else {
-                        if (frontMC.id % 10000 == 0) {
-//                            LOG.info(result.size() + " " + frontMC);
-                            LOG.info(frontMC);
-                        }
                         generated_multicses.add(frontMC);
                         if (pipeline) {
                             Hop hop = threadCoordinate.createHop_copy_sc(frontMC, template, blockRanges);
@@ -592,9 +598,13 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                             } else {
                                 releaseHopChildReference_iter(hop);
                             }
-                            if (frontMC.id % 1000 == 0) {
+                            if (frontMC.id % 100000 == 0) {
                                 LOG.info("estimate " + frontMC + " " + costTriple.getLeft());
+                                costGraph.nodeCostEstimator.printCacheStats();
                             }
+                        } else if (frontMC.id % 10000 == 0) {
+//                            LOG.info(result.size() + " " + frontMC);
+                            LOG.info(frontMC);
                         }
                         for (int index = frontMC.last_index + 1; index < singleCse.size(); index++) {
                             SingleCse scA = singleCse.get(index);

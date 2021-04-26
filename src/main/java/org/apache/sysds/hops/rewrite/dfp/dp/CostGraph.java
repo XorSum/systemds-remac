@@ -122,14 +122,6 @@ public class CostGraph {
 //            LOG.info(e.getKey()+" "+e.getValue().size());
 //        }
 
-        for (DRange dRange: nodeCostEstimator.dRangeDisjointSet.keys()) {
-            HashSet<DRange> values = nodeCostEstimator.dRangeDisjointSet.elements(dRange);
-            LOG.info(dRange+" "+values.size());
-        }
-        for (Pair<Integer, Integer> range: nodeCostEstimator.rangeDisjointSet.keys()) {
-           HashSet<Pair<Integer, Integer>> values = nodeCostEstimator.rangeDisjointSet.elements(range);
-            LOG.info(range+" "+values.size());
-        }
 
         analyzeOperatorCostTemplate(emptyNode);
 
@@ -305,20 +297,6 @@ public class CostGraph {
     void analyzeOperatorRange(OperatorNode root, SingleCse cse, MutableInt opIndex) {
         HashSet<Pair<DRange, Range>> cseNodes = new HashSet<>();
         analyzeOperatorRangeInner(root, cse, opIndex, cseNodes);
-        assert cse.ranges.size() == cseNodes.size();
-//        for (Pair<DRange, Range> p : cseNodes) {
-//            DRange key = p.getLeft();
-//            if (!dRange2RangeHashMap.containsKey(key)) {
-//                dRange2RangeHashMap.put(key, p.getRight());
-//            }
-//        }
-        for (Pair<DRange, Range> p1 : cseNodes) {
-            nodeCostEstimator.rangepair2rangeclass.put(p1.getLeft().getRange(),p1.getRight());
-            for (Pair<DRange, Range> p2 : cseNodes) {
-                nodeCostEstimator.dRangeDisjointSet.merge(p1.getLeft(),p2.getLeft());
-                nodeCostEstimator.rangeDisjointSet.merge(p1.getLeft().getRange(),p2.getLeft().getRange());
-            }
-        }
     }
 
 
@@ -348,7 +326,7 @@ public class CostGraph {
                             (range.left == end && range.right == begin)) {
                         root.dependencies.add(cse);
                         root.dRange.cseRangeTransposeType = range.transpose;
-                        cseNodes.add(Pair.of(root.dRange, range));
+//                        cseNodes.add(Pair.of(root.dRange, range));
                         break;
                     }
                 }
@@ -862,44 +840,6 @@ public class CostGraph {
     void analyzeOperatorRange_a(OperatorNode root, MultiCse multiCse, MutableInt opIndex) {
         HashMap<SingleCse, HashSet<Pair<DRange, Range>>> cseNodesMap = new HashMap<>();
         analyzeOperatorRangeInner_a(root, multiCse, opIndex, cseNodesMap);
-
-//        boolean has23 = false,has45=false;
-//        for (SingleCse cse: multiCse.cses) {
-//            for (Range range: cse.ranges) {
-//                if (range.left==2&&range.right==3) has23 = true;
-//                if (range.left==4&&range.right==5) has45 = true;
-//            }
-//        }
-//        if (has23&&has45) {
-//            LOG.info("has23&&has45");
-//            LOG.info(multiCse);
-//        }
-//
-//        for (Pair<DRange, Range> p : cseNodes) {
-//            DRange key = p.getLeft();
-//            if (!dRange2RangeHashMap.containsKey(key)) {
-//                dRange2RangeHashMap.put(key, p.getRight());
-//            }
-//        }
-//        synchronized (nodeCostEstimator) {
-//            for (HashSet<Pair<DRange, Range>> cseNodes : cseNodesMap.values()) {
-//                for (Pair<DRange, Range> p1 : cseNodes) {
-//                    nodeCostEstimator.rangepair2rangeclass.put(p1.getLeft().getRange(), p1.getRight());
-//                    for (Pair<DRange, Range> p2 : cseNodes) {
-//                        if (nodeCostEstimator.drange2multiplycostCache.containsKey(p1.getLeft())) {
-//                            nodeCostEstimator.dRangeDisjointSet.merge(p1.getLeft(), p2.getLeft());
-//                        } else {
-//                            nodeCostEstimator.dRangeDisjointSet.merge(p2.getLeft(), p1.getLeft());
-//                        }
-//                        if (nodeCostEstimator.range2mmnodeCache.containsKey(p1.getLeft().getRange())) {
-//                            nodeCostEstimator.rangeDisjointSet.merge(p1.getLeft().getRange(), p2.getLeft().getRange());
-//                        } else {
-//                            nodeCostEstimator.rangeDisjointSet.merge(p2.getLeft().getRange(), p1.getLeft().getRange());
-//                        }
-//                    }
-//                }
-//            }
-//        }
     }
 
 
@@ -922,17 +862,17 @@ public class CostGraph {
         if (root.dRange == null) {
             root.dRange = new DRange(index);
             for (SingleCse cse : multiCse.cses) {
-                HashSet<Pair<DRange, Range>> cseNodes = cseNodesMap.getOrDefault(cse, new HashSet<>());
+//                HashSet<Pair<DRange, Range>> cseNodes = cseNodesMap.getOrDefault(cse, new HashSet<>());
                 for (Range range : cse.ranges) {
                     if ((range.left == begin && range.right == end) ||
                             (range.left == end && range.right == begin)) {
                         root.dependencies.add(cse);
                         root.dRange.cseRangeTransposeType = range.transpose;
-                        cseNodes.add(Pair.of(root.dRange, range));
+//                        cseNodes.add(Pair.of(root.dRange, range));
                         break;
                     }
                 }
-                cseNodesMap.put(cse, cseNodes);
+//                cseNodesMap.put(cse, cseNodes);
             }
         }
     }

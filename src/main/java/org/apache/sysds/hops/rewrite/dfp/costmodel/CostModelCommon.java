@@ -14,9 +14,9 @@ public class CostModelCommon {
     public static final long defaultExecutorCores = 24;
 
     public static double CpuSpeed = 1.0;
-    public static double ShuffleSpeed = 50000.0;
-    public static double BroadCaseSpeed = 15000.0;
-    public static double JoinSpeed = 65000.0;
+    public static double ShuffleSpeed = 50000.0*0.890192;
+    public static double BroadCaseSpeed = 15000.0*0.910488;
+    public static double JoinSpeed = 65000.0*0.847603;
 
     public static int defaultBlockSize = 1000;
 
