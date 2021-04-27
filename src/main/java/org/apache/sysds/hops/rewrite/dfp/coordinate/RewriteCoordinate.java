@@ -721,6 +721,16 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return solutions;
     }
 
+//    private ArrayList<Pair<SingleCse, Hop>> genHopFromSingleCses(ArrayList<SingleCse> singleCses, Hop template, ArrayList<Range> blockRanges) {
+//        ArrayList<Pair<SingleCse,Hop>> list = new ArrayList<>();
+//        for (SingleCse sc : singleCses) {
+//            Hop h = coordinate.createHop(sc, template, blockRanges);
+//            Hop copy = deepCopyHopsDag(h);
+//            rewriteCommonSubexpressionElimination.rewriteHopDAG(copy, new ProgramRewriteStatus());
+//            list.add(Pair.of(sc,copy));
+//        }
+//        return list;
+//    }
 
     private ArrayList<Pair<SingleCse, Hop>> genHopFromSingleCses(ArrayList<SingleCse> singleCses, Hop template, ArrayList<Range> blockRanges) {
         HashMap<Pair<Long, Long>, Pair<SingleCse, Hop>> filter = new HashMap<>();

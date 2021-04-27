@@ -15,6 +15,7 @@ import org.apache.sysds.hops.rewrite.dfp.utils.Prime;
 import org.apache.sysds.parser.VariableSet;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.isLeafMatrix;
@@ -465,9 +466,11 @@ public class Coordinate {
             }
         }
         if (!isCons) {
-            if (rangesets.size() > 0) {
-                result.subList(0, rangesets.size()).clear();
-            }
+            ArrayList<SingleCse> tmp = new ArrayList<>( result.stream().filter(s->s.ranges.size()>1).collect(Collectors.toList()));
+            return tmp;
+//            if (rangesets.size() > 0) {
+//                result.subList(0, rangesets.size()).clear();
+//            }
         } else {
             for (SingleCse singleCse : result) {
                 singleCse.isConstant = true;
