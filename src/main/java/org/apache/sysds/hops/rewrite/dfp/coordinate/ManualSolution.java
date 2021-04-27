@@ -76,12 +76,12 @@ public class ManualSolution {
         SingleCse sHy = new SingleCse();
         sHy.name = coordinate.getRangeName(6, 10);
         sHy.ranges.add(Range.of(6, 10, false));
-        sHy.ranges.add(Range.of(15, 19, true));
-        sHy.ranges.add(Range.of(21, 25, true));
+        sHy.ranges.add(Range.of(16, 20, false));
+        sHy.ranges.add(Range.of(25, 29, false));
         sHy.ranges.add(Range.of(32, 36, true));
-        sHy.ranges.add(Range.of(37, 41, true));
+        sHy.ranges.add(Range.of(38, 42, false));
         sHy.ranges.add(Range.of(43, 47, false));
-        sHy.ranges.add(Range.of(50, 54, true));
+        sHy.ranges.add(Range.of(51, 55, false));
         return sHy;
     }
 
@@ -89,13 +89,13 @@ public class ManualSolution {
         SingleCse sY = new SingleCse();
         sY.name = coordinate.getRangeName(7, 10);
         sY.ranges.add(Range.of(7, 10, false));
-        sY.ranges.add(Range.of(15, 18, true));
+        sY.ranges.add(Range.of(17, 20, false));
         sY.ranges.add(Range.of(21, 24, true));
         sY.ranges.add(Range.of(26, 29, false));
         sY.ranges.add(Range.of(32, 35, true));
-        sY.ranges.add(Range.of(37, 40, true));
+        sY.ranges.add(Range.of(39, 42, false));
         sY.ranges.add(Range.of(44, 47, false));
-        sY.ranges.add(Range.of(50, 53, true));
+        sY.ranges.add(Range.of(52, 55, false));
         return sY;
     }
 
@@ -103,13 +103,13 @@ public class ManualSolution {
         SingleCse sY = new SingleCse();
         sY.name = coordinate.getRangeName(8, 10);
         sY.ranges.add(Range.of(8, 10, false));
-        sY.ranges.add(Range.of(15, 17, true));
+        sY.ranges.add(Range.of(18, 20, false));
         sY.ranges.add(Range.of(21, 23, true));
         sY.ranges.add(Range.of(27, 29, false));
         sY.ranges.add(Range.of(32, 34, true));
-        sY.ranges.add(Range.of(37, 39, true));
+        sY.ranges.add(Range.of(40, 42, false));
         sY.ranges.add(Range.of(45, 47, false));
-        sY.ranges.add(Range.of(50, 52, true));
+        sY.ranges.add(Range.of(53, 55, false));
         return sY;
     }
 
@@ -121,15 +121,15 @@ public class ManualSolution {
         sd.ranges.add(Range.of(9, 10, false));
         sd.ranges.add(Range.of(11, 12, false));
         sd.ranges.add(Range.of(13, 14, true));
-        sd.ranges.add(Range.of(15, 16, true));
+        sd.ranges.add(Range.of(19, 20, false));
         sd.ranges.add(Range.of(21, 22, true));
         sd.ranges.add(Range.of(28, 29, false));
         sd.ranges.add(Range.of(30, 31, false));
         sd.ranges.add(Range.of(32, 33, true));
-        sd.ranges.add(Range.of(37, 38, true));
+        sd.ranges.add(Range.of(41, 42, false));
         sd.ranges.add(Range.of(46, 47, false));
         sd.ranges.add(Range.of(48, 49, true));
-        sd.ranges.add(Range.of(50, 51, true));
+        sd.ranges.add(Range.of(54, 55, false));
         return sd;
     }
 
