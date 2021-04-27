@@ -94,6 +94,8 @@ public class Coordinate {
             singleCses = genSingleCse(djs, blockRanges, commonRanges);
         }
 
+        singleCses.forEach(s->s.ranges.sort( (x,y) -> x.left-y.left));
+
 //        for (ArrayList<Range> ranges: commonRanges) {
 //            for (Range r: ranges) {
 //                System.out.print(r+" ");
