@@ -343,9 +343,11 @@ public class CostGraph {
         for (int i = 0; i < node.inputs.size(); i++) {
             analyzeOperatorConstantTemplate(node.inputs.get(i));
         }
-        node.isConstant = coordinate.isConstant(node.dRange.getLeft(), node.dRange.getLeft());
-        if (node.isConstant) {
-            node.hops.get(0).isConstant = true;
+        if (node.inputs.size()>0) {
+            node.isConstant = coordinate.isConstant(node.dRange.getLeft(), node.dRange.getLeft());
+            if (node.isConstant) {
+                node.hops.get(0).isConstant = true;
+            }
         }
     }
 
