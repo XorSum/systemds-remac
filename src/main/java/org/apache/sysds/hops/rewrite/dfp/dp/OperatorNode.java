@@ -129,99 +129,42 @@ public class OperatorNode {
         return node;
     }
 
-//    boolean lessThan(OperatorNode that) {
-//        if (Math.abs(accCost-that.accCost) > Math.max(accCost,that.accCost)*0.001 )
-//            return accCost< that.accCost;
-//        int a =dependencies.size()+oldDependencies.size();
-//        int b = that.dependencies.size()+that.oldDependencies.size();
-//        if (a!=b) return a>b;
-//        int c = dependencies.stream().mapToInt(r->r.ranges.size()).sum()
-//                +oldDependencies.stream().mapToInt(r->r.ranges.size()).sum();
-//        int d = that.dependencies.stream().mapToInt(r->r.ranges.size()).sum()
-//                +that.oldDependencies.stream().mapToInt(r->r.ranges.size()).sum();
-//        return c>d;
-//    }
-//    boolean lessThan(OperatorNode that) {
-//        if (accCost+1e-3<that.accCost) return true;
-//        int cover_a = 0,cover_b=0;
-//        for (SingleCse singleCse: dependencies) {
-//            for (Range range: singleCse.ranges) {
-//                cover_a += range.right - range.left;
-//            }
-//        }
-//        for (SingleCse singleCse: oldDependencies) {
-//            for (Range range: singleCse.ranges) {
-//                cover_a += range.right - range.left;
-//            }
-//        }
-//        for (SingleCse singleCse: that.dependencies) {
-//            for (Range range: singleCse.ranges) {
-//                cover_b += range.right - range.left;
-//            }
-//        }
-//        for (SingleCse singleCse: that.oldDependencies) {
-//            for (Range range: singleCse.ranges) {
-//                cover_b += range.right - range.left;
-//            }
-//        }
-//        if (cover_a!=cover_b) return cover_a>cover_b;
-//
-//        int cse_num_a =dependencies.size()+oldDependencies.size();
-//        int cse_num_b = that.dependencies.size()+that.oldDependencies.size();
-//        if (cse_num_a!=cse_num_b) return cse_num_a>cse_num_b;
-//
-//        int range_num_a = dependencies.stream().mapToInt(r->r.ranges.size()).sum()
-//                +oldDependencies.stream().mapToInt(r->r.ranges.size()).sum();
-//        int range_num_b = that.dependencies.stream().mapToInt(r->r.ranges.size()).sum()
-//                +that.oldDependencies.stream().mapToInt(r->r.ranges.size()).sum();
-//        return range_num_a>range_num_b;
-//    }
 
     boolean lessThan(OperatorNode that) {
-        if (Math.abs(accCost-that.accCost) > 1e-3 )
-            return accCost< that.accCost;
-        ArrayList<Pair<Integer,SingleCse>> list_a = new ArrayList<>();
-        ArrayList<Pair<Integer,SingleCse>> list_b = new ArrayList<>();
-        for (SingleCse singleCse: dependencies) {
-            int length = singleCse.ranges.get(0).right - singleCse.ranges.get(0).left+1;
-            list_a.add(Pair.of(length,singleCse));
-        }
-        for (SingleCse singleCse: oldDependencies) {
-            int length = singleCse.ranges.get(0).right - singleCse.ranges.get(0).left+1;
-            list_a.add(Pair.of(length,singleCse));
-        }
-        for (SingleCse singleCse: that.dependencies) {
-            int length = singleCse.ranges.get(0).right - singleCse.ranges.get(0).left+1;
-            list_b.add(Pair.of(length,singleCse));
-        }
-        for (SingleCse singleCse: that.oldDependencies) {
-            int length = singleCse.ranges.get(0).right - singleCse.ranges.get(0).left+1;
-            list_b.add(Pair.of(length,singleCse));
-        }
-        list_a.sort((pa,pb)->{
-            if (!pa.getLeft().equals(pb.getLeft())) return pb.getLeft()-pa.getLeft();
-            return pa.getRight().ranges.size() - pb.getRight().ranges.size();
+        if (Math.abs(accCost - that.accCost) > Math.max(accCost,that.accCost)*1e-8)
+            return accCost < that.accCost;
+        ArrayList<SingleCse> list_a = new ArrayList<>();
+        ArrayList<SingleCse> list_b = new ArrayList<>();
+        list_a.addAll(dependencies);
+        list_a.addAll(oldDependencies);
+        list_b.addAll(that.dependencies);
+        list_b.addAll(that.oldDependencies);
+        list_a.sort((px, py) -> {
+            if (px.cseLength() != py.cseLength()) return py.cseLength() - px.cseLength();
+            return py.ranges.size() - px.ranges.size();
         });
-        list_b.sort((pa,pb)->{
-            if (!pa.getLeft().equals(pb.getLeft())) return pb.getLeft()-pa.getLeft();
-            return pa.getRight().ranges.size() - pb.getRight().ranges.size();
+        list_b.sort((px, py) -> {
+            if (px.cseLength() != py.cseLength()) return py.cseLength() - px.cseLength();
+            return py.ranges.size() - px.ranges.size();
         });
-        for (int i=0;i<list_a.size()&&i<list_b.size();i++) {
-            Pair<Integer,SingleCse> pa = list_a.get(i);
-            Pair<Integer,SingleCse> pb = list_b.get(i);
-            if (!pa.getLeft().equals(pb.getLeft())) {
-                return pa.getLeft() > pb.getLeft();
-            }
-            ArrayList<Range> ranges_a = pa.getRight().ranges;
-            ArrayList<Range> ranges_b = pb.getRight().ranges;
-            if (ranges_a.size()!=ranges_b.size()  ) {
-                return  ranges_a.size() > ranges_b.size();
-            }
-            for (Range range : ranges_a) {
-                if (ranges_a.get(i).left != range.left)
-                    return ranges_a.get(i).left < range.left;
+        for (int i = 0; i < list_a.size() && i < list_b.size(); i++) {
+            int lca = list_a.get(i).cseLength();
+            int lcb = list_b.get(i).cseLength();
+            if (lca != lcb) return lca > lcb;
+            int lra = list_a.get(i).ranges.size();
+            int lrb = list_b.get(i).ranges.size();
+            if (lra != lrb) return lra > lrb;
+        }
+        for (int i = 0; i < list_a.size() && i < list_b.size(); i++) {
+            ArrayList<Range> ranges_a = list_a.get(i).ranges;
+            ArrayList<Range> ranges_b = list_b.get(i).ranges;
+            for (int j = 0; j < ranges_a.size(); j++) {
+                Range ra = ranges_a.get(j);
+                Range rb = ranges_b.get(j);
+                if (ra.left != rb.left) return ra.left < rb.left;
             }
         }
-        return list_a.size()>=list_b.size();
+        return list_a.size() > list_b.size();
     }
+
 }

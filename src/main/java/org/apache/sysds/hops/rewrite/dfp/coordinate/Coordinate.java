@@ -306,7 +306,7 @@ public class Coordinate {
 
     }
 
-    private boolean isConstant(int left, int right) {
+    public boolean isConstant(int left, int right) {
         for (int i = left; i <= right; i++) {
             if (notConstant(i)) return false;
         }

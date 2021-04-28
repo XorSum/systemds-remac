@@ -404,4 +404,47 @@ public class ManualSolution {
     }
 
 
+
+
+    SingleCse createSingleCseDfpHy_1() {
+        SingleCse sHy = new SingleCse(); // hatahg
+        sHy.name = coordinate.getRangeName(1, 5);
+        sHy.ranges.add(Range.of(1, 5, false));
+        sHy.ranges.add(Range.of(6, 10, true));
+        sHy.ranges.add(Range.of(15, 19, false));
+        sHy.ranges.add(Range.of(25, 29, false));
+        return sHy;
+    }
+    SingleCse createSingleCseDfpHAtA_1() {
+        SingleCse sHy = new SingleCse(); // hata
+        sHy.name = coordinate.getRangeName(1, 3);
+        sHy.ranges.add(Range.of(1, 3, true));
+        sHy.ranges.add(Range.of(8, 10, false));
+        sHy.ranges.add(Range.of(12, 14, true));
+        sHy.ranges.add(Range.of(15, 17, true));
+        sHy.ranges.add(Range.of(25, 27, true));
+        return sHy;
+    }
+
+    SingleCse createSingleCseDfpD_1() {
+        SingleCse sD = new SingleCse(); // d
+        sD.name = coordinate.getRangeName(4, 5);
+        sD.ranges.add(Range.of(4, 5, false));
+        sD.ranges.add(Range.of(6, 7, true));
+        sD.ranges.add(Range.of(18, 19, false));
+        sD.ranges.add(Range.of(20, 21, false));
+        sD.ranges.add(Range.of(22, 23, true));
+        sD.ranges.add(Range.of(28, 29, false));
+        return sD;
+    }
+
+    MultiCse createMultiCseDfpHAtA_1() {
+        MultiCse multiCse = new MultiCse();
+        multiCse.cses.add(createSingleCseDfpHy_1());
+        multiCse.cses.add(createSingleCseDfpHAtA_1());
+        multiCse.cses.add(createSingleCseDfpAta());
+        multiCse.cses.add(createSingleCseDfpD_1());
+        return multiCse;
+    }
+
 }

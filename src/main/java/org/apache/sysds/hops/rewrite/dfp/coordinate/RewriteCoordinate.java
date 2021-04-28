@@ -83,7 +83,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 LOG.debug("small leaves size, return original solution");
                 return originalSolution;
             }
-            costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
+            costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec,coordinate);
 
             Hop template = tuple4.getLeft().getLeft();
             ArrayList<Range> blockRanges = tuple4.getLeft().getRight();
@@ -161,6 +161,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             MultiCse multiCse = manualSolution.createMultiCseDfpAta();
             mySolution = genManualSolution(template, blockRanges, multiCse, true);
             LOG.info("return dfp-ata h");
+        } else if (manualType.equals("dfp-hata") && "h".equals(root.getName())) {
+            MultiCse multiCse = manualSolution.createMultiCseDfpHAtA_1();
+            mySolution = genManualSolution(template, blockRanges, multiCse, true);
+            LOG.info("return dfp-hata h");
         } else if (manualType.equals("dfp-ata-dtd") && "h".equals(root.getName())) {
             MultiCse multiCse = manualSolution.createMultiCseDfpAtaDtd();
             mySolution = genManualSolution(template, blockRanges, multiCse, true);

@@ -8,6 +8,7 @@ public class NodeCost {
     public double computeCost = 0;
     public double collectCost = 0;
     public double joinCost = 0;
+    public boolean isSpark = false;  // eMatrixMultiply cache
 
     public static String dts(double x) {
         if (x < Double.MAX_VALUE)
@@ -44,6 +45,15 @@ public class NodeCost {
         this.joinCost = joinCost;
     }
 
+    public NodeCost(double shuffleCost, double broadcastCost, double computeCost, double collectCost, double joinCost, boolean isSpark) {
+        this.shuffleCost = shuffleCost;
+        this.broadcastCost = broadcastCost;
+        this.computeCost = computeCost;
+        this.collectCost = collectCost;
+        this.joinCost = joinCost;
+        this.isSpark = isSpark;
+    }
+
     public void plus(NodeCost that) {
         this.shuffleCost += that.shuffleCost;
         this.broadcastCost += that.broadcastCost;
@@ -73,7 +83,7 @@ public class NodeCost {
     }
 
     public NodeCost clone() {
-        return new NodeCost(shuffleCost,broadcastCost,computeCost,collectCost,joinCost);
+        return new NodeCost(shuffleCost,broadcastCost,computeCost,collectCost,joinCost,isSpark);
     }
 
     public static NodeCost add(NodeCost a, NodeCost b) {

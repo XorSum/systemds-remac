@@ -70,32 +70,42 @@ public class NodeCostEstimator {
     }
 
     public void initRangeDisjointset(ArrayList<ArrayList<Range>> commonRanges) {
-        for (ArrayList<Range> ranges: commonRanges) {
-            if (ranges.size()<1) continue;
+        for (ArrayList<Range> ranges : commonRanges) {
+            if (ranges.size() < 1) continue;
             Range rootrange = ranges.get(0);
-            Pair<Integer,Integer> rootPair = Pair.of(rootrange.left, rootrange.right);
-            for (int i=0;i<ranges.size();i++) {
-                Pair<Integer,Integer> tmpPair = Pair.of(ranges.get(i).left,ranges.get(i).right);
-                rangeGroupRoot.putIfAbsent(tmpPair,rootPair);
-                rangepair2rangeclass.putIfAbsent(tmpPair,ranges.get(i));
+            Pair<Integer, Integer> rootPair = Pair.of(rootrange.left, rootrange.right);
+            for (int i = 0; i < ranges.size(); i++) {
+                Pair<Integer, Integer> tmpPair = Pair.of(ranges.get(i).left, ranges.get(i).right);
+                rangeGroupRoot.putIfAbsent(tmpPair, rootPair);
+                rangepair2rangeclass.putIfAbsent(tmpPair, ranges.get(i));
             }
-            ArrayList<DRange> dRanges = new ArrayList<>();
-            for (int i=0;i<ranges.size();i++) {
+            ArrayList<ArrayList<DRange>> dRanges = new ArrayList<>();
+            for (int j = ranges.get(0).left + 1; j <= ranges.get(0).right; j++) {
+                ArrayList<DRange> tmp = new ArrayList<>();
+                dRanges.add(tmp);
+            }
+            for (int i = 0; i < ranges.size(); i++) {
                 Range range = ranges.get(i);
-                for (int j = range.left+1;j<=range.right;j++) {
+                for (int j = range.left + 1; j <= range.right; j++) {
                     ArrayList<Integer> tmp = new ArrayList<>();
                     tmp.add(range.left);
                     tmp.add(j);
                     tmp.add(range.right);
                     DRange dRange = new DRange(tmp);
                     dRange.cseRangeTransposeType = range.transpose;
-                    dRanges.add(dRange);
+                    if (range.transpose == ranges.get(0).transpose) {
+                        dRanges.get(j - range.left - 1).add(dRange);
+                    } else {
+                        dRanges.get(range.right - j).add(dRange);
+                    }
                 }
             }
-            if (dRanges.size()<1) continue;
-            DRange rootDRange = dRanges.get(0);
-            for (int i=0;i<dRanges.size();i++) {
-                drangeGroupRoot.putIfAbsent(dRanges.get(i),rootDRange);
+            for (ArrayList<DRange> dRanges1 : dRanges) {
+                if (dRanges1.size() < 1) continue;
+                DRange rootDRange = dRanges1.get(0);
+                for (DRange dRange : dRanges1) {
+                    drangeGroupRoot.putIfAbsent(dRange, rootDRange);
+                }
             }
         }
     }
@@ -383,7 +393,7 @@ public class NodeCostEstimator {
                 }
             }
         }
-        ans.collectCost += eCollectCost(opnode);  //collect
+//        ans.collectCost += eCollectCost(opnode);  //collect
         if (ans.getSummary() >= Double.MAX_VALUE / 2 || ans.getSummary() < 0) {
             LOG.error("cost infinate " + opnode);
             System.exit(-1);
@@ -403,15 +413,22 @@ public class NodeCostEstimator {
             DRange rootDrange = drangeGroupRoot.getOrDefault(node.dRange, null);
             if (rootDrange != null) {
                 NodeCost nodeCost = drange2multiplycostCache.getOrDefault(rootDrange, null);
-                if (nodeCost != null) return nodeCost.clone();
+                if (nodeCost != null) {
+                    node.isSpark = nodeCost.isSpark;
+                    return nodeCost.clone();
+                }
             }
         }
         NodeCost nodeCost = drange2multiplycostCache.getOrDefault(node.dRange, null);
-        if (nodeCost != null) return nodeCost.clone();
+        if (nodeCost != null) {
+            node.isSpark = nodeCost.isSpark;
+            return nodeCost.clone();
+        }
 
         //计算
         NodeCost ans = eMatrixMultiplyCost(node, hop);
 
+        ans.isSpark = node.isSpark;
         // 更新缓存
         if (useCommonCostCache) {
             DRange rootDrange = drangeGroupRoot.getOrDefault(node.dRange, null);

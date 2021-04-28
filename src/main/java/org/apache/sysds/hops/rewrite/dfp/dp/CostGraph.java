@@ -12,6 +12,7 @@ import org.apache.sysds.hops.NaryOp;
 import org.apache.sysds.hops.TernaryOp;
 import org.apache.sysds.hops.estim.MMNode;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
+import org.apache.sysds.hops.rewrite.dfp.coordinate.Coordinate;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.MultiCse;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.Range;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.SingleCse;
@@ -28,18 +29,19 @@ import java.util.stream.Collectors;
 public class CostGraph {
     protected static final Log LOG = LogFactory.getLog(CostGraph.class.getName());
 
-    public CostGraph(VariableSet variablesUpdated, long iterationNumber, ExecutionContext ec) {
+    public CostGraph(VariableSet variablesUpdated, long iterationNumber, ExecutionContext ec,Coordinate coordinate) {
         this.variablesUpdated = variablesUpdated;
         this.iterationNumber = iterationNumber;
         this.ec = ec;
         this.nodeCostEstimator = new NodeCostEstimator((SparkExecutionContext) ec);
+        this.coordinate = coordinate;
     }
 
     private ExecutionContext ec;
     public final NodeCostEstimator nodeCostEstimator;
     long iterationNumber = 2;
     public VariableSet variablesUpdated = null;
-
+    private Coordinate coordinate = null;
     public static long dynamicProgramTime = 0;
 
     public ArrayList<OperatorNode> testOperatorGraph(ArrayList<SinglePlan> singlePlans,
@@ -95,11 +97,12 @@ public class CostGraph {
         analyzeOperatorRange(emptyNode, emptyCse, new MutableInt(0));
         HashSet<Pair<Integer, Integer>> ranges = new HashSet<>();
         rGetRanges(emptyNode, ranges);
-
+        analyzeOperatorConstantTemplate(emptyNode);
 
         for (SinglePlan p : placePlans) {
             OperatorNode node = createOperatorGraph(p.hop, false);
             analyzeOperatorRange(node, emptyCse, new MutableInt(0));
+            analyzeOperatorConstantTemplate(node);
             p.node = node;
         }
 
@@ -331,6 +334,18 @@ public class CostGraph {
                     }
                 }
             }
+        }
+    }
+
+
+    void analyzeOperatorConstantTemplate(OperatorNode node) {
+        if (variablesUpdated == null) return;
+        for (int i = 0; i < node.inputs.size(); i++) {
+            analyzeOperatorConstantTemplate(node.inputs.get(i));
+        }
+        node.isConstant = coordinate.isConstant(node.dRange.getLeft(), node.dRange.getLeft());
+        if (node.isConstant) {
+            node.hops.get(0).isConstant = true;
         }
     }
 
