@@ -393,7 +393,7 @@ public class NodeCostEstimator {
                 }
             }
         }
-//        ans.collectCost += eCollectCost(opnode);  //collect
+        ans.collectCost += eCollectCost(opnode);  //collect
         if (ans.getSummary() >= Double.MAX_VALUE / 2 || ans.getSummary() < 0) {
             LOG.error("cost infinate " + opnode);
             System.exit(-1);
