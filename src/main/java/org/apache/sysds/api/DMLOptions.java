@@ -22,7 +22,6 @@ package org.apache.sysds.api;
 import java.util.HashMap;
 import java.util.Map;
 
-import breeze.util.Opt;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.Option;
@@ -34,7 +33,6 @@ import org.apache.sysds.common.Types.ExecMode;
 import org.apache.sysds.hops.OptimizerUtils;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.CostModelCommon;
-import org.apache.sysds.hops.rewrite.dfp.costmodel.FakeCostEstimator2;
 import org.apache.sysds.hops.rewrite.dfp.dp.CostGraph;
 import org.apache.sysds.hops.rewrite.dfp.dp.NodeCostEstimator;
 import org.apache.sysds.runtime.controlprogram.WhileProgramBlock;
@@ -173,6 +171,17 @@ public class DMLOptions {
 		} else {
 			RewriteCoordinate.useDynamicProgramPolicy = true;
 		}
+		if (line.hasOption("gen_combinations")) {
+			RewriteCoordinate.BruteForceMultiThreadsGenCombinationsOnly = true;
+		} else {
+			RewriteCoordinate.BruteForceMultiThreadsGenCombinationsOnly = false;
+		}
+		if (line.hasOption("force_bfs")) {
+			RewriteCoordinate.BruteForceMultiThreadsBfs = true;
+		} else {
+			RewriteCoordinate.BruteForceMultiThreadsBfs = false;
+		}
+
 		if (line.hasOption("single_dp")) {
 			CostGraph.parallelDynamicProgramming = false;
 		}
@@ -340,6 +349,11 @@ public class DMLOptions {
 		Option optimizer = OptionBuilder
 				.hasOptionalArg()
 				.create("optimizer");
+		Option forceGenCombinationsOnly = OptionBuilder
+				.create("gen_combinations");
+		Option forceBfs = OptionBuilder
+				.create("force_bfs");
+
 
 		options.addOption(configOpt);
 		options.addOption(cleanOpt);
@@ -359,6 +373,8 @@ public class DMLOptions {
 		options.addOption(cpmmSparsity);
 		options.addOption(singleDp);
 		options.addOption(optimizer);
+		options.addOption(forceGenCombinationsOnly);
+		options.addOption(forceBfs);
 
 		// Either a clean(-clean), a file(-f), a script(-s) or help(-help) needs to be specified
 		OptionGroup fileOrScriptOpt = new OptionGroup()

@@ -24,7 +24,7 @@ public class DeepCopyHopsDag {
         return ret;
     }
 
-    private static Hop rDeepCopyHopsDag(Hop hop, HashMap<Long, Hop> memo)
+    public static Hop rDeepCopyHopsDag(Hop hop, HashMap<Long, Hop> memo)
             throws CloneNotSupportedException {
         Hop ret = memo.get(hop.getHopID());
 

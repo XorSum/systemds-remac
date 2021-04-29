@@ -22,6 +22,7 @@ import org.apache.sysds.utils.Explain;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 import static org.apache.sysds.hops.rewrite.dfp.utils.CreateRuntimeProgram.constructProgramBlocks;
 import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
@@ -61,7 +62,8 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
     public static boolean useDynamicProgramPolicy = false;
     public static boolean useBruceForcePolicy = false;
     public static boolean useBruceForcePolicyMultiThreads = false;
-    public static boolean BruteForceMultiThreadsPipeline = true;
+    public static boolean BruteForceMultiThreadsGenCombinationsOnly = false;
+    public static boolean BruteForceMultiThreadsBfs = false;
 
     // </configuration>
 
@@ -101,7 +103,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                 } else if (useBruceForcePolicy) {
                     mySolution = testBruteForce(singleCses, template, blockRanges);
                 } else if (useBruceForcePolicyMultiThreads) {
-                    mySolution = testBruteForceMultiThreads(singleCses, template, blockRanges,BruteForceMultiThreadsPipeline);
+                    mySolution = testBruteForceMultiThreads(singleCses, template, blockRanges);
                 }
 //                testCreateHops(template, blockRanges);
             } catch (Exception e) {
@@ -258,48 +260,19 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return solution;
     }
 
-    MySolution testBruteForceMultiThreads(ArrayList<SingleCse> singleCses, Hop template, ArrayList<Range> blockRanges,boolean pipeline) {
-//        CostGraph costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
-        ConcurrentLinkedQueue<MultiCse> multiCses = genMultiCseMultiThreads(singleCses, template, costGraph, blockRanges,pipeline);
-        if (!pipeline) {
-            long start_force_estimate = System.nanoTime();
-            double min_cost = Double.MAX_VALUE;
-            Hop best_hop = deepCopyHopsDag(template);
-            MultiCse best_multicse = null;
-            while (!multiCses.isEmpty()) {
-                MultiCse multiCse = multiCses.poll();
-                Hop hop = coordinate.createHop(multiCse, template, blockRanges);
-                Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop,multiCse);
-                double cost = costTriple.getLeft().getSummary();
-                if ( min_cost > cost) {
-                    if (best_hop != null )
-                        releaseHopChildReference_iter(best_hop);
-                    best_hop = hop;
-                    best_multicse = multiCse;
-                    min_cost = cost;
-                } else {
-                    releaseHopChildReference_iter(hop);
-                }
-                if (multiCse.id % 100000 == 0) {
-                    LOG.info("estimate " + multiCse + " " + costTriple.getLeft());
-                }
-            }
-            MySolution best_solution = constantUtilByTag.liftLoopConstant(best_hop);
-            best_solution.multiCse = best_multicse;
-            best_solution.cost = min_cost;
-            long end_force_estimate = System.nanoTime();
-            LOG.info("force estimante time = " + ((end_force_estimate - start_force_estimate) / 1e9) + "s");
-            LOG.info("force best solution:"+best_solution);
-            return best_solution;
-        } else {
-            MySolution best_solution = constantUtilByTag.liftLoopConstant(all_best_hop);
-            best_solution.multiCse = all_best_multicse;
-            best_solution.cost = all_min_cost;
-            LOG.info("force best solution:"+best_solution);
-            return best_solution;
-        }
 
+    MySolution testBruteForceMultiThreads(ArrayList<SingleCse> singleCses, Hop template, ArrayList<Range> blockRanges) {
+//        CostGraph costGraph = new CostGraph(coordinate.variablesUpdated, iterationNumber, ec);
+        MySolution best_solution = null;
+        if (BruteForceMultiThreadsBfs) {
+            best_solution = genMultiCseMultiThreadsBfs(singleCses, template, blockRanges);
+        } else {
+            best_solution = genMultiCseMultiThreadsDfs(singleCses, template, blockRanges);
+        }
+        LOG.info("force best solution:" + best_solution);
+        return best_solution;
     }
+
 
     MySolution testBruteForce(ArrayList<SingleCse> singleCses, Hop template, ArrayList<Range> blockRanges) {
         // 构造出所有的MultiCse
@@ -485,18 +458,158 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         return result;
     }
 
+    private MySolution genMultiCseMultiThreadsDfs(ArrayList<SingleCse> singleCses,
+                                               Hop template,
+                                               ArrayList<Range> blockRanges) {
+        long start = System.nanoTime();
+        // 按长度，降序
+        singleCses.sort((SingleCse a, SingleCse b) -> b.cseLength() - a.cseLength());
+        //ArrayList<MultiCse> result = new ArrayList<>();
 
-    private ConcurrentLinkedQueue<MultiCse> genMultiCseMultiThreads(ArrayList<SingleCse> singleCses,
+        IDSequence idSequence = new IDSequence();
+
+        ForkJoinPool forkjoinPool = ForkJoinPool.commonPool();
+
+        MultiCse multiCse = new MultiCse();
+        multiCse.id = idSequence.getNextID();
+
+        GenMultiCseRecursive genMultiCseRecursive =
+                new GenMultiCseRecursive(multiCse, singleCses, idSequence, template, blockRanges);
+
+        forkjoinPool.execute(genMultiCseRecursive);
+
+        MySolution mySolution = genMultiCseRecursive.join();
+        if (mySolution!=null&&mySolution.body!=null) {
+            MySolution mySolution1 = constantUtilByTag.liftLoopConstant(mySolution.body);
+            mySolution1.multiCse = mySolution.multiCse;
+            mySolution1.cost = mySolution.cost;
+            mySolution = mySolution1;
+        }
+       // LOG.info("Recursive Best Solution = " + mySolution);
+
+        long end = System.nanoTime();
+        LOG.info("number of multi cse = " + idSequence.getCurrentID());
+        LOG.info("multi threads force generate combinations time = " + ((end - start) / 1e9) + "s");
+
+        return mySolution;
+    }
+
+    class GenMultiCseRecursive extends RecursiveTask<MySolution> {
+
+        MultiCse frontMC;
+        ArrayList<SingleCse> singleCses;
+        IDSequence idSequence;
+        Hop template;
+        ArrayList<Range> blockRanges;
+
+        public GenMultiCseRecursive(MultiCse frontMC,
+                                    ArrayList<SingleCse> singleCses,
+                                    IDSequence idSequence,
+                                    Hop template,
+                                    ArrayList<Range> blockRanges) {
+            this.frontMC = frontMC;
+            this.singleCses = singleCses;
+            this.idSequence = idSequence;
+            this.template = template;
+            this.blockRanges = blockRanges;
+        }
+
+        List<GenMultiCseRecursive> createTasks(MultiCse frontMC) {
+            ArrayList<GenMultiCseRecursive> taskList = new ArrayList<>();
+
+            for (int index = frontMC.last_index + 1; index < singleCses.size(); index++) {
+                SingleCse scA = singleCses.get(index);
+                boolean ok = true;
+                for (int k = 0; ok && k < frontMC.cses.size(); k++) {
+                    SingleCse scB = frontMC.cses.get(k);
+                    if (scB.hash == scA.hash
+                            || (scB.intersect(scA) && (scB.conflict(scA) || !scB.contain(scA)))) ok = false;
+                }
+                if (ok) {
+                    MultiCse multiCse = new MultiCse();
+                    multiCse.cses = (ArrayList<SingleCse>) frontMC.cses.clone();
+                    multiCse.cses.add(singleCses.get(index));
+                    multiCse.last_index = index;
+                    multiCse.id = idSequence.getNextID();
+                    taskList.add(new GenMultiCseRecursive(multiCse, singleCses, idSequence,template,blockRanges));
+                }
+            }
+            return taskList;
+        }
+
+        void releaseHopChildReferenceIter(Hop hop) {
+            if (hop==null) return;
+            for (Hop child : hop.getInput()) {
+                releaseHopChildReferenceIter(child);
+            }
+            HopRewriteUtils.removeAllChildReferences(hop);
+        }
+
+        void releaseMySolution(MySolution solution) {
+            if (solution==null) return;
+            if (solution.preLoopConstants!=null) {
+                for (Hop h : solution.preLoopConstants) {
+                    releaseHopChildReferenceIter(h);
+                }
+            }
+            releaseHopChildReferenceIter(solution.body);
+        }
+
+
+        @Override
+        protected MySolution compute() {
+
+            if (frontMC.id % 100000 == 0)
+                LOG.info(frontMC);
+
+            List<MySolution> mySolutions = ForkJoinTask
+                    .invokeAll(createTasks(frontMC))
+                    .stream()
+                    .map(ForkJoinTask::join)
+                    .collect(Collectors.toList());
+
+            if (BruteForceMultiThreadsGenCombinationsOnly) {
+                return null;
+            }
+            MySolution minSolution = null;
+            double minCost = Double.MAX_VALUE;
+            for (MySolution solution : mySolutions) {
+                if (minSolution == null || minCost > solution.cost) {
+                    minCost = solution.cost;
+                    releaseMySolution(minSolution);
+                    minSolution = solution;
+                } else {
+                    releaseMySolution(solution);
+                }
+            }
+
+            Coordinate thisCoordinate = coordinate.copy();
+            Hop hop = thisCoordinate.createHop_copy_sc(frontMC, template, blockRanges);
+            if (frontMC.id % 100000 == 0) {
+                LOG.info(Explain.explain(hop));
+            }
+            Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop, frontMC);
+            double thisCost = costTriple.getLeft().getSummary();
+            if (minSolution == null || minCost > thisCost) {
+                releaseMySolution(minSolution);
+                minSolution = new MySolution(hop);
+                minSolution.multiCse = frontMC;
+                minSolution.cost = thisCost;
+            } else {
+                releaseHopChildReferenceIter(hop);
+            }
+            return minSolution;
+        }
+    }
+
+    private MySolution genMultiCseMultiThreadsBfs(ArrayList<SingleCse> singleCses,
                                                                     Hop template,
-                                                                    CostGraph costGraph,
-                                                                    ArrayList<Range> blockRanges,
-                                                                    boolean pipeline) {
+                                                                    ArrayList<Range> blockRanges) {
         long start = System.nanoTime();
         // 按长度，降序
         singleCses.sort((SingleCse a, SingleCse b) -> b.cseLength() - a.cseLength());
         //ArrayList<MultiCse> result = new ArrayList<>();
         ConcurrentLinkedQueue<MultiCse> queue = new ConcurrentLinkedQueue<>();
-        ConcurrentLinkedQueue<MultiCse> generated_multicses = new ConcurrentLinkedQueue<>();
 
         IDSequence idSequence = new IDSequence();
 
@@ -513,7 +626,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         for (int i = 0; i < threadNum; i++) {
             Coordinate ci = coordinate.clone();
             fixedThreadPool.execute(new GenMultiCseRunnable(queue, singleCses, latch, idSequence,
-                    template, blockRanges, costGraph, ci, generated_multicses,pipeline));
+                    template, blockRanges, costGraph, ci));
         }
         try {
             latch.await();
@@ -521,10 +634,16 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             e.printStackTrace();
         }
         long end = System.nanoTime();
-        LOG.info("number of multi cse = " + generated_multicses.size());
+        LOG.info("number of multi cse = " + idSequence.getCurrentID());
         LOG.info("multi threads force generate combinations time = " + ((end - start) / 1e9) + "s");
 
-        return  generated_multicses;
+        MySolution mySolution = null;
+        if (all_best_hop!=null) {
+            mySolution = constantUtilByTag.liftLoopConstant(all_best_hop);
+            mySolution.multiCse = all_best_multicse;
+            mySolution.cost = all_min_cost;
+        }
+        return  mySolution;
     }
 
     void releaseHopChildReference_iter(Hop hop) {
@@ -551,8 +670,6 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         ArrayList<Range> blockRanges;
         CostGraph costGraph;
         Coordinate threadCoordinate;
-        ConcurrentLinkedQueue<MultiCse> generated_multicses;
-        boolean pipeline;
 
         public GenMultiCseRunnable(ConcurrentLinkedQueue<MultiCse> result,
                                    ArrayList<SingleCse> singleCse,
@@ -561,9 +678,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                                    Hop template,
                                    ArrayList<Range> blockRanges,
                                    CostGraph costGraph,
-                                   Coordinate coordinate,
-                                   ConcurrentLinkedQueue<MultiCse> generated_multicses,
-                                   boolean pipeline
+                                   Coordinate coordinate
         ) {
             this.result = result;
             this.singleCse = singleCse;
@@ -573,8 +688,6 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
             this.blockRanges = blockRanges;
             this.costGraph = costGraph;
             this.threadCoordinate = coordinate;
-            this.generated_multicses = generated_multicses;
-            this.pipeline = pipeline;
         }
 
         @Override
@@ -597,8 +710,7 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
                     if (frontMC == null) {
                         break;
                     } else {
-                        generated_multicses.add(frontMC);
-                        if (pipeline) {
+                        if (!BruteForceMultiThreadsGenCombinationsOnly) {
                             Hop hop = threadCoordinate.createHop_copy_sc(frontMC, template, blockRanges);
                             Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop,frontMC);
                             double cost = costTriple.getLeft().getSummary();

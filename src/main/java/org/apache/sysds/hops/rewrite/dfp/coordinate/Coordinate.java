@@ -17,6 +17,7 @@ import org.apache.sysds.parser.VariableSet;
 import java.util.*;
 
 import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
+import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.rDeepCopyHopsDag;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.isLeafMatrix;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Reorder.reorder;
 
@@ -574,6 +575,23 @@ public class Coordinate {
             return null;
         }
     }
+
+    Coordinate copy() {
+        try {
+            Coordinate coordinate = new Coordinate();
+            coordinate.variablesUpdated = variablesUpdated;
+            HashMap<Long, Hop> memo = new HashMap<>();
+            for (Leaf leaf : leaves) {
+                Leaf newLeaf = new Leaf(rDeepCopyHopsDag(leaf.hop, memo), (ArrayList<Integer>) leaf.path.clone(), leaf.depth);
+                coordinate.leaves.add(newLeaf);
+            }
+            return coordinate;
+        } catch (CloneNotSupportedException e) {
+            LOG.error("CloneNotSupportedException");
+            return null;
+        }
+    }
+
 
     Hop createHop_copy_sc(MultiCse multiCse, Hop template, ArrayList<Range> blockRanges) {
         try {
