@@ -137,7 +137,8 @@ public class CseStateMaintainer {
 
     boolean hasUncertain(HashSet<SingleCse> singleCses) {
         for (SingleCse cse : singleCses) {
-            if (getCseState(cse) == CseState.uncertain) {
+            CseState state = getCseState(cse);
+            if (state == CseState.uncertain || state==CseState.constant) {
                 return true;
             }
         }

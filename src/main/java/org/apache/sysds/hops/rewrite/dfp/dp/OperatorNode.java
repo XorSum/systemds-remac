@@ -151,6 +151,8 @@ public class OperatorNode {
             int lca = list_a.get(i).cseLength();
             int lcb = list_b.get(i).cseLength();
             if (lca != lcb) return lca > lcb;
+        }
+        for (int i = 0; i < list_a.size() && i < list_b.size(); i++) {
             int lra = list_a.get(i).ranges.size();
             int lrb = list_b.get(i).ranges.size();
             if (lra != lrb) return lra > lrb;
@@ -164,7 +166,7 @@ public class OperatorNode {
                 if (ra.left != rb.left) return ra.left < rb.left;
             }
         }
-        return list_a.size() > list_b.size();
+        return list_a.size() < list_b.size();
     }
 
 }
