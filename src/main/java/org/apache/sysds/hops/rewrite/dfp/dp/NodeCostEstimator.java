@@ -315,9 +315,10 @@ public class NodeCostEstimator {
 //            System.out.println("h");
 //        }
         try {
-            synchronized (mmNode) {
                 if (useMncEstimator) {
-                    dc = mncEstimator.estim(mmNode, false);
+                    synchronized (this) {
+                        dc = mncEstimator.estim(mmNode, false);
+                    }
                 } else {
                     dc = metadataEstimator.estim(mmNode);
                 }
@@ -327,7 +328,6 @@ public class NodeCostEstimator {
                 if (dc.getBlocksize() < 0) {
                     dc.setBlocksize(defaultBlockSize);
                 }
-            }
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(-1);
