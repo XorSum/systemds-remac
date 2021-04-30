@@ -468,7 +468,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
         IDSequence idSequence = new IDSequence();
 
-        ForkJoinPool forkjoinPool = ForkJoinPool.commonPool();
+        int par = Runtime.getRuntime().availableProcessors() - 1;
+        LOG.info( "ForkJoinPool parallelism = " + par);
+        ForkJoinPool forkjoinPool = new ForkJoinPool(par);
 
         MultiCse multiCse = new MultiCse();
         multiCse.id = idSequence.getNextID();
@@ -585,9 +587,9 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
 
             Coordinate thisCoordinate = coordinate.copy();
             Hop hop = thisCoordinate.createHop_copy_sc(frontMC, template, blockRanges);
-            if (frontMC.id % 100000 == 0) {
-                LOG.info(Explain.explain(hop));
-            }
+//            if (frontMC.id % 100000 == 0) {
+//                LOG.info(Explain.explain(hop));
+//            }
             Triple<NodeCost, NodeCost, OperatorNode> costTriple = costGraph.estimateHopCost(hop, frontMC);
             double thisCost = costTriple.getLeft().getSummary();
             if (minSolution == null || minCost > thisCost) {
