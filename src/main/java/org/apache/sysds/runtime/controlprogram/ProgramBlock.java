@@ -190,7 +190,9 @@ public abstract class ProgramBlock implements ParseInfo
 				+ "Error evaluating "+ctx+" exit instructions ", e);
 		}
 	}
-	
+
+	public static String persistVarible = "h";
+
 	protected void executeInstructions(ArrayList<Instruction> inst, ExecutionContext ec) {
 		//  find name to set persist
 		for (int i=0;i<inst.size();i++) {
@@ -200,8 +202,8 @@ public abstract class ProgramBlock implements ParseInfo
 				if (variableCPInstruction.getVariableOpcode()==VariableCPInstruction.VariableOperationCode.CopyVariable) {
 					CPOperand in1 = variableCPInstruction.getInput1();
 					CPOperand in2 = variableCPInstruction.getInput2();
-					if ("h".equals(in2.getName())) {
-						System.out.println("Persist H " + in1.getName());
+					if (in2.getName().equals(persistVarible)) {
+						System.out.println("Persist " + persistVarible + " " + in1.getName());
 						TempPersist.addCseLabel(in1.getName());
 					}
 				}

@@ -3,17 +3,13 @@ package org.apache.sysds.hops.rewrite.dfp;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.sysds.common.Types;
 import org.apache.sysds.hops.Hop;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
 import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
 import org.apache.sysds.hops.rewrite.StatementBlockRewriteRule;
 import org.apache.sysds.parser.*;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.apache.sysds.hops.rewrite.dfp.utils.DeepCopyHopsDag.deepCopyHopsDag;
 import static org.apache.sysds.hops.rewrite.dfp.utils.Judge.*;
@@ -24,7 +20,6 @@ public class AnalyzeSymmetryMatrix extends StatementBlockRewriteRule {
     protected static final Log LOG = LogFactory.getLog(AnalyzeSymmetryMatrix.class.getName());
 
     public static boolean querySymmetry(String name) {
-        if ("h".equals(name)) return true;
         if (symmetryMatrixNames.containsKey(name)) {
             return symmetryMatrixNames.get(name);
         }
@@ -82,30 +77,49 @@ public class AnalyzeSymmetryMatrix extends StatementBlockRewriteRule {
             Hop source = hop.getInput().get(0);
             if (source.isMatrix()) {
                 String name = hop.getName();
-                //  System.out.println(MyExplain.myExplain(hop));
                 Hop copy = deepCopyHopsDag(source);
                 copy = reorder(copy);
-                boolean ans = checkHopDag_iter(copy);
+                boolean ans = checkHopDag(copy);
                 registrySymmetry(name, ans);
             }
         }
     }
 
-    private static boolean checkHopDag_iter(Hop hop) {
-        if (isLeafMatrix(hop)) {
-            return isSingleSymmetry(hop);
-        } else if (isAllOfMult(hop)) {
-            return isSymmetryMatrixMultChain(hop);
-        } else {
-            if (HopRewriteUtils.isBinary(hop, Types.OpOp2.DIV)) {
-                return checkHopDag_iter(hop.getInput().get(0));
+    private static boolean checkHopDag(Hop hop) {
+        // aaa(hop);
+        ArrayList<Hop> mults = new ArrayList<>();
+        bbb(hop, mults);
+        ArrayList<Boolean> booleans = new ArrayList<>();
+        for (int i = 0; i < mults.size(); i++) booleans.add(false);
+        for (int i = 0; i < mults.size(); i++) {
+            if (booleans.get(i)) continue;
+            Hop h = mults.get(i);
+            if (isSymmetryMatrixMultChain(h)) {
+                booleans.set(i, true);
             } else {
-                for (int i = 0; i < hop.getInput().size(); i++) {
-                    if (!checkHopDag_iter(hop.getInput().get(i)))
-                        return false;
+                for (int j = i + 1; j < mults.size(); j++) {
+                    if (isTransposeMatrix(h, mults.get(j))) {
+                        booleans.set(i, true);
+                        booleans.set(j, true);
+                    }
                 }
             }
-            return true;
+            if (!booleans.get(i)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static void bbb(Hop hop, ArrayList<Hop> mults) {
+        if (hop.isScalar()) return;
+        if (hop.getDim1() <= 1 && hop.getDim2() <= 1) return;
+        if (isLeafMatrix(hop) || isAllOfMult(hop)) {
+            mults.add(hop);
+        } else {
+            for (int i = 0; i < hop.getInput().size(); i++) {
+                bbb(hop.getInput().get(i), mults);
+            }
         }
     }
 
@@ -146,6 +160,11 @@ public class AnalyzeSymmetryMatrix extends StatementBlockRewriteRule {
                 getAllMatrix(hop.getInput().get(i), hops);
             }
         }
+    }
+
+    private static boolean isTransposeMatrix(Hop hop1, Hop hop2) {
+        Hop trans2 = HopRewriteUtils.createTranspose(hop2);
+        return isSame(hop1, trans2);
     }
 
     private static boolean isSingleSymmetry(Hop hop) {
