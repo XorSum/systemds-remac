@@ -561,8 +561,10 @@ public class RewriteCoordinate extends StatementBlockRewriteRule {
         @Override
         protected MySolution compute() {
 
-            if (frontMC.id % 100000 == 0)
+            if (frontMC.id % 100000 == 0) {
                 LOG.info(frontMC);
+                costGraph.nodeCostEstimator.printCacheStats();
+            }
 
             List<MySolution> mySolutions = ForkJoinTask
                     .invokeAll(createTasks(frontMC))

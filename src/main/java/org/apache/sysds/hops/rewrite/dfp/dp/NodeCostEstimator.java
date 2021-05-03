@@ -9,7 +9,6 @@ import org.apache.sysds.hops.estim.EstimatorMatrixHistogram;
 import org.apache.sysds.hops.estim.MMNode;
 import org.apache.sysds.hops.estim.SparsityEstimator;
 import org.apache.sysds.hops.rewrite.HopRewriteUtils;
-import org.apache.sysds.hops.rewrite.dfp.GenericDisjointSet;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.Range;
 import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
 import org.apache.sysds.lops.LopProperties;
@@ -114,33 +113,14 @@ public class NodeCostEstimator {
     public MMNode getMmnode(OperatorNode opnode) {
 
         //  查找缓存
-        if (opnode.mmNode != null) return opnode.mmNode;
-        Pair<Integer, Integer> range = opnode.dRange.getRange();
-        if (useCommonCostCache) {
-            Pair<Integer, Integer> rootRange = rangeGroupRoot.getOrDefault(range,null);
-            if (rootRange!=null) {
-                if (range2mmnodeCache.containsKey(rootRange)) {
-                    MMNode tmp;
-                    if (rangepair2rangeclass.get(range).transpose == rangepair2rangeclass.get(rootRange).transpose) {
-                        tmp = range2mmnodeCache.get(rootRange);
-                    } else {
-                        tmp = range2mmnodeCacheTrans.get(rootRange);
-                    }
-                    opnode.mmNode = tmp;
-                    return tmp;
-                }
-            }
-        }
-        MMNode tmpmmnode = range2mmnodeCache.getOrDefault(range, null);
-        if (tmpmmnode != null) {
-            opnode.mmNode = tmpmmnode;
-            return tmpmmnode;
-        }
+        MMNode tmp = queryMmnodeCche(opnode);
+        if (tmp!=null) return tmp;
 
         // 如果缓存中没有，就去计算
         MMNode ans = addOpnode2Mmnode(opnode);
 
         // 更新缓存
+        Pair<Integer, Integer> range = opnode.dRange.getRange();
         if (useCommonCostCache && rangeGroupRoot.containsKey(range)) {
             Pair<Integer, Integer> rootRange = rangeGroupRoot.get(range);
             if (rangepair2rangeclass.get(range).transpose == rangepair2rangeclass.get(rootRange).transpose) {
@@ -168,28 +148,57 @@ public class NodeCostEstimator {
         return trans;
     }
 
-    public MMNode addOpnode2Mmnode(OperatorNode opnode) {
+    MMNode queryMmnodeCche(OperatorNode opnode) {
+        if (opnode.mmNode != null) return opnode.mmNode;
+        Pair<Integer, Integer> range = opnode.dRange.getRange();
+        if (useCommonCostCache) {
+            Pair<Integer, Integer> rootRange = rangeGroupRoot.getOrDefault(range,null);
+            if (rootRange!=null) {
+                if (range2mmnodeCache.containsKey(rootRange)) {
+                    MMNode tmp;
+                    if (rangepair2rangeclass.get(range).transpose == rangepair2rangeclass.get(rootRange).transpose) {
+                        tmp = range2mmnodeCache.get(rootRange);
+                    } else {
+                        tmp = range2mmnodeCacheTrans.get(rootRange);
+                    }
+                    opnode.mmNode = tmp;
+                    return tmp;
+                }
+            }
+        }
+        MMNode tmpmmnode = range2mmnodeCache.getOrDefault(range, null);
+        if (tmpmmnode != null) {
+            opnode.mmNode = tmpmmnode;
+            return tmpmmnode;
+        }
+        return null;
+    }
+
+    public synchronized MMNode addOpnode2Mmnode(OperatorNode opnode) {
 //        LOG.info("start add opnode to mmnode");
+
+        //  查找缓存
+        MMNode tmp = queryMmnodeCche(opnode);
+        if (tmp!=null) return tmp;
+
         build_mmnode_counter++;
         MMNode ans = null;
         Hop hop = opnode.hops.get(0);
         if (hop.isScalar()) return null;
         if (Judge.isLeafMatrix(hop)) {
             if (useMncEstimator) {
-                synchronized (mncEstimator) {
-                    EstimatorMatrixHistogram.MatrixHistogram histogram = getMatrixHistogram(hop.getName());
-                    DataCharacteristics dc = hop.getDataCharacteristics();
-                    if (histogram == null) {
-                        dc.setNonZeros(dc.getRows() * dc.getCols());
-                        histogram = createFullHistogram((int) dc.getRows(), (int) dc.getCols());
-                        LOG.info("get by mnc null " + hop.getName() + " " + dc);
-                    } else {
-                        dc.setNonZeros(histogram.getNonZeros());
-                        LOG.info("get by mnc not null " + hop.getName() + " " + histogram.getNonZeros());
-                    }
-                    ans = new MMNode(dc);
-                    ans.setSynopsis(histogram);
+                EstimatorMatrixHistogram.MatrixHistogram histogram = getMatrixHistogram(hop.getName());
+                DataCharacteristics dc = hop.getDataCharacteristics();
+                if (histogram == null) {
+                    dc.setNonZeros(dc.getRows() * dc.getCols());
+                    histogram = createFullHistogram((int) dc.getRows(), (int) dc.getCols());
+                    LOG.info("get by mnc null " + hop.getName() + " " + dc);
+                } else {
+                    dc.setNonZeros(histogram.getNonZeros());
+                    LOG.info("get by mnc not null " + hop.getName() + " " + histogram.getNonZeros());
                 }
+                ans = new MMNode(dc);
+                ans.setSynopsis(histogram);
             } else {
                 MatrixObject matrixBlock = (MatrixObject) sec.getVariable(hop.getName());
                 DataCharacteristics dc;
@@ -316,7 +325,7 @@ public class NodeCostEstimator {
 //        }
         try {
                 if (useMncEstimator) {
-                    synchronized (this) {
+                    synchronized (NodeCostEstimator.class) {
                         dc = mncEstimator.estim(mmNode, false);
                     }
                 } else {
@@ -409,21 +418,8 @@ public class NodeCostEstimator {
 //        LOG.info("start estimate matrix multiply");
 
         // 查缓存
-        if (useCommonCostCache ) {
-            DRange rootDrange = drangeGroupRoot.getOrDefault(node.dRange, null);
-            if (rootDrange != null) {
-                NodeCost nodeCost = drange2multiplycostCache.getOrDefault(rootDrange, null);
-                if (nodeCost != null) {
-                    node.isSpark = nodeCost.isSpark;
-                    return nodeCost.clone();
-                }
-            }
-        }
-        NodeCost nodeCost = drange2multiplycostCache.getOrDefault(node.dRange, null);
-        if (nodeCost != null) {
-            node.isSpark = nodeCost.isSpark;
-            return nodeCost.clone();
-        }
+        NodeCost tmp = queryNodeCostCache(node);
+        if (tmp!=null) return tmp;
 
         //计算
         NodeCost ans = eMatrixMultiplyCost(node, hop);
@@ -442,7 +438,29 @@ public class NodeCostEstimator {
         return ans;
     }
 
+    NodeCost queryNodeCostCache(OperatorNode node) {
+        if (useCommonCostCache ) {
+            DRange rootDrange = drangeGroupRoot.getOrDefault(node.dRange, null);
+            if (rootDrange != null) {
+                NodeCost nodeCost = drange2multiplycostCache.getOrDefault(rootDrange, null);
+                if (nodeCost != null) {
+                    node.isSpark = nodeCost.isSpark;
+                    return nodeCost.clone();
+                }
+            }
+        }
+        NodeCost nodeCost = drange2multiplycostCache.getOrDefault(node.dRange, null);
+        if (nodeCost != null) {
+            node.isSpark = nodeCost.isSpark;
+            return nodeCost.clone();
+        }
+        return null;
+    }
+
     synchronized NodeCost eMatrixMultiplyCost(OperatorNode node, AggBinaryOp hop) {
+        NodeCost tmp = queryNodeCostCache(node);
+        if (tmp!=null) return tmp;
+
         // 计算
         estimate_matrix_multiply_counter++;
         LOG.info("estimate matrix multiply " + node.dRange);
