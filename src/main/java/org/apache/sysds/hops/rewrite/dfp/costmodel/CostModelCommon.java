@@ -10,8 +10,8 @@ import org.apache.sysds.runtime.meta.DataCharacteristics;
 
 public class CostModelCommon {
 
-    public static final long defaultWorkerNumber = 6;
-    public static final long defaultExecutorCores = 24;
+    public static long defaultWorkerNumber = 6;
+    public static long defaultExecutorCores = 24;
 
     public static double CpuSpeed = 1.0;
     public static double ShuffleSpeed = 50000.0*0.890192;

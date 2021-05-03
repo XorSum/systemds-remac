@@ -181,7 +181,12 @@ public class DMLOptions {
 		} else {
 			RewriteCoordinate.BruteForceMultiThreadsBfs = false;
 		}
-
+		if (line.hasOption("worker_num")) {
+			CostModelCommon.defaultWorkerNumber = Long.parseLong(line.getOptionValue("worker_num"));
+		}
+		if (line.hasOption("core_num")) {
+			CostModelCommon.defaultExecutorCores = Long.parseLong(line.getOptionValue("core_num"));
+		}
 		if (line.hasOption("single_dp")) {
 			CostGraph.parallelDynamicProgramming = false;
 		}
@@ -197,7 +202,7 @@ public class DMLOptions {
 		}
 		if (line.hasOption("cpmm_intern_sparsity")) {
 			String sp = line.getOptionValue("cpmm_intern_sparsity");
-			NodeCostEstimator.CPMM_INTERN_SPARSITY = Double.valueOf(sp);
+			NodeCostEstimator.CPMM_INTERN_SPARSITY = Double.parseDouble(sp);
 			System.out.println("CPMM_INTERN_SPARSITY="+NodeCostEstimator.CPMM_INTERN_SPARSITY);
 		}
 
@@ -354,6 +359,12 @@ public class DMLOptions {
 		Option forceBfs = OptionBuilder
 				.create("force_bfs");
 
+		Option workerNumber = OptionBuilder
+				.hasOptionalArg()
+				.create("worker_num");
+		Option coreNumber = OptionBuilder
+				.hasOptionalArg()
+				.create("core_num");
 
 		options.addOption(configOpt);
 		options.addOption(cleanOpt);
@@ -375,6 +386,8 @@ public class DMLOptions {
 		options.addOption(optimizer);
 		options.addOption(forceGenCombinationsOnly);
 		options.addOption(forceBfs);
+		options.addOption(workerNumber);
+		options.addOption(coreNumber);
 
 		// Either a clean(-clean), a file(-f), a script(-s) or help(-help) needs to be specified
 		OptionGroup fileOrScriptOpt = new OptionGroup()
