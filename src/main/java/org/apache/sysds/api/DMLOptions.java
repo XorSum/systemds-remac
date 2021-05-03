@@ -35,6 +35,7 @@ import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
 import org.apache.sysds.hops.rewrite.dfp.costmodel.CostModelCommon;
 import org.apache.sysds.hops.rewrite.dfp.dp.CostGraph;
 import org.apache.sysds.hops.rewrite.dfp.dp.NodeCostEstimator;
+import org.apache.sysds.runtime.controlprogram.ProgramBlock;
 import org.apache.sysds.runtime.controlprogram.WhileProgramBlock;
 import org.apache.sysds.runtime.lineage.LineageCacheConfig.LineageCachePolicy;
 import org.apache.sysds.runtime.lineage.LineageCacheConfig.ReuseCacheType;
@@ -186,6 +187,9 @@ public class DMLOptions {
 		}
 		if (line.hasOption("core_num")) {
 			CostModelCommon.defaultExecutorCores = Long.parseLong(line.getOptionValue("core_num"));
+		}
+		if (line.hasOption("persist_var")) {
+			ProgramBlock.persistVarible = line.getOptionValue("persist_var");
 		}
 		if (line.hasOption("single_dp")) {
 			CostGraph.parallelDynamicProgramming = false;
@@ -365,6 +369,9 @@ public class DMLOptions {
 		Option coreNumber = OptionBuilder
 				.hasOptionalArg()
 				.create("core_num");
+		Option persistVarible = OptionBuilder
+				.hasOptionalArg()
+				.create("persist_var");
 
 		options.addOption(configOpt);
 		options.addOption(cleanOpt);
@@ -388,6 +395,7 @@ public class DMLOptions {
 		options.addOption(forceBfs);
 		options.addOption(workerNumber);
 		options.addOption(coreNumber);
+		options.addOption(persistVarible);
 
 		// Either a clean(-clean), a file(-f), a script(-s) or help(-help) needs to be specified
 		OptionGroup fileOrScriptOpt = new OptionGroup()
