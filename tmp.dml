@@ -1,0 +1,7 @@
+
+a = read("./out/skewA")
+c = t(a[1:1,])
+
+write(c,"./out/skewC",format="binary")
+
+

@@ -1,0 +1,33 @@
+NAME = 'criteo_0_1'
+
+A = read('in/' + NAME + '_A')
+c = read('in/' + NAME + '_c')
+NCOL = ncol(A)
+x = matrix(1,rows=NCOL, cols=1)
+h = diag(matrix(1,rows=NCOL,cols=1))
+Z = t(A) %*% A
+
+alpha = 0.000000001
+e = -1
+rho = 0.8
+sigma = 0.1
+
+i = 1
+end = FALSE
+while((i<10)&(!end)) {
+    g = 2 * (Z %*% x - c)
+    loss = sum(t(g)%*%g)
+    print('loss=' + toString(loss))
+    i = i + 1
+    if (loss > e) {
+        d =  h %*% g
+        x = x - alpha * d
+        h = h - (h%*%Z%*%d%*%t(d)%*%Z%*%h)/(t(d)%*%Z%*%h%*%Z%*%d) + (d%*%t(d))/(t(d)%*%Z%*%d*2)
+    } 
+    else {
+        end = TRUE
+    }
+}
+
+print("i=" + toString(i))
+write(x, 'out/' + NAME + '_x', format='binary')

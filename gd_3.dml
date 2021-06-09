@@ -1,0 +1,27 @@
+NAME = 'criteo_0_1'
+a = 0.1 ^ 10
+
+#A = read('in/' + NAME + '_A')
+#b = read('in/' + NAME + '_b')
+
+
+A = read("../data/a3.csv",format="csv")
+b = read("../data/b3.csv",format="csv")
+
+
+theta = matrix(1, rows=ncol(A), cols=1)
+
+i = 0
+#while (dist >= E) {
+while (i < 10000) {
+	pre_theta = theta
+    if (i<10) {
+	    theta = theta - a * t(A) %*% A %*% theta + a * t(A) %*% b
+    }
+	delta = theta - pre_theta
+	dist = sum(delta ^ 2)
+	print('dist: ' + dist)
+	i = i + 1
+}
+
+write(theta, 'out/' + NAME + '_theta', format='binary')

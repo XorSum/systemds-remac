@@ -1,0 +1,22 @@
+NAME = 'criteo_0_1'
+
+A = read("../data/a3.csv",format="csv")
+
+
+
+h = rand(rows=ncol(A), cols=ncol(A))
+g = rand(rows=ncol(A), cols=1)
+x = matrix(0.1, rows=1, cols=1)
+
+if(sum(x)>-1) {
+    d = h %*% g * sum(x)
+	x = t(d)%*%t(A)%*%A%*%h%*%t(A)%*%A%*%d
+}
+i = 0
+while(i<1) {
+    d = h %*% g * sum(x)
+	x = t(d)%*%t(A)%*%A%*%h%*%t(A)%*%A%*%d
+    i = i + 1
+}
+
+write(x, 'out/' + NAME + '_x', format='binary')
