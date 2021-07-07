@@ -1,51 +1,51 @@
-<!--
-{% comment %}
-Licensed to the Apache Software Foundation (ASF) under one or more
-contributor license agreements.  See the NOTICE file distributed with
-this work for additional information regarding copyright ownership.
-The ASF licenses this file to you under the Apache License, Version 2.0
-(the "License"); you may not use this file except in compliance with
-the License.  You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+# ReMac
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-{% end comment %}
--->
+ReMac is a distributed matrix computation library developed upon [SystemML 2.0.0](http://systemds.apache.org/docs/2.0.0/index), 
+which eliminates implicit redundant subexpressions to accelerate the execution for iterative algorithms.
 
-# Apache SystemDS
+## Compilation
 
-**Overview:** SystemDS is a versatile system for the end-to-end data science lifecycle from data integration, cleaning,
-and feature engineering, over efficient, local and distributed ML model training, to deployment and serving. To this
-end, we aim to provide a stack of declarative languages with R-like syntax for (1) the different tasks of the data-science
-lifecycle, and (2) users with different expertise. These high-level scripts are compiled into hybrid execution plans of 
-local, in-memory CPU and GPU operations, as well as distributed operations on Apache Spark. In contrast to existing 
-systems - that either provide homogeneous tensors or 2D Datasets - and in order to serve the entire data science lifecycle,
-the underlying data model are DataTensors, i.e., tensors (multi-dimensional arrays) whose first dimension may have a 
-heterogeneous and nested schema.
+Just download the source code and use `mvn clean package` to compile the project.
 
-**Quick Start** [Install, Quick Start and Hello World](https://apache.github.io/systemds/site/install.html)
+## Datasets and Algorithms
 
-**Documentation:** [SystemDS Documentation](https://apache.github.io/systemds/)
+The datasets used in our experiments are described in Section 6.1.
 
-**Python Documentation** [Python SystemDS Documentation](https://apache.github.io/systemds/api/python/index.html)
+The scripts implementing the algorithms used in our experiments are in the folder `dmls`.
 
-**Issue Tracker** [Jira Dashboard](https://issues.apache.org/jira/secure/Dashboard.jspa?selectPageId=12335852)
+## Run 
 
-**Status and Build:** SystemDS is still in pre-alpha status. The original code base was forked from Apache SystemML 1.2 in 
-September 2018. We will continue to support linear algebra  programs over matrices, while replacing the underlying data model 
-and compiler, as well as substantially extending the  supported functionalities. Until the first release, you can build your own 
-snapshot via Apache Maven:
- `mvn clean package -P distribution`.
-  
-[![Build](https://github.com/apache/systemds/workflows/Build/badge.svg?branch=master&event=push)](https://github.com/apache/systemds/actions?query=workflow%3A%22Build%22+branch%3Amaster+event%3Apush)
-[![Documentation](https://github.com/apache/systemds/workflows/Documentation/badge.svg?branch=master&event=push)](https://github.com/apache/systemds/actions?query=workflow%3ADocumentation+branch%3Amaster+event%3Apush)
-[![Component Test](https://github.com/apache/systemds/workflows/Component%20Test/badge.svg?branch=master&event=push)](https://github.com/apache/systemds/actions?query=workflow%3A%22Component+Test%22+branch%3Amaster+event%3Apush)
-[![Application Test](https://github.com/apache/systemds/workflows/Application%20Test/badge.svg?branch=master&event=push)](https://github.com/apache/systemds/actions?query=workflow%3A%22Application+Test%22+branch%3Amaster+event%3Apush)
-[![Function Test](https://github.com/apache/systemds/workflows/Function%20Test/badge.svg?branch=master&event=push)](https://github.com/apache/systemds/actions?query=workflow%3A%22Function+Test%22+branch%3Amaster+event%3Apush)
-[![Python Test](https://github.com/apache/systemds/workflows/Python%20Test/badge.svg?branch=master&event=push)](https://github.com/apache/systemds/actions?query=workflow%3A%22Python+Test%22+branch%3Amaster+event%3Apush)
-[![Federated Python Test](https://github.com/apache/systemds/workflows/Federated%20Python%20Test/badge.svg?branch=master&event=push)](https://github.com/apache/systemds/actions?query=workflow%3A%22Federated+Python+Test%22+branch%3Amaster+event%3Apush)
+### Configuration
+
+The usage of System DS can be found at [SystemML 2.0.0](http://systemds.apache.org/docs/2.0.0/index).
+
+ReMac's default matrix sparsity estimators is metadata estimator, and you can use the mnc estimator via the `-mnc` option.
+
+ReMac's default optimize method is dynamic programming, and you can use the brute force method by `-optimizer force`. 
+
+ReMac's default worker number and core number for the cost estimator is 6 and 24, and you can set the worker number and the core number by `-worker_num  6` and `-core_num 24` .
+
+There are some specific elimination methods built in ReMac as the experiment baseline, which can be used by
+`-optimizer manual -manual_type <manual-type-name>` , and the manual-type-name options are: 
+`dfp`, `dfp-ata`, `dfp-ata-dtd`, `dfp-hata`, `dfp-ata-dtd`, `bfgs`, `bfgs-ata`, `bfgs-ata-dtd`, `gd-ata`, `gd-atb`.
+
+### Examples
+
+Use the dynamic programming optimizer, the mnc sparsity optimizer, to run the dfp algorithm on criteo1 dataset.
+```
+spark-submit --executor-memory 30G --driver-memory 30G  SystemDS.jar -optimizer dp -mnc -explain recompile_runtime -stats -f ./dmls/dfp.dml -nvargs name=criteo1 
+```
+
+Use the brute force optimizer, the metadata sparsity optimizer, to run the bfgs algorithm on criteo1 dataset.
+```
+spark-submit --executor-memory 30G --driver-memory 30G  SystemDS.jar -optimizer dp -explain recompile_runtime -stats -f ./dmls/bfgs.dml -nvargs name=criteo1 
+```
+
+Use the built in `gd-ata` elimination methods, to run the gd algorithm on criteo1 dataset.
+```
+spark-submit --executor-memory 30G --driver-memory 30G  SystemDS.jar -optimizer manual -manual_type gd-ata -explain recompile_runtime -stats -f ./dmls/gd.dml -nvargs name=criteo1 
+```
+
+
+

@@ -9,7 +9,7 @@ i = 0
 while (i < 200) {
 	pre_theta = theta
 	
-	if (i<10) {
+	if (i<200) {
 		theta = theta - a * t(A) %*% A %*% theta + a * t(A) %*% b
 	}
 	
