@@ -9,7 +9,7 @@ Download the source code of [SystemDS 2.0.0](https://github.com/apache/systemds/
 
 Replace the original `src` of SystemDS with the `src` of ReMac.
 
-Follow the [installation guide](https://apache.github.io/systemds/site/install#build-the-project) of SystemDS to build the project.
+Follow the [installation guide](https://systemds.apache.org/docs/2.0.0/site/install#build-the-project) of SystemDS to build the project.
 
 ## Datasets and Algorithms
 
@@ -19,7 +19,8 @@ The scripts implementing the algorithms used in our experiments are in the folde
 
 ## Running ReMac
 
-The running command of ReMac is the same as [that of SystemDS](https://apache.github.io/systemds/site/run).  
+The running command of ReMac is the same as [that of SystemDS](https://systemds.apache.org/docs/2.0.0/site/run#executing-the-dml-script).
+
 In addition, there are optional arguments for ReMac:
 
 * The default estimator of matrix sparsity is metadata-based. To use the MNC estimator, you need to add `-mnc`.
