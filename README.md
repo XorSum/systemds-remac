@@ -1,51 +1,33 @@
-
 # ReMac
 
-ReMac is a distributed matrix computation library developed upon [SystemML 2.0.0](http://systemds.apache.org/docs/2.0.0/index), 
-which eliminates implicit redundant subexpressions to accelerate the execution for iterative algorithms.
+ReMac is a distributed matrix computation library developed based on [SystemDS 2.0.0](http://systemds.apache.org/docs/2.0.0/index), 
+which automatically and adaptively eliminates redundancy in execution plans to improve performance.
 
-## Compilation
+## Installation
 
-Just download the source code and use `mvn clean package` to compile the project.
+Download the source code of [SystemDS 2.0.0](https://github.com/apache/systemds/tree/98b21a4923793e7458dfe13c2bc0a10d15f9fe72) and the folder `src` in this repository.
+
+Replace the original `src` of SystemDS with the `src` of ReMac.
+
+Follow the [installation guide](https://apache.github.io/systemds/site/install#build-the-project) of SystemDS to build the project.
 
 ## Datasets and Algorithms
 
 The datasets used in our experiments are described in Section 6.1.
 
-The scripts implementing the algorithms used in our experiments are in the folder `dmls`.
+The scripts implementing the algorithms used in our experiments are in the folder `scripts`.
 
-## Run 
+## Running ReMac
 
-### Configuration
+The running command of ReMac is the same as [that of SystemDS](https://apache.github.io/systemds/site/run).
 
-The usage of System DS can be found at [SystemML 2.0.0](http://systemds.apache.org/docs/2.0.0/index).
+In addition, there are optional arguments for ReMac:
 
-ReMac's default matrix sparsity estimators is metadata estimator, and you can use the mnc estimator via the `-mnc` option.
+* The default estimator of matrix sparsity is metadata-based. To use the MNC estimator, you need to add `-mnc`.
 
-ReMac's default optimize method is dynamic programming, and you can use the brute force method by `-optimizer force`. 
+* ReMac uses the dynamic programming-based method for adaptive elimination in default. To use the enumeration method, you need to add `-optimizer force`.
 
-ReMac's default worker number and core number for the cost estimator is 6 and 24, and you can set the worker number and the core number by `-worker_num  6` and `-core_num 24` .
-
-There are some specific elimination methods built in ReMac as the experiment baseline, which can be used by
-`-optimizer manual -manual_type <manual-type-name>` , and the manual-type-name options are: 
-`dfp`, `dfp-ata`, `dfp-ata-dtd`, `dfp-hata`, `dfp-ata-dtd`, `bfgs`, `bfgs-ata`, `bfgs-ata-dtd`, `gd-ata`, `gd-atb`.
-
-### Examples
-
-Use the dynamic programming optimizer, the mnc sparsity optimizer, to run the dfp algorithm on criteo1 dataset.
+For example, the command to run the DFP algorithm on the criteo1 dataset with the MNC estimator and the dynamic programming-based method is
 ```
-spark-submit --executor-memory 30G --driver-memory 30G  SystemDS.jar -optimizer dp -mnc -explain recompile_runtime -stats -f ./dmls/dfp.dml -nvargs name=criteo1 
+spark-submit SystemDS.jar -mnc -optimizer dp -stats -f ./scripts/dfp.dml -nvargs name=criteo1 
 ```
-
-Use the brute force optimizer, the metadata sparsity optimizer, to run the bfgs algorithm on criteo1 dataset.
-```
-spark-submit --executor-memory 30G --driver-memory 30G  SystemDS.jar -optimizer dp -explain recompile_runtime -stats -f ./dmls/bfgs.dml -nvargs name=criteo1 
-```
-
-Use the built in `gd-ata` elimination methods, to run the gd algorithm on criteo1 dataset.
-```
-spark-submit --executor-memory 30G --driver-memory 30G  SystemDS.jar -optimizer manual -manual_type gd-ata -explain recompile_runtime -stats -f ./dmls/gd.dml -nvargs name=criteo1 
-```
-
-
-

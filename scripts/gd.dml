@@ -1,23 +1,20 @@
-a = 0.1 ^ 10
-
 A = read('in/' + $name + '_A')
 b = read('in/' + $name + '_b')
+
 theta = matrix(1, rows=ncol(A), cols=1)
+a = 0.1 ^ 10
 
 i = 0
-#while (dist >= E) {
 while (i < 200) {
 	pre_theta = theta
-	
-	if (i<200) {
+	if (i < 200) {
 		theta = theta - a * t(A) %*% A %*% theta + a * t(A) %*% b
 	}
-	
 	delta = theta - pre_theta
 	dist = sum(delta ^ 2)
 	print('dist: ' + dist)
-
 	i = i + 1
 }
 
+print("i=" + toString(i))
 write(theta, 'out/' + $name + '_theta', format='binary')
