@@ -23,7 +23,7 @@ The running command of ReMac is the same as [that of SystemDS](https://systemds.
 
 In addition, there are options to run ReMac:
 
-* The default estimator of matrix sparsity is metadata-based. To use the MNC estimator, you need to add `-mnc` in the command line.
+* The default matrix sparsity estimator is metadata-based. To use the MNC estimator, you need to add `-mnc` in the command line.
 
 * ReMac uses the dynamic programming-based method for adaptive elimination in default. To use the enumeration method, you need to add `-optimizer force` in the command line.
 
