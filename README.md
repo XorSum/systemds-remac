@@ -21,15 +21,15 @@ The scripts implementing the algorithms used in our experiments are in the folde
 
 The running command of ReMac is the same as [that of SystemDS](https://systemds.apache.org/docs/2.0.0/site/run#executing-the-dml-script).
 
-In addition, there are options in running ReMac:
+In addition, there are options in running ReMac.
 
-* The default matrix sparsity estimator is metadata-based. To use the MNC estimator, you need to add `-mnc` in the command line.
+* The default matrix sparsity estimator is MNC. To use the metadata-based estimator, you need to add `-metadata` in the command line.
 
 * ReMac uses the dynamic programming-based method for adaptive elimination in default. To use the enumeration method, you need to add `-optimizer force` in the command line.
 
-  For example, the command to run the DFP algorithm on the criteo1 dataset with the MNC estimator and the enumeration method is
+  For example, the command to run the DFP algorithm on the criteo1 dataset with the metadata-based estimator and the enumeration method is
   ```shell
-  spark-submit SystemDS.jar -mnc -optimizer force -stats -f ./scripts/dfp.dml -nvargs name=criteo1 
+  spark-submit SystemDS.jar -metadata -optimizer force -stats -f ./scripts/dfp.dml -nvargs name=criteo1 
   ```
 
 * In particular, ReMac employs the block-wise search for redundancy. To employ the tree-wise search, you need to use the folder `remac-tree_search/src` to override `src` and rebuild the project.
