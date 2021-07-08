@@ -21,7 +21,7 @@ The scripts implementing the algorithms used in our experiments are in the folde
 
 The running command of ReMac is the same as [that of SystemDS](https://systemds.apache.org/docs/2.0.0/site/run#executing-the-dml-script).
 
-In addition, there are options to run ReMac:
+In addition, there are options in running ReMac:
 
 * The default matrix sparsity estimator is metadata-based. To use the MNC estimator, you need to add `-mnc` in the command line.
 
