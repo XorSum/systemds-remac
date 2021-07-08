@@ -20,7 +20,7 @@ public class CostModelCommon {
 
     public static int defaultBlockSize = 1000;
 
-    public static boolean useMncEstimator = false;
+    public static boolean useMncEstimator = true;
     public static SparsityEstimator metadataEstimator = new EstimatorBasicAvg();
     public static EstimatorMatrixHistogram mncEstimator = new EstimatorMatrixHistogram();
 

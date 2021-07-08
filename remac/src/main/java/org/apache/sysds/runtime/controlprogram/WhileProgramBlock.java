@@ -23,6 +23,8 @@ import java.util.ArrayList;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.spark.SparkConf;
+import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.sysds.api.DMLOptions;
 import org.apache.sysds.conf.ConfigurationManager;
 import org.apache.sysds.hops.DataOp;
@@ -32,6 +34,7 @@ import org.apache.sysds.hops.rewrite.ProgramRewriteStatus;
 import org.apache.sysds.hops.rewrite.ProgramRewriter;
 import org.apache.sysds.hops.rewrite.dfp.RewriteLoopConstant;
 import org.apache.sysds.hops.rewrite.dfp.coordinate.RewriteCoordinate;
+import org.apache.sysds.hops.rewrite.dfp.costmodel.CostModelCommon;
 import org.apache.sysds.hops.rewrite.dfp.dp.CostGraph;
 import org.apache.sysds.hops.rewrite.dfp.dp.NodeCostEstimator;
 import org.apache.sysds.hops.rewrite.dfp.utils.Judge;
@@ -42,6 +45,7 @@ import org.apache.sysds.runtime.DMLRuntimeException;
 import org.apache.sysds.runtime.DMLScriptException;
 import org.apache.sysds.runtime.controlprogram.caching.MatrixObject.UpdateType;
 import org.apache.sysds.runtime.controlprogram.context.ExecutionContext;
+import org.apache.sysds.runtime.controlprogram.context.SparkExecutionContext;
 import org.apache.sysds.runtime.instructions.Instruction;
 import org.apache.sysds.runtime.instructions.cp.BooleanObject;
 import org.apache.sysds.runtime.instructions.cp.Data;
@@ -148,6 +152,32 @@ public class WhileProgramBlock extends ProgramBlock
 		{
 //			System.out.println( "StatementBlock = " +  _sb);
 			try {
+
+				try {
+					JavaSparkContext sparkContext = ((SparkExecutionContext) ec).getSparkContext();
+
+					SparkConf sconf = sparkContext.getConf();
+					int numExecutors = sconf.getInt("spark.executor.instances", -1);
+					int numCoresPerExec = sconf.getInt("spark.executor.cores", -1);
+
+					System.out.println("numExecutors = " + numExecutors + " " + "numCoresPerExec = " + numCoresPerExec);
+
+					if (numExecutors > 0) {
+						CostModelCommon.defaultWorkerNumber = numExecutors;
+					} else {
+						System.out.println("Please set spark.executor.instances");
+						throw new Exception("Please set spark.executor.instances");
+					}
+					if (numCoresPerExec > 0) {
+						CostModelCommon.defaultExecutorCores = numCoresPerExec;
+					} else {
+						System.out.println("Please set spark.executor.cores");
+						throw new Exception("Please set spark.executor.cores");
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+					System.exit(1);
+				}
 
 				long start1 = System.nanoTime();
 

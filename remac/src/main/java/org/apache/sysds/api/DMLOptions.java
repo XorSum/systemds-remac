@@ -194,7 +194,9 @@ public class DMLOptions {
 		if (line.hasOption("single_dp")) {
 			CostGraph.parallelDynamicProgramming = false;
 		}
-		if (line.hasOption("mnc")) {
+		if (line.hasOption("metadata")) {
+			CostModelCommon.useMncEstimator = false;
+		} else {
 			CostModelCommon.useMncEstimator = true;
 		}
 		if (line.hasOption("stop_exec")){
@@ -349,7 +351,7 @@ public class DMLOptions {
 				.hasOptionalArg()
 				.create("manual_type");
 		Option checkMnc = OptionBuilder
-				.create("mnc");
+				.create("metadata");
 		Option cpmmSparsity = OptionBuilder
 				.hasOptionalArg()
 				.create("cpmm_intern_sparsity");
