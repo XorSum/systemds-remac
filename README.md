@@ -27,9 +27,9 @@ In addition, there are options in running ReMac:
 
 * ReMac uses the dynamic programming-based method for adaptive elimination in default. To use the enumeration method, you need to add `-optimizer force` in the command line.
 
-For example, the command to run the DFP algorithm on the criteo1 dataset with the MNC estimator and the dynamic programming-based method is
-```shell
-spark-submit SystemDS.jar -mnc -optimizer dp -stats -f ./scripts/dfp.dml -nvargs name=criteo1 
-```
+  For example, the command to run the DFP algorithm on the criteo1 dataset with the MNC estimator and the dynamic programming-based method is
+  ```shell
+  spark-submit SystemDS.jar -mnc -optimizer dp -stats -f ./scripts/dfp.dml -nvargs name=criteo1 
+  ```
 
 * In particular, ReMac employs the block-wise search for redundancy. To employ the tree-wise search, you need to use the folder `remac-tree_search/src` to override `src` and rebuild the project.
