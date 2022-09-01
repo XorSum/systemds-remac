@@ -14,6 +14,7 @@ Follow the [installation guide](https://systemds.apache.org/docs/2.0.0/site/inst
 ## Datasets and Algorithms
 
 The datasets used in our experiments are described in Section 6.1.
+For a quick start, ...
 
 The scripts implementing the algorithms used in our experiments are in the folder `scripts`.
 
