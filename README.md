@@ -7,6 +7,8 @@ which automatically and adaptively eliminates redundancy in execution plans to i
 
 ## Installation
 
+Deploy [HDFS 3.2](https://hadoop.apache.org/docs/r3.2.2/hadoop-project-dist/hadoop-common/ClusterSetup.html#Installation) and [Spark 3.0.1](https://archive.apache.org/dist/spark/spark-3.0.1/spark-3.0.1-bin-without-hadoop.tgz).
+
 Download the source code of [SystemDS 2.0.0](https://github.com/apache/systemds/tree/98b21a4923793e7458dfe13c2bc0a10d15f9fe72) and the folder `remac/src` in this repository.
 
 Replace the original `src` of SystemDS with the `remac/src` of ReMac.
