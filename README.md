@@ -1,3 +1,5 @@
+This repository contains the source code implementation of the paper "[Redundancy Elimination in Distributed Matrix Computation](https://dl.acm.org/doi/10.1145/3514221.3517877)", which appeared at SIGMOD 2022.
+
 # ReMac
 
 ReMac is a distributed matrix computation library developed based on [SystemDS 2.0.0](http://systemds.apache.org/docs/2.0.0/index), 
@@ -11,12 +13,12 @@ Replace the original `src` of SystemDS with the `remac/src` of ReMac.
 
 Follow the [installation guide](https://systemds.apache.org/docs/2.0.0/site/install#build-the-project) of SystemDS to build the project.
 
-## Datasets and Algorithms
-
-The datasets used in our experiments are described in Section 6.1.
-For a quick start, ...
+## Algorithms and Datasets
 
 The scripts implementing the algorithms used in our experiments are in the folder `scripts`.
+
+The datasets used in our experiments are described in Section 6.1.
+For a quick start, you can use `scripts/data.dml` to generate random datasets that have the same metadata as mentioned in the paper.
 
 ## Running ReMac
 
