@@ -12,8 +12,8 @@ which automatically and adaptively eliminates redundancy in execution plans to i
 * [Setup and start Spark 3.0.1](https://spark.apache.org/docs/3.0.1/spark-standalone.html#installing-spark-standalone-to-a-cluster) on your cluster. For Spark configuration, in the file of `spark-defaults.conf`, you need to specify `spark.executor.cores` and `spark.executor.instance` which is essential to the Optimizer of ReMac.
 
   In addition, we recommend adding:
- * `spark.serializer org.apache.spark.serializer.KryoSerializer` to employ the Kryo serialization library.
- * `spark.driver.extraJavaOptions "-Xss256M"` and `spark.executor.extraJavaOptions "-Xss256M"` in case of java.lang.StackOverflowError.
+  * `spark.serializer org.apache.spark.serializer.KryoSerializer` to employ the Kryo serialization library.
+  * `spark.driver.extraJavaOptions "-Xss256M"` and `spark.executor.extraJavaOptions "-Xss256M"` in case of java.lang.StackOverflowError.
 
 * Download the source code of [SystemDS 2.0.0](https://github.com/apache/systemds/tree/98b21a4923793e7458dfe13c2bc0a10d15f9fe72) and the folder `remac/src` in this repository.
 
