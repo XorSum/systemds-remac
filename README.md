@@ -7,13 +7,16 @@ which automatically and adaptively eliminates redundancy in execution plans to i
 
 ## Installation
 
-Deploy [HDFS 3.2](https://hadoop.apache.org/docs/r3.2.2/hadoop-project-dist/hadoop-common/ClusterSetup.html#Installation) and [Spark 3.0.1](https://archive.apache.org/dist/spark/spark-3.0.1/spark-3.0.1-bin-without-hadoop.tgz).
+* [Setup and start Hadoop 3.2.2](https://hadoop.apache.org/docs/r3.2.2/hadoop-project-dist/hadoop-common/ClusterSetup.html) on your cluster.
 
-Download the source code of [SystemDS 2.0.0](https://github.com/apache/systemds/tree/98b21a4923793e7458dfe13c2bc0a10d15f9fe72) and the folder `remac/src` in this repository.
+* [Setup and start Spark 3.0.1](https://spark.apache.org/docs/3.0.1/spark-standalone.html#installing-spark-standalone-to-a-cluster) on your cluster.  
+  For Spark configuration, in `spark-defaults.conf`, we recommend adding 1) `spark.serializer org.apache.spark.serializer.KryoSerializer` to employ the Kryo serialization library, and 2) `spark.driver.extraJavaOptions "-Xss256M"` as well as `spark.executor.extraJavaOptions "-Xss256M"` in case of java.lang.StackOverflowError.
 
-Replace the original `src` of SystemDS with the `remac/src` of ReMac.
+* Download the source code of [SystemDS 2.0.0](https://github.com/apache/systemds/tree/98b21a4923793e7458dfe13c2bc0a10d15f9fe72) and the folder `remac/src` in this repository.
 
-Follow the [installation guide](https://systemds.apache.org/docs/2.0.0/site/install#build-the-project) of SystemDS to build the project.
+* Replace the original `src` of SystemDS with the `remac/src` of ReMac.
+
+* Follow the [installation guide](https://systemds.apache.org/docs/2.0.0/site/install#build-the-project) of SystemDS to build the project.
 
 ## Algorithms and Datasets
 
