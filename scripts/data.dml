@@ -1,4 +1,4 @@
-# usage: spark-submit SystemDS.jar -f make_data.dml -nvargs NROW=116800000  NCOL=47 SPARSITY=0.6 NAME=criteo1 AOUT=data/a.bin BOUT=data/b.bin COUT=data/c.bin
+# usage: spark-submit SystemDS.jar -f data.dml -nvargs NROW=116800000  NCOL=47 SPARSITY=0.6 NAME=criteo1 AOUT=data/a.bin BOUT=data/b.bin COUT=data/c.bin
 
 a = rand(rows=$NROW, cols=$NCOL, sparsity=$SPARSITY)
 x = rand(rows=$NCOL, cols=1, max=1, min=0, sparsity=1)
