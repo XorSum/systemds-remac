@@ -7,9 +7,11 @@ which automatically and adaptively eliminates redundancy in execution plans to i
 
 ## Installation
 
-* [Setup and start Hadoop 3.2.2](https://hadoop.apache.org/docs/r3.2.2/hadoop-project-dist/hadoop-common/ClusterSetup.html) on your cluster.
+* [Setup and start Hadoop 3.2.2](https://hadoop.apache.org/docs/r3.2.2/hadoop-project-dist/hadoop-common/ClusterSetup.html) on your cluster. The configuration used in the paper is listed in `config/hadoop/`.
 
-* [Setup and start Spark 3.0.1](https://spark.apache.org/docs/3.0.1/spark-standalone.html#installing-spark-standalone-to-a-cluster) on your cluster. For Spark configuration, in the file of `spark-defaults.conf`, you need to specify `spark.executor.cores` and `spark.executor.instance` which is essential to the Optimizer of ReMac.
+* [Setup and start Spark 3.0.1](https://spark.apache.org/docs/3.0.1/spark-standalone.html#installing-spark-standalone-to-a-cluster) on your cluster. The configuration used in the paper is listed in `config/spark/`.
+
+  For Spark configuration, in the file of `spark-defaults.conf`, you need to specify `spark.driver.memory`, `spark.executor.cores` and `spark.executor.instance` which are essential to the Optimizer of ReMac.
 
   In addition, we recommend adding:
   * `spark.serializer org.apache.spark.serializer.KryoSerializer` to employ the Kryo serialization library.
