@@ -7,9 +7,9 @@ which automatically and adaptively eliminates redundancy in execution plans to i
 
 ## Installation
 
-* [Setup and start Hadoop 3.2.2](https://hadoop.apache.org/docs/r3.2.2/hadoop-project-dist/hadoop-common/ClusterSetup.html) on your cluster. (`config/hadoop/` lists the configuration used in the paper.)
+* [Download](https://archive.apache.org/dist/hadoop/common/hadoop-3.2.2/hadoop-3.2.2.tar.gz), [setup and start](https://hadoop.apache.org/docs/r3.2.2/hadoop-project-dist/hadoop-common/ClusterSetup.html) Hadoop 3.2.2 on your cluster. (`config/hadoop/` lists the configuration used in the paper.)
 
-* [Setup and start Spark 3.0.1](https://spark.apache.org/docs/3.0.1/spark-standalone.html#installing-spark-standalone-to-a-cluster) on your cluster. (`config/spark/` lists the configuration used in the paper.)
+* [Download](https://archive.apache.org/dist/spark/spark-3.0.1/spark-3.0.1-bin-without-hadoop.tgz), [setup and start](https://spark.apache.org/docs/3.0.1/spark-standalone.html#installing-spark-standalone-to-a-cluster) Spark 3.0.1 on your cluster. (`config/spark/` lists the configuration used in the paper.)
 
   For [Spark configuration](https://spark.apache.org/docs/3.0.1/configuration.html), in the file of `spark-defaults.conf`, you need to specify `spark.driver.memory`, `spark.executor.cores` and `spark.executor.instance` which are essential to the Optimizer of ReMac.
 
