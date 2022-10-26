@@ -9,7 +9,7 @@ which automatically and adaptively eliminates redundancy in execution plans to i
 
 * Prerequisite: Java 8
 
-* [Download](https://archive.apache.org/dist/hadoop/common/hadoop-3.2.2/hadoop-3.2.2.tar.gz), [setup and start](https://hadoop.apache.org/docs/r3.2.2/hadoop-project-dist/hadoop-common/ClusterSetup.html) Hadoop 3.2.2 on your cluster. (`config/hadoop/` lists the configuration used in the paper.)
+* [Download](https://archive.apache.org/dist/hadoop/common/hadoop-3.2.2/hadoop-3.2.2.tar.gz), [setup and start](https://hadoop.apache.org/docs/r3.2.2/hadoop-project-dist/hadoop-common/ClusterSetup.html) Hadoop 3.2.2 on your cluster. You need to set up HDFS, but it is not necessary to set up YARN. (`config/hadoop/` lists the configuration used in the paper.)
 
 * [Download](https://archive.apache.org/dist/spark/spark-3.0.1/spark-3.0.1-bin-hadoop3.2.tgz), [setup and start](https://spark.apache.org/docs/3.0.1/spark-standalone.html#installing-spark-standalone-to-a-cluster) Spark 3.0.1 on your cluster. (`config/spark/` lists the configuration used in the paper.)
 
