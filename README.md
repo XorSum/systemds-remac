@@ -44,7 +44,7 @@ In addition, there are options in running ReMac.
 
   For example, the command to run the DFP algorithm on the criteo1 dataset with the metadata-based estimator and the enumeration method is
   ```shell
-  spark-submit /path/to/SystemDS.jar -metadata -optimizer force -stats -f ./scripts/dfp.dml -nvargs name=criteo1 
+  spark-submit SystemDS.jar -metadata -optimizer force -stats -f ./scripts/dfp.dml -nvargs name=criteo1 
   ```
   (note: You need to add `spark-submit` to the environment variable `PATH`, and run this command from the `target` directory.)
 
