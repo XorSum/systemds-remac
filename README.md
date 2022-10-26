@@ -9,7 +9,7 @@ which automatically and adaptively eliminates redundancy in execution plans to i
 
 * Prerequisite: Java 8
 
-* [Download](https://archive.apache.org/dist/hadoop/common/hadoop-3.2.2/hadoop-3.2.2.tar.gz), [setup and start](https://hadoop.apache.org/docs/r3.2.2/hadoop-project-dist/hadoop-common/ClusterSetup.html) Hadoop 3.2.2 on your cluster. You need to set up HDFS, but it is not necessary to set up YARN. (`config/hadoop/` lists the configuration used in the paper.)
+* [Download](https://archive.apache.org/dist/hadoop/common/hadoop-3.2.2/hadoop-3.2.2.tar.gz), [setup and start](https://hadoop.apache.org/docs/r3.2.2/hadoop-project-dist/hadoop-common/ClusterSetup.html) Hadoop 3.2.2 on your cluster. You need to set up HDFS, but YARN is not necessary. (`config/hadoop/` lists the configuration used in the paper.)
 
 * [Download](https://archive.apache.org/dist/spark/spark-3.0.1/spark-3.0.1-bin-hadoop3.2.tgz), [setup and start](https://spark.apache.org/docs/3.0.1/spark-standalone.html#installing-spark-standalone-to-a-cluster) Spark 3.0.1 on your cluster. (`config/spark/` lists the configuration used in the paper.)
 
@@ -19,9 +19,9 @@ which automatically and adaptively eliminates redundancy in execution plans to i
   * `spark.serializer org.apache.spark.serializer.KryoSerializer` to employ the Kryo serialization library.
   * `spark.driver.extraJavaOptions "-Xss256M"` and `spark.executor.extraJavaOptions "-Xss256M"` in case of java.lang.StackOverflowError.
 
-* Download the source code of [SystemDS 2.0.0](https://github.com/apache/systemds/archive/98b21a4923793e7458dfe13c2bc0a10d15f9fe72.zip) and the folder `remac/src` in this repository.
+* Download the source code of [SystemDS 2.0.0](https://github.com/apache/systemds/archive/98b21a4923793e7458dfe13c2bc0a10d15f9fe72.zip) as a zip file and not git clone.
 
-* Replace the original `src` of SystemDS with the `remac/src` of ReMac.
+* Replace the original `src` of SystemDS with the `remac/src` in this repository.
 
 * Follow the [installation guide](https://systemds.apache.org/docs/2.0.0/site/install#build-the-project) of SystemDS to build the project. The building artifact `SystemDS.jar` is in the `target` folder.
 
@@ -44,7 +44,8 @@ In addition, there are options in running ReMac.
 
   For example, the command to run the DFP algorithm on the criteo1 dataset with the metadata-based estimator and the enumeration method is
   ```shell
-  $SPARK_HOME/bin/spark-submit SystemDS.jar -metadata -optimizer force -stats -f ./scripts/dfp.dml -nvargs name=criteo1 
+  $SPARK_HOME/bin/spark-submit /path/to/SystemDS.jar -metadata -optimizer force -stats -f ./scripts/dfp.dml -nvargs name=criteo1 
   ```
+  (note: `SystemDS.jar` is in the `target` folder)
 
 * In particular, ReMac employs the block-wise search for redundancy. To employ the tree-wise search, you need to use the folder `remac-tree_search/src` to override `src` and rebuild the project.
