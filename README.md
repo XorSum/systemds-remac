@@ -44,8 +44,8 @@ In addition, there are options in running ReMac.
 
   For example, the command to run the DFP algorithm on the criteo1 dataset with the metadata-based estimator and the enumeration method is
   ```shell
-  $SPARK_HOME/bin/spark-submit /path/to/SystemDS.jar -metadata -optimizer force -stats -f ./scripts/dfp.dml -nvargs name=criteo1 
+  spark-submit /path/to/SystemDS.jar -metadata -optimizer force -stats -f ./scripts/dfp.dml -nvargs name=criteo1 
   ```
-  (note: `SystemDS.jar` is in the `target` folder)
+  (note: You need to add `spark-submit` to the environment variable `PATH`, and run this command from the `target` directory.)
 
 * In particular, ReMac employs the block-wise search for redundancy. To employ the tree-wise search, you need to use the folder `remac-tree_search/src` to override `src` and rebuild the project.
