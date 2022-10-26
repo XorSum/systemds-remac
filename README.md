@@ -23,7 +23,7 @@ which automatically and adaptively eliminates redundancy in execution plans to i
 
 * Replace the original `src` of SystemDS with the `remac/src` of ReMac.
 
-* Follow the [installation guide](https://systemds.apache.org/docs/2.0.0/site/install#build-the-project) of SystemDS to build the project.
+* Follow the [installation guide](https://systemds.apache.org/docs/2.0.0/site/install#build-the-project) of SystemDS to build the project. The building artifact `SystemDS.jar` is in the `target` folder.
 
 ## Algorithms and Datasets
 
