@@ -8,7 +8,7 @@ summ = max(rowSums(one), matrix(1.0, rows=$NROW, cols=1))
 a = one / summ
 b = a %*% x
 c = t(a) %*% b
-'in/' + $name + '_A'
+
 write(a, 'in/' + $NAME + '_A', format="binary")
 write(b, 'in/' + $NAME + '_b', format="binary")
 write(c, 'in/' + $NAME + '_c', format="binary")
